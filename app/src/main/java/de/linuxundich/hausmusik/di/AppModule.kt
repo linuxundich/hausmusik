@@ -13,6 +13,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import de.linuxundich.hausmusik.data.history.HistoryDao
+import de.linuxundich.hausmusik.data.net.LocalNetwork
 import de.linuxundich.hausmusik.data.history.HistoryDatabase
 import de.linuxundich.hausmusik.sonos.SoapClient
 import java.util.concurrent.TimeUnit
@@ -33,9 +34,13 @@ annotation class AppScope
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    /** Speakers answer in milliseconds; long timeouts would only hide a lost connection. */
+    /**
+     * For the speakers (SOAP, events, covers): bound to the local network.
+     * Speakers answer in milliseconds; long timeouts would only hide a lost connection.
+     */
     @Provides @Singleton
-    fun okHttp(): OkHttpClient = OkHttpClient.Builder()
+    fun okHttp(local: LocalNetwork): OkHttpClient = OkHttpClient.Builder()
+        .socketFactory(local.socketFactory)
         .connectTimeout(3, TimeUnit.SECONDS)
         .readTimeout(8, TimeUnit.SECONDS)
         .build()

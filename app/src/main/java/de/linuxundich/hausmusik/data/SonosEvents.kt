@@ -4,6 +4,7 @@
 package de.linuxundich.hausmusik.data
 
 import android.util.Log
+import de.linuxundich.hausmusik.data.net.LocalNetwork
 import de.linuxundich.hausmusik.di.AppScope
 import de.linuxundich.hausmusik.sonos.GenaClient
 import de.linuxundich.hausmusik.sonos.GenaServer
@@ -39,6 +40,7 @@ sealed interface SonosTrigger {
 @Singleton
 class SonosEvents @Inject constructor(
     http: OkHttpClient,
+    private val local: LocalNetwork,
     private val settings: Settings,
     @AppScope private val scope: CoroutineScope,
 ) {
@@ -105,8 +107,9 @@ class SonosEvents @Inject constructor(
     private suspend fun callbackBase(anyPlayer: SonosPlayer): String? {
         settings.debugCallback()?.let { return "http://$it" }
         val port = server.port ?: server.start(0)
-        val local = GenaClient.localAddressFor(anyPlayer.baseUrl) ?: return null
-        return "http://${local.hostAddress}:$port"
+        // Our Wi-Fi address, not whatever route the system picks (it may be mobile data).
+        val address = local.address() ?: GenaClient.localAddressFor(anyPlayer.baseUrl) ?: return null
+        return "http://${address.hostAddress}:$port"
     }
 
     private suspend fun ensureListening() {

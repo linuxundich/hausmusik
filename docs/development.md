@@ -30,6 +30,17 @@ adb shell am start -n de.linuxundich.hausmusik.debug/de.linuxundich.hausmusik.Ma
 An empty `callback` extra switches back to the phone's own address.
 Hardware buttons in the emulator: `adb shell input keyevent KEYCODE_VOLUME_UP`.
 
+## Release build
+
+The release key lives in `~/.android/hausmusik-release.p12`; store file, alias
+and passwords are in `~/.gradle/gradle.properties` (`HAUSMUSIK_*`). Without them
+the release build is unsigned. Back the key up: updates need the same key.
+
+```sh
+./gradlew :app:assembleRelease
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
 ## Real speakers
 
 Allowed for tests, never above 25 % volume. Set the debug cap first:

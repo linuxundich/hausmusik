@@ -145,4 +145,5 @@
     <string name="licenses_intro">Hausmusik is built on these projects. Thank you to everyone who works on them.</string>
     <string name="licenses_apache">Apache License 2.0: apache.org/licenses/LICENSE-2.0. GNU GPL 3.0: gnu.org/licenses/gpl-3.0. The full list is in NOTICE.md in the source code.</string>
     <string name="alarm_time">Alarm time</string>
+    <string name="library_slow">Sonos is still gathering this list. The first time can take up to half a minute.</string>
 </resources>

@@ -15,6 +15,17 @@ All notable changes to Hausmusik are documented here. The format follows
   by checkbox and by dragging a tile, sleep timer, creating and deleting an
   alarm, media output chip. No errors found.
 - The empty alarm list text is centered.
+- Release build signed with its own key (kept outside the repository) and
+  installed on the Pixel; 3.5 MB after R8.
+- Fixed: requests to the speakers could go out over mobile data while Wi-Fi was
+  connected (the Pixel does that when it rates mobile data better), which led to
+  timeouts and a wrong address for the event callbacks. SOAP, covers, events and
+  the SSDP search are now bound to the Wi-Fi or Ethernet network; LRCLIB keeps
+  the default route.
+- Fixed: an S1 player can take half a minute for the first Browse of the
+  favorites and answers nothing else meanwhile. Library calls now wait up to
+  60 s, polls do not count such timeouts as a lost speaker, and the library
+  says that the first load can take a while.
 - Debug builds: a volume cap for tests on real speakers (`-e volcap 25`). It
   keeps every speaker at or below the cap, also when Sonos scales a group
   proportionally, clamps alarm volumes and puts any speaker above it back down.

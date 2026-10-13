@@ -29,11 +29,19 @@ class SoapFault(val action: String, val upnpErrorCode: Int?, message: String) :
  */
 class SoapClient(private val http: OkHttpClient) {
 
+    /**
+     * For library calls: an S1 player may take half a minute for the first
+     * Browse of the favorites (it resolves service items online) and answers
+     * nothing else meanwhile.
+     */
+    private val patient: OkHttpClient by lazy { http.newBuilder().readTimeout(60, java.util.concurrent.TimeUnit.SECONDS).build() }
+
     suspend fun call(
         baseUrl: HttpUrl,
         service: SonosService,
         action: String,
         args: List<Pair<String, Any>> = emptyList(),
+        slow: Boolean = false,
     ): Map<String, String> {
         val body = buildString {
             append("""<?xml version="1.0" encoding="utf-8"?>""")
@@ -51,7 +59,7 @@ class SoapClient(private val http: OkHttpClient) {
         // Reading the body blocks, so the whole exchange stays off the caller's
         // thread (the UI calls this from the main dispatcher).
         return withContext(Dispatchers.IO) {
-            val text = http.newCall(request).await().use { response ->
+            val text = (if (slow) patient else http).newCall(request).await().use { response ->
                 val t = response.body.string()
                 if (!response.isSuccessful) throw fault(action, t, response.code)
                 t

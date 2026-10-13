@@ -23,7 +23,12 @@ object SsdpDiscovery {
     private val group: InetAddress by lazy { InetAddress.getByName("239.255.255.250") }
 
     /** Returns the base URLs (`http://ip:1400/`) of every player that answered. */
-    suspend fun search(timeoutMs: Int = 2500, repeats: Int = 2): Set<HttpUrl> = withContext(Dispatchers.IO) {
+    suspend fun search(
+        timeoutMs: Int = 2500,
+        repeats: Int = 2,
+        /** Lets Android bind the socket to the Wi-Fi network. */
+        configure: (DatagramSocket) -> Unit = {},
+    ): Set<HttpUrl> = withContext(Dispatchers.IO) {
         val message = (
             "M-SEARCH * HTTP/1.1\r\n" +
                 "HOST: 239.255.255.250:1900\r\n" +
@@ -33,6 +38,7 @@ object SsdpDiscovery {
             ).toByteArray()
         val found = linkedSetOf<HttpUrl>()
         DatagramSocket().use { socket ->
+            configure(socket)
             socket.soTimeout = 300
             repeat(repeats) { socket.send(DatagramPacket(message, message.size, group, 1900)) }
             val deadline = System.currentTimeMillis() + timeoutMs

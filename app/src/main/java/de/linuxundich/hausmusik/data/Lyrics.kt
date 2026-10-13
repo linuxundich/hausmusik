@@ -15,6 +15,7 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import javax.net.SocketFactory
 
 data class LyricLine(val timeMs: Long, val text: String)
 
@@ -61,7 +62,11 @@ private data class LrclibTrack(
  */
 @Singleton
 class LyricsRepository(private val http: OkHttpClient, private val base: HttpUrl) {
-    @Inject constructor(http: OkHttpClient) : this(http, "https://lrclib.net/".toHttpUrl())
+    /** LRCLIB is on the internet: unlike the speakers, it takes the default route. */
+    @Inject constructor(http: OkHttpClient) : this(
+        http.newBuilder().socketFactory(SocketFactory.getDefault()).readTimeout(10, java.util.concurrent.TimeUnit.SECONDS).build(),
+        "https://lrclib.net/".toHttpUrl(),
+    )
 
     private val json = Json { ignoreUnknownKeys = true }
     private val cache = ConcurrentHashMap<String, Result<Lyrics?>>()

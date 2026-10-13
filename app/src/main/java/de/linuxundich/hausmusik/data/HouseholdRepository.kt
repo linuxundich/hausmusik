@@ -12,6 +12,7 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.linuxundich.hausmusik.BuildConfig
+import de.linuxundich.hausmusik.data.net.LocalNetwork
 import de.linuxundich.hausmusik.di.AppScope
 import de.linuxundich.hausmusik.sonos.Alarm
 import de.linuxundich.hausmusik.sonos.AlarmClient
@@ -63,6 +64,7 @@ class HouseholdRepository @Inject constructor(
     private val soap: SoapClient,
     private val settings: Settings,
     private val events: SonosEvents,
+    private val local: LocalNetwork,
     @AppScope private val scope: CoroutineScope,
 ) {
     private val _state = MutableStateFlow(Household())
@@ -297,6 +299,11 @@ class HouseholdRepository @Inject constructor(
                 }
             } catch (e: IOException) {
                 Log.w(TAG, "poll failed: ${e.message}")
+                // A slow library request keeps an S1 player busy; that is not a lost speaker.
+                if (e is java.net.SocketTimeoutException && slowRequests.get() > 0) {
+                    withTimeoutOrNull(1000) { wakeUp.receive() }
+                    continue
+                }
                 if (!hasLocalNetwork()) {
                     // Without Wi-Fi a second try will not do better: start over at
                     // once (a fixed address gets one more try there, e.g. over VPN).
@@ -331,7 +338,9 @@ class HouseholdRepository @Inject constructor(
         val lock = wifi?.createMulticastLock("hausmusik-ssdp")?.apply { setReferenceCounted(false) }
         return try {
             lock?.acquire()
-            val found = runCatching { SsdpDiscovery.search() }.getOrDefault(emptySet())
+            // The search goes out on Wi-Fi even if the system prefers mobile data.
+            val net = local.current
+            val found = runCatching { SsdpDiscovery.search { socket -> net?.bindSocket(socket) } }.getOrDefault(emptySet())
             found.firstOrNull { runCatching { client(it).zoneGroups() }.isSuccess }
         } finally {
             lock?.release()
@@ -547,14 +556,21 @@ class HouseholdRepository @Inject constructor(
         return runCatching { c.browse(objectId, start, count) }
     }
 
+    private val slowRequests = java.util.concurrent.atomic.AtomicInteger(0)
+
+    private suspend fun <T> slow(block: suspend () -> T): Result<T> {
+        slowRequests.incrementAndGet()
+        return try { runCatching { block() } } finally { slowRequests.decrementAndGet() }
+    }
+
     suspend fun browseAll(objectId: String, limit: Int = 3000): Result<List<DidlObject>> {
         val c = selectedCoordinator() ?: return Result.failure(IOException("no room"))
-        return runCatching { c.browseAll(objectId, limit = limit) }
+        return slow { c.browseAll(objectId, limit = limit) }
     }
 
     suspend fun search(term: String): Result<LibrarySearch> {
         val c = selectedCoordinator() ?: return Result.failure(IOException("no room"))
-        return runCatching { c.search(term) }
+        return slow { c.search(term) }
     }
 
     fun artUrl(uri: String?): String? = selectedCoordinator()?.absoluteArtUrl(uri)

@@ -149,6 +149,7 @@ class SonosPlayerClient(val baseUrl: HttpUrl, private val soap: SoapClient) {
                 "RequestedCount" to count,
                 "SortCriteria" to "",
             ),
+            slow = true,
         )
         return BrowseResult(
             items = Didl.parse(r["Result"]),
