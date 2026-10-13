@@ -58,6 +58,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.linuxundich.hausmusik.R
@@ -110,8 +112,8 @@ fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, 
             if (isWide()) {
                 // Landscape: tiles on the left, who plays along on the right.
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                    Column(Modifier.weight(1.2f).verticalScroll(rememberScrollState())) {
-                        RoomTiles(household, colors, actions, snackbar)
+                    Column(Modifier.weight(1.6f).verticalScroll(rememberScrollState())) {
+                        RoomTiles(household, colors, actions, snackbar, perRow = 3)
                         Spacer(Modifier.height(16.dp))
                     }
                     Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -146,25 +148,32 @@ private fun PlaysWith(household: Household, colors: CoverColors, actions: RoomAc
     household.allPlayers.filter { it.uuid != selected.id }.forEach { p ->
         val member = selected.group.members.any { it.uuid == p.uuid }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = member,
-                onCheckedChange = { actions.onMembership(p, it) },
-                colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.onAccent, uncheckedColor = colors.content.copy(alpha = 0.6f)),
-            )
-            Text(p.roomName, modifier = Modifier.weight(0.4f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Box and name are one target: tapping the name ticks the box too.
+            Row(
+                Modifier.weight(0.5f).toggleable(value = member, role = Role.Checkbox, onValueChange = { actions.onMembership(p, it) }),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = member,
+                    onCheckedChange = null,
+                    colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.onAccent, uncheckedColor = colors.content.copy(alpha = 0.6f)),
+                    modifier = Modifier.padding(14.dp), // 20 dp box + 28 dp = the 48 dp touch target
+                )
+                Text(p.roomName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             if (member) {
-                VolumeSlider(selected.memberVolumes[p.uuid] ?: 0, colors, Modifier.weight(0.6f)) {
+                VolumeSlider(selected.memberVolumes[p.uuid] ?: 0, colors, Modifier.weight(0.5f), muted = selected.memberMutes[p.uuid] == true) {
                     actions.onMemberVolume(selected.id, p, it)
                 }
             } else {
-                Spacer(Modifier.weight(0.6f))
+                Spacer(Modifier.weight(0.5f))
             }
         }
     }
     if (selected.group.members.size > 1) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 48.dp)) {
-            Text(selected.group.coordinator.roomName, modifier = Modifier.weight(0.4f), maxLines = 1)
-            VolumeSlider(selected.memberVolumes[selected.id] ?: 0, colors, Modifier.weight(0.6f)) {
+            Text(selected.group.coordinator.roomName, modifier = Modifier.weight(0.5f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            VolumeSlider(selected.memberVolumes[selected.id] ?: 0, colors, Modifier.weight(0.5f), muted = selected.memberMutes[selected.id] == true) {
                 actions.onMemberVolume(selected.id, selected.group.coordinator, it)
             }
         }
@@ -172,12 +181,12 @@ private fun PlaysWith(household: Household, colors: CoverColors, actions: RoomAc
 }
 
 /**
- * Every group as a tile, two per row. A tap shows the group on the Stage; a
+ * Every group as a tile, two per row (three in landscape). A tap shows the group on the Stage; a
  * long press lifts the tile, and dropping it on another tile lets those rooms
  * play together.
  */
 @Composable
-private fun RoomTiles(household: Household, colors: CoverColors, actions: RoomActions, snackbar: SnackbarHostState) {
+private fun RoomTiles(household: Household, colors: CoverColors, actions: RoomActions, snackbar: SnackbarHostState, perRow: Int = 2) {
     val bounds = remember { mutableStateMapOf<String, Rect>() }
     var dragged by remember { mutableStateOf<String?>(null) }
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -187,7 +196,7 @@ private fun RoomTiles(household: Household, colors: CoverColors, actions: RoomAc
     val haptics = LocalHapticFeedback.current
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        household.groups.chunked(2).forEach { row ->
+        household.groups.chunked(perRow).forEach { row ->
             // The row of the lifted tile draws above the rows after it.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.zIndex(if (row.any { it.id == dragged }) 1f else 0f)) {
                 row.forEach { g ->
@@ -245,7 +254,7 @@ private fun RoomTiles(household: Household, colors: CoverColors, actions: RoomAc
                             },
                     )
                 }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
+                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
         if (household.groups.size > 1) {
@@ -302,15 +311,22 @@ private fun GroupTile(
                 else -> listOfNotNull(g.nowPlaying.title, g.nowPlaying.artist).joinToString(" · ")
             }
             Text(state, fontSize = 12.sp, color = colors.content.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            VolumeSlider(g.groupVolume, colors, Modifier.fillMaxWidth()) { actions.onGroupVolume(g.id, it) }
+            val allMuted = g.group.members.isNotEmpty() && g.group.members.all { g.memberMutes[it.uuid] == true }
+            VolumeSlider(g.groupVolume, colors, Modifier.fillMaxWidth(), muted = allMuted) { actions.onGroupVolume(g.id, it) }
         }
     }
 }
 
 @Composable
-private fun VolumeSlider(value: Int, colors: CoverColors, modifier: Modifier, onChange: (Int) -> Unit) {
+private fun VolumeSlider(value: Int, colors: CoverColors, modifier: Modifier, muted: Boolean = false, onChange: (Int) -> Unit) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(AppIcons.VolumeDown, null, tint = colors.content.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+        // A muted room shows it here; un-muting stays in the volume sheet, one tap away from the stage.
+        Icon(
+            if (muted) AppIcons.VolumeOff else AppIcons.VolumeDown,
+            contentDescription = if (muted) stringResource(R.string.volume_muted) else null,
+            tint = if (muted) colors.accent else colors.content.copy(alpha = 0.6f),
+            modifier = Modifier.size(16.dp),
+        )
         Slider(
             value = value.toFloat(),
             onValueChange = { onChange(it.toInt()) },

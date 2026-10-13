@@ -8,6 +8,15 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Landscape: the rooms sheet puts three tiles in a row, so a household of
+  three groups fits without scrolling; library, album pages and search move
+  the mini player into the top bar as a small pill and use smaller covers, so
+  almost two rows of albums show; the volume sheet shows rooms side by side;
+  the queue sheet is narrower, so title and length stay close together.
+- A muted room shows a crossed-out speaker on its tile (when all its speakers
+  are muted) and in the "plays with" list. Mute is now read for every group,
+  not only the selected one.
+- The room name in the "plays with" list ticks its box too, not only the box.
 - Linking a service: after two minutes of waiting the dialog says that a
   sign-in is only valid for a few minutes and offers *Start again*, which asks
   the service for a new page and code (opening the old page again did not

@@ -4,6 +4,7 @@
 package de.linuxundich.hausmusik.ui.sound
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -74,7 +75,13 @@ fun VolumeSheet(group: GroupState, colors: CoverColors, actions: VolumeActions, 
                 VolumeSlider(group.groupVolume, colors, stringResource(R.string.volume_all_rooms), actions.onGroup)
                 HorizontalDivider(Modifier.padding(vertical = 8.dp), color = colors.subtle)
             }
-            members.forEach { p ->
+            // Landscape: rooms side by side, two per row, so sliders keep a usable length
+            // and the last one does not end up at the gesture bar.
+            val perRow = if (isWide()) 2 else 1
+            members.chunked(perRow).forEach { row ->
+              Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+               row.forEach { p ->
+                Column(Modifier.weight(1f)) {
                 val muted = group.memberMutes[p.uuid] == true
                 Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(p.roomName, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
@@ -90,6 +97,10 @@ fun VolumeSheet(group: GroupState, colors: CoverColors, actions: VolumeActions, 
                     }
                 }
                 VolumeSlider(group.memberVolumes[p.uuid] ?: 0, colors, p.roomName) { actions.onMember(p, it) }
+                }
+               }
+               repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
+              }
             }
             Spacer(Modifier.height(24.dp))
         }

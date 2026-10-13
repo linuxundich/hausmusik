@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -171,12 +172,14 @@ fun LibraryScreen(
                     }
                 },
                 actions = {
+                    if (wide && group != null) CompactMiniPlayer(group, onMiniPlayer, onPlayPause)
                     if (!searching) IconButton(onClick = { searching = true }) { Icon(Icons.Filled.Search, stringResource(R.string.search)) }
                     else if (query.isNotEmpty()) IconButton(onClick = { vm.setQuery("") }) { Icon(Icons.Filled.Clear, stringResource(R.string.clear)) }
                 },
             )
         },
-        bottomBar = { if (group != null) MiniPlayer(group, onMiniPlayer, onPlayPause) },
+        // Landscape: height is scarce, so the player sits in the top bar instead (CompactMiniPlayer).
+        bottomBar = { if (group != null && !wide) MiniPlayer(group, onMiniPlayer, onPlayPause) },
         // Messages show as the app-wide pill at the top (MessageHost in the root).
     ) { padding ->
         ProvideArtistImages(vm) {
@@ -407,6 +410,7 @@ fun ContainerScreen(
                     if (container.upnpClass == ServiceIds.LINKED_CLASS) {
                         androidx.compose.material3.TextButton(onClick = { vm.unlink(container); onBack() }) { Text(stringResource(R.string.service_unlink)) }
                     }
+                    if (wideBar && group != null) CompactMiniPlayer(group, onMiniPlayer, onPlayPause)
                     if (wideBar && playable) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(end = 8.dp)) {
                             Icon(AppIcons.Play, null, Modifier.size(18.dp))
                             Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
@@ -414,7 +418,7 @@ fun ContainerScreen(
                     },
                 )
             },
-            bottomBar = { if (group != null) MiniPlayer(group, onMiniPlayer, onPlayPause) },
+            bottomBar = { if (group != null && !wideBar) MiniPlayer(group, onMiniPlayer, onPlayPause) },
             // Messages show as the app-wide pill at the top (MessageHost in the root).
         ) { padding ->
             val person = container.upnpClass.contains("person")
@@ -502,7 +506,8 @@ private fun ItemList(
         is ListState.Loaded -> when {
             state.items.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.library_empty)) }
             grid -> LazyVerticalGrid(
-                columns = GridCells.Adaptive(112.dp),
+                // Landscape shows fewer rows; smaller covers fit almost two of them.
+                columns = GridCells.Adaptive(if (isWide()) 96.dp else 112.dp),
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -608,6 +613,28 @@ private fun HistoryList(entries: List<HistoryEntry>, onClear: () -> Unit, onClic
                     }
                     Text(time.format(java.util.Date(e.playedAt)), style = MaterialTheme.typography.bodySmall)
                 }
+            }
+        }
+    }
+}
+
+/** The mini player for the top bar in landscape: cover, title and play button in one pill. */
+@Composable
+private fun CompactMiniPlayer(group: GroupState, onOpen: () -> Unit, onPlayPause: () -> Unit) {
+    Surface(
+        onClick = onOpen, shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = Modifier.padding(horizontal = 4.dp).widthIn(max = 260.dp),
+    ) {
+        Row(Modifier.padding(start = 4.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Cover(group.artUrl, Modifier.size(32.dp), corner = 16.dp,
+                placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant, icon = AppIcons.Speaker)
+            Text(
+                group.nowPlaying?.title ?: stringResource(R.string.nothing_playing),
+                fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false).padding(horizontal = 8.dp),
+            )
+            IconButton(onClick = onPlayPause, enabled = group.nowPlaying != null) {
+                Icon(if (group.isPlaying) AppIcons.Pause else AppIcons.Play, stringResource(if (group.isPlaying) R.string.pause else R.string.play))
             }
         }
     }

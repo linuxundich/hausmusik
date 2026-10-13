@@ -198,4 +198,5 @@
     <string name="details_retry">Erneut versuchen</string>
     <string name="link_restart">Neu starten</string>
     <string name="link_stale">Zeigt die Seite einen Fehler? Eine Anmeldung gilt nur wenige Minuten; starte sie neu.</string>
+    <string name="volume_muted">Stumm</string>
 </resources>

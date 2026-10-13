@@ -120,7 +120,8 @@ fun QueueSheet(
     val container = lerp(colors.backgroundBottom, colors.backgroundTop, 0.35f)
     ModalBottomSheet(
         onDismissRequest = onDismiss, sheetState = sheet, containerColor = container, contentColor = colors.content,
-        sheetMaxWidth = sheetMaxWidth(), dragHandle = sheetDragHandle(),
+        // A list reads badly across 920 dp: title left, length far right.
+        sheetMaxWidth = if (isWide()) 640.dp else sheetMaxWidth(), dragHandle = sheetDragHandle(),
     ) {
         Row(Modifier.padding(start = 16.dp, end = 4.dp, top = if (isWide()) 8.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {

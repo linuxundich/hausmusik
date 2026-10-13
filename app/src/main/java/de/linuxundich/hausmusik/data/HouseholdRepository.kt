@@ -488,6 +488,8 @@ class HouseholdRepository @Inject constructor(
         val position = async { c.positionInfo() }
         val media = async { c.mediaInfo() }
         val groupVolume = async { c.groupVolume() }
+        // Mute for every group, not only the selected one: the room tiles show it.
+        val mutes = gs.group.members.map { m -> async { m.uuid to runCatching { client(m).mute() }.getOrDefault(false) } }
         val now = NowPlaying.from(position.await(), media.await())
         var next = gs.copy(
             transport = transport.await(),
@@ -500,15 +502,13 @@ class HouseholdRepository @Inject constructor(
             val actions = async { c.transportActions() }
             val mode = async { runCatching { c.playMode() }.getOrDefault(PlayMode.Normal) }
             val volumes = gs.group.members.map { m -> async { m.uuid to client(m).volume() } }
-            val mutes = gs.group.members.map { m -> async { m.uuid to runCatching { client(m).mute() }.getOrDefault(false) } }
             val sleep = async { runCatching { c.remainingSleepTimerMs() }.getOrNull()?.takeIf { it > 0 } }
             next = next.copy(
                 actions = actions.await(), playMode = mode.await(), memberVolumes = volumes.awaitAll().toMap(),
-                memberMutes = mutes.awaitAll().toMap(),
                 sleepRemainingMs = sleep.await(),
             )
         }
-        next.copy(groupVolume = groupVolume.await())
+        next.copy(groupVolume = groupVolume.await(), memberMutes = mutes.awaitAll().toMap())
     }
 
     // Volume: the slider moves at once; Sonos gets at most one request per

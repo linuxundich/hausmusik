@@ -200,4 +200,5 @@
     <string name="details_retry">Try again</string>
     <string name="link_restart">Start again</string>
     <string name="link_stale">Does the page show an error? A sign-in is only valid for a few minutes; start again for a new one.</string>
+    <string name="volume_muted">Muted</string>
 </resources>
