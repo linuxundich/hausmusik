@@ -22,7 +22,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -62,17 +65,33 @@ import de.linuxundich.hausmusik.ui.setup.OfflineScreen
 import de.linuxundich.hausmusik.ui.setup.ReconnectingBanner
 import androidx.compose.foundation.layout.statusBarsPadding
 import de.linuxundich.hausmusik.ui.stage.StageActions
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import de.linuxundich.hausmusik.ui.stage.StageScreen
 import de.linuxundich.hausmusik.ui.theme.rememberCoverColors
 
+@Serializable
 private sealed interface Screen {
-    data object Stage : Screen
-    data object Library : Screen
-    data class Container(val item: DidlObject) : Screen
-    data object Alarms : Screen
-    data object Settings : Screen
-    data object Licenses : Screen
+    @Serializable data object Stage : Screen
+    @Serializable data object Library : Screen
+    @Serializable data class Container(val item: DidlObject) : Screen
+    @Serializable data object Alarms : Screen
+    @Serializable data object Settings : Screen
+    @Serializable data object Licenses : Screen
 }
+
+/** The screen stack survives a rotation (and the system ending the app in the background). */
+private val stackSaver = Saver<SnapshotStateList<Screen>, String>(
+    save = { Json.encodeToString(ListSerializer(Screen.serializer()), it.toList()) },
+    restore = { saved -> mutableStateListOf<Screen>().apply { addAll(Json.decodeFromString(ListSerializer(Screen.serializer()), saved)) } },
+)
+
+/** The item waiting for "play now, next or add", kept across a rotation like the dialog. */
+private val pendingSaver = Saver<MutableState<DidlObject?>, String>(
+    save = { state -> state.value?.let { Json.encodeToString(DidlObject.serializer(), it) } },
+    restore = { mutableStateOf(Json.decodeFromString(DidlObject.serializer(), it)) },
+)
 
 @Composable
 fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
@@ -95,15 +114,15 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         return
     }
 
-    val stack = remember { mutableStateListOf<Screen>(Screen.Stage) }
-    var roomsOpen by remember { mutableStateOf(false) }
-    var queueOpen by remember { mutableStateOf(false) }
-    var timerOpen by remember { mutableStateOf(false) }
-    var soundOpen by remember { mutableStateOf(false) }
-    var volumeOpen by remember { mutableStateOf(false) }
-    var showLyrics by remember { mutableStateOf(false) }
+    val stack = rememberSaveable(saver = stackSaver) { mutableStateListOf<Screen>(Screen.Stage) }
+    var roomsOpen by rememberSaveable { mutableStateOf(false) }
+    var queueOpen by rememberSaveable { mutableStateOf(false) }
+    var timerOpen by rememberSaveable { mutableStateOf(false) }
+    var soundOpen by rememberSaveable { mutableStateOf(false) }
+    var volumeOpen by rememberSaveable { mutableStateOf(false) }
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
     var detailsOpen by rememberSaveable { mutableStateOf(false) }
-    var lyricsConsent by remember { mutableStateOf(false) }
+    var lyricsConsent by rememberSaveable { mutableStateOf(false) }
     val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
     val detailsOn by vm.detailsEnabled.collectAsStateWithLifecycle()
     val detailsWikipedia by vm.detailsWikipedia.collectAsStateWithLifecycle()
@@ -118,7 +137,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             value = vm.lyrics(now)
         }
     }
-    var pendingPlay by remember { mutableStateOf<DidlObject?>(null) }
+    var pendingPlay by rememberSaveable(saver = pendingSaver) { mutableStateOf<DidlObject?>(null) }
     BackHandler(stack.size > 1) { stack.removeAt(stack.lastIndex) }
 
     val colors = rememberCoverColors(selected.artUrl)

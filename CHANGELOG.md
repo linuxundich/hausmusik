@@ -8,6 +8,9 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Fixed: turning the phone closed the open sheet, dialog or library page and
+  went back to the stage. The screen stack, the sheets, the play choice and
+  the queue's dialogs now survive a rotation (also five quick turns in a row).
 - Artist and album details: *Details* in the stage menu (or a tap on the
   artist and album line) opens a sheet with facts from MusicBrainz (type,
   country, years, genres, release date) and, if wanted, a short Wikipedia text

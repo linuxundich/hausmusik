@@ -52,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -109,8 +110,8 @@ fun QueueSheet(
     fun edit(op: suspend () -> Result<Unit>) = scope.launch { op(); version++ }
 
     var menuOpen by remember { mutableStateOf(false) }
-    var confirmClear by remember { mutableStateOf(false) }
-    var saveName by remember { mutableStateOf<String?>(null) }
+    var confirmClear by rememberSaveable { mutableStateOf(false) }
+    var saveName by rememberSaveable { mutableStateOf<String?>(null) }
 
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val current = group.nowPlaying?.queuePosition.takeIf { group.nowPlaying?.kind == SourceKind.Queue }

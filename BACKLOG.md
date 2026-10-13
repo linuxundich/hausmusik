@@ -90,3 +90,14 @@ Completed items stay checked.
 - [ ] **P0** README screenshots and a demo video from the fake household
 - [ ] **P0** Release signing, GitHub release with APK
 - [ ] **P2** Check F-Droid
+
+## QA findings 2026-10-13
+
+Full report with screenshots: `captures/qa-2026-10-13/REPORT.md` (git-ignored).
+
+- [x] **P1** F-01 Sheets, dialogs and the library close on rotation: `rememberSaveable` for the sheet flags, the navigation stack and `pendingPlay`
+- [ ] **P1** F-05 Link dialog: after two minutes a hint and *Start again* (new page and code); the 10-minute limit in `awaitLink` stays
+- [ ] **P2** F-02/F-03/F-04 Landscape: room sheet cuts off the third tile, library shows one grid row behind the mini player, search and volume sheet use the width badly
+- [ ] **P2** F-06 Show mute on the room tiles and in the "plays with" list
+- [ ] **P2** F-07 Check the group slider: it averages in muted rooms and scales them too (Sonos' own group volume; mute itself stays). Test on the fake household before deciding
+- [ ] **P3** F-09 The whole row of the "plays with" list should toggle the checkbox
