@@ -24,3 +24,13 @@ All notable changes to Hausmusik are documented here. The format follows
   the SSDP search finds nothing.
 - Adaptive app icon with a monochrome layer for themed icons.
 - English and German.
+- UPnP events (GENA): a small receiver in the app, subscriptions for every
+  player with renewal. Changes made elsewhere show up within a second; polling
+  drops to a safety net (selected room every 10 s, others every 30 s).
+- Media session (Media3) as a remote player: media notification and lock screen
+  controls with cover, progress, play/pause, next and previous, and the hardware
+  volume buttons change the volume of the selected room, also outside the app
+  while the screen is on.
+- Volume changes from the app, the notification and the buttons share one
+  throttle: at most one request per 120 ms, always the latest value.
+- The fake household accepts subscriptions and sends NOTIFY on every change.

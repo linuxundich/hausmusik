@@ -14,9 +14,9 @@ import de.linuxundich.hausmusik.sonos.SoapClient
 import de.linuxundich.hausmusik.sonos.SonosPlayer
 import de.linuxundich.hausmusik.sonos.SonosPlayerClient
 import de.linuxundich.hausmusik.sonos.SsdpDiscovery
-import de.linuxundich.hausmusik.sonos.ZoneGroup
 import de.linuxundich.hausmusik.sonos.playsDirectly
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -25,6 +25,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,6 +51,7 @@ class HouseholdRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val soap: SoapClient,
     private val settings: Settings,
+    private val events: SonosEvents,
     @AppScope private val scope: CoroutineScope,
 ) {
     private val _state = MutableStateFlow(Household())
@@ -57,22 +59,42 @@ class HouseholdRepository @Inject constructor(
 
     private val wakeUp = Channel<Unit>(Channel.CONFLATED)
     private var loop: Job? = null
+    private var triggerJob: Job? = null
+    private val owners = mutableSetOf<String>()
     @Volatile private var entry: HttpUrl? = null
-    private var topology: List<ZoneGroup> = emptyList()
+
+    // Set by events, consumed by the loop.
+    private val pendingGroups = ConcurrentHashMap.newKeySet<String>()
+    @Volatile private var pendingTopology = false
 
     fun client(player: SonosPlayer) = SonosPlayerClient(player.baseUrl, soap)
     private fun client(url: HttpUrl) = SonosPlayerClient(url, soap)
 
-    /** Starts polling. Called when the UI becomes visible. */
-    fun start() {
+    /**
+     * Keeps the household up to date while at least one owner needs it: the
+     * visible activity, or the playback service while music plays.
+     */
+    @Synchronized
+    fun acquire(owner: String) {
+        owners += owner
         if (loop?.isActive == true) return
         loop = scope.launch { run() }
+        triggerJob = scope.launch { events.triggers.collect(::onTrigger) }
     }
 
-    fun stop() {
+    @Synchronized
+    fun release(owner: String) {
+        owners -= owner
+        if (owners.isNotEmpty()) return
         loop?.cancel()
+        triggerJob?.cancel()
         loop = null
+        triggerJob = null
+        scope.launch { events.stop() }
     }
+
+    @Synchronized
+    fun isOwnedBy(owner: String): Boolean = owner in owners
 
     /** Polls again right away, e.g. after a command or "search again". */
     fun refreshNow() {
@@ -82,14 +104,28 @@ class HouseholdRepository @Inject constructor(
     /** Uses [host] from now on (or SSDP again if null) and forgets the current household. */
     suspend fun connectTo(host: String?) {
         settings.setManualHost(host)
+        events.stop()
         entry = null
         _state.value = Household()
         refreshNow()
     }
 
+    private fun onTrigger(t: SonosTrigger) {
+        when (t) {
+            SonosTrigger.Topology -> pendingTopology = true
+            is SonosTrigger.Transport, is SonosTrigger.Volume -> {
+                val uuid = if (t is SonosTrigger.Transport) t.playerUuid else (t as SonosTrigger.Volume).playerUuid
+                _state.value.groups.firstOrNull { g -> g.group.members.any { it.uuid == uuid } }?.let { pendingGroups += it.id }
+            }
+        }
+        refreshNow()
+    }
+
     private suspend fun run() {
-        var tick = 0
         var failures = 0
+        var lastTopology = 0L
+        var lastSelected = 0L
+        var lastOthers = 0L
         while (true) {
             if (entry == null) {
                 _state.update { it.copy(connection = Connection.Searching) }
@@ -99,11 +135,31 @@ class HouseholdRepository @Inject constructor(
                     wakeUp.receive()
                     continue
                 }
-                tick = 0
+                lastTopology = 0L
+                lastOthers = 0L
             }
+            // With events, polling is only a safety net; the progress bar extrapolates.
+            val evented = events.active
+            val now = System.currentTimeMillis()
             try {
-                if (tick % 5 == 0) refreshTopology()
-                refreshGroups(includeOthers = tick % 3 == 0)
+                if (pendingTopology || now - lastTopology > (if (evented) 60_000 else 5_000)) {
+                    pendingTopology = false
+                    refreshTopology()
+                    lastTopology = now
+                    scope.launch { runCatching { events.sync(_state.value.allPlayers) } }
+                }
+                val ids = mutableSetOf<String>()
+                ids += pendingGroups.toList().also { pendingGroups.removeAll(it.toSet()) }
+                val selectedId = _state.value.selected?.id
+                if (selectedId != null && now - lastSelected > (if (evented) 10_000 else 1_000)) {
+                    ids += selectedId
+                    lastSelected = now
+                }
+                if (now - lastOthers > (if (evented) 30_000 else 3_000)) {
+                    ids += _state.value.groups.map { it.id }
+                    lastOthers = now
+                }
+                if (ids.isNotEmpty()) refreshGroups(ids)
                 failures = 0
                 _state.update { it.copy(connection = Connection.Connected) }
             } catch (e: IOException) {
@@ -114,7 +170,6 @@ class HouseholdRepository @Inject constructor(
                     continue
                 }
             }
-            tick++
             withTimeoutOrNull(1000) { wakeUp.receive() }
         }
     }
@@ -138,7 +193,6 @@ class HouseholdRepository @Inject constructor(
 
     private suspend fun refreshTopology() {
         val groups = client(entry!!).zoneGroups()
-        topology = groups
         val lastRoom = settings.lastRoom()
         _state.update { old ->
             val byId = old.groups.associateBy { it.id }
@@ -148,12 +202,14 @@ class HouseholdRepository @Inject constructor(
                 ?: groups.firstOrNull()?.coordinator?.uuid
             old.copy(groups = newGroups, selectedId = selected)
         }
+        // New groups have no state yet.
+        pendingGroups += _state.value.groups.filter { it.nowPlaying == null && it.positionReadAt == 0L }.map { it.id }
     }
 
-    private suspend fun refreshGroups(includeOthers: Boolean) = coroutineScope {
+    private suspend fun refreshGroups(ids: Set<String>) = coroutineScope {
         val current = _state.value
         val selectedId = current.selected?.id
-        val jobs = current.groups.filter { includeOthers || it.id == selectedId }.map { gs ->
+        val jobs = current.groups.filter { it.id in ids }.map { gs ->
             async {
                 runCatching { readGroup(gs, full = gs.id == selectedId) }
                     .onFailure { if (gs.id == selectedId) throw it }
@@ -161,7 +217,13 @@ class HouseholdRepository @Inject constructor(
             }
         }
         val updated = jobs.awaitAll().filterNotNull().associateBy { it.id }
-        _state.update { s -> s.copy(groups = s.groups.map { updated[it.id]?.copy(group = it.group) ?: it }) }
+        _state.update { s ->
+            s.copy(groups = s.groups.map { g ->
+                val u = updated[g.id] ?: return@map g
+                // A volume the user is dragging right now wins over what the speaker reported a moment ago.
+                if (volumeInFlight.containsKey(g.id)) u.copy(group = g.group, groupVolume = g.groupVolume) else u.copy(group = g.group)
+            })
+        }
     }
 
     private suspend fun readGroup(gs: GroupState, full: Boolean): GroupState = coroutineScope {
@@ -169,6 +231,7 @@ class HouseholdRepository @Inject constructor(
         val transport = async { c.transportState() }
         val position = async { c.positionInfo() }
         val media = async { c.mediaInfo() }
+        val groupVolume = async { c.groupVolume() }
         val now = NowPlaying.from(position.await(), media.await())
         var next = gs.copy(
             transport = transport.await(),
@@ -177,7 +240,6 @@ class HouseholdRepository @Inject constructor(
             queueLength = media.await().numberOfTracks,
             positionReadAt = System.currentTimeMillis(),
         )
-        val groupVolume = async { c.groupVolume() }
         if (full) {
             val actions = async { c.transportActions() }
             val mode = async { runCatching { c.playMode() }.getOrDefault(PlayMode.Normal) }
@@ -185,6 +247,51 @@ class HouseholdRepository @Inject constructor(
             next = next.copy(actions = actions.await(), playMode = mode.await(), memberVolumes = volumes.awaitAll().toMap())
         }
         next.copy(groupVolume = groupVolume.await())
+    }
+
+    // Volume: the slider moves at once; Sonos gets at most one request per
+    // 120 ms per target, always the latest value (learned in Gnomos).
+
+    private val volumeInFlight = ConcurrentHashMap<String, Int>()
+    private val volumeSenders = ConcurrentHashMap<String, Job>()
+
+    private fun throttledVolume(key: String, value: Int, send: suspend (Int) -> Unit) {
+        volumeInFlight[key] = value
+        if (volumeSenders[key]?.isActive == true) return
+        volumeSenders[key] = scope.launch {
+            var sent: Int? = null
+            while (true) {
+                val v = volumeInFlight[key] ?: break
+                if (v == sent) break
+                runCatching { send(v) }
+                sent = v
+                delay(120)
+            }
+            volumeInFlight.remove(key)
+            pendingGroups += key.substringBefore('/')
+            refreshNow()
+        }
+    }
+
+    fun requestGroupVolume(groupId: String, volume: Int) {
+        val v = volume.coerceIn(0, 100)
+        _state.update { s -> s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(groupVolume = v) else it }) }
+        val coordinator = _state.value.groups.firstOrNull { it.id == groupId }?.group?.coordinator ?: return
+        throttledVolume(groupId, v) { client(coordinator).setGroupVolume(it) }
+    }
+
+    fun requestMemberVolume(groupId: String, player: SonosPlayer, volume: Int) {
+        val v = volume.coerceIn(0, 100)
+        _state.update { s ->
+            s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(memberVolumes = it.memberVolumes + (player.uuid to v)) else it })
+        }
+        throttledVolume("$groupId/${player.uuid}", v) { client(player).setVolume(it) }
+    }
+
+    /** For the hardware volume buttons: one step up or down for the selected group. */
+    fun adjustSelectedVolume(delta: Int) {
+        val g = _state.value.selected ?: return
+        requestGroupVolume(g.id, g.groupVolume + delta)
     }
 
     // Commands
@@ -208,28 +315,14 @@ class HouseholdRepository @Inject constructor(
         return runCatching { block(client(g.group.coordinator)) }.also { refreshNow() }
     }
 
-    fun setGroupVolumeOptimistic(groupId: String, volume: Int) =
-        _state.update { s -> s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(groupVolume = volume) else it }) }
-
-    fun setMemberVolumeOptimistic(groupId: String, uuid: String, volume: Int) =
-        _state.update { s ->
-            s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(memberVolumes = it.memberVolumes + (uuid to volume)) else it })
-        }
-
-    suspend fun setMemberVolume(player: SonosPlayer, volume: Int) = runCatching { client(player).setVolume(volume) }
-
     /** Lets [player] play along with the group [groupId], or leave it. */
     suspend fun setMembership(player: SonosPlayer, groupId: String, member: Boolean): Result<Unit> =
         runCatching {
             if (member) client(player).joinGroup(groupId) else client(player).leaveGroup()
         }.also {
-            refreshTopologyNow()
+            pendingTopology = true
+            refreshNow()
         }
-
-    private suspend fun refreshTopologyNow() {
-        runCatching { refreshTopology() }
-        refreshNow()
-    }
 
     // Content
 

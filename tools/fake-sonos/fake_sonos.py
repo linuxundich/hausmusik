@@ -308,6 +308,33 @@ def act(p, service, action, a):
     raise Fault(401)
 
 
+SUBSCRIPTIONS = {}  # sid -> (callback url, port, event path)
+
+
+def notify_all():
+    """Sends a NOTIFY to every subscriber; the app only uses them as triggers."""
+    subs = list(SUBSCRIPTIONS.items())
+
+    def send():
+        for sid, (url, port, path) in subs:
+            body = ('<e:propertyset xmlns:e="urn:schemas-upnp-org:event-1-0"><e:property>'
+                    '<LastChange>&lt;Event/&gt;</LastChange></e:property></e:propertyset>').encode()
+            m = re.match(r"http://([^/:]+):(\d+)(/.*)?", url)
+            if not m:
+                continue
+            try:
+                import http.client
+                c = http.client.HTTPConnection(m.group(1), int(m.group(2)), timeout=2)
+                c.request("NOTIFY", m.group(3) or "/", body, {"CONTENT-TYPE": 'text/xml; charset="utf-8"', "NT": "upnp:event",
+                                                             "NTS": "upnp:propchange", "SID": sid, "SEQ": "0"})
+                c.getresponse().read()
+                c.close()
+            except OSError as e:
+                if ARGS.verbose:
+                    print("notify failed", url, e)
+    threading.Thread(target=send, daemon=True).start()
+
+
 class Fault(Exception):
     def __init__(self, code): self.code = code
 
@@ -373,13 +400,23 @@ class Handler(BaseHTTPRequestHandler):
         self.send(404, "")
 
     def do_SUBSCRIBE(self):
+        sid = self.headers.get("SID")
+        cb = re.search(r"<([^>]+)>", self.headers.get("CALLBACK", ""))
+        if not sid:
+            sid = f"uuid:{uuid.uuid4()}"
+            if cb:
+                SUBSCRIPTIONS[sid] = (cb.group(1), self.server.server_address[1], self.path)
+                notify_all()  # Sonos sends the initial state right away
+        elif sid not in SUBSCRIPTIONS:
+            return self.send(412, "")
         self.send_response(200)
-        self.send_header("SID", f"uuid:{uuid.uuid4()}")
+        self.send_header("SID", sid)
         self.send_header("TIMEOUT", "Second-3600")
         self.send_header("Content-Length", "0")
         self.end_headers()
 
     def do_UNSUBSCRIBE(self):
+        SUBSCRIPTIONS.pop(self.headers.get("SID"), None)
         self.send(200, "")
 
     def do_POST(self):
@@ -398,6 +435,8 @@ class Handler(BaseHTTPRequestHandler):
                                   '<faultcode>s:Client</faultcode><faultstring>UPnPError</faultstring><detail>'
                                   f'<UPnPError xmlns="urn:schemas-upnp-org:control-1-0"><errorCode>{f.code}</errorCode></UPnPError>'
                                   '</detail></s:Fault></s:Body></s:Envelope>')
+        if not re.match(r"(Get|Browse|List)", action):
+            notify_all()
         fields = "".join(f"<{k}>{html.escape(str(v), quote=False)}</{k}>" for k, v in out.items())
         self.send(200, '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
                        f'<s:Body><u:{action}Response xmlns:u="urn:schemas-upnp-org:service:{service}:1">{fields}</u:{action}Response></s:Body></s:Envelope>')

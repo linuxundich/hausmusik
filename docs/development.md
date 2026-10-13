@@ -19,6 +19,17 @@ adb shell am start -n de.linuxundich.hausmusik.debug/de.linuxundich.hausmusik.Ma
 The `host` extra only works in debug builds and can be sent while the app runs.
 Grant the local network permission once in the app.
 
+Events: the fake household runs on the host and cannot reach the emulator
+directly. Forward a port and tell the app to announce it:
+
+```sh
+adb forward tcp:3400 tcp:3400
+adb shell am start -n de.linuxundich.hausmusik.debug/de.linuxundich.hausmusik.MainActivity -e host 10.0.2.2:1401 -e callback 127.0.0.1:3400
+```
+
+An empty `callback` extra switches back to the phone's own address.
+Hardware buttons in the emulator: `adb shell input keyevent KEYCODE_VOLUME_UP`.
+
 ## Recording fixtures
 
 `tools/record-fixtures.py <ip> [ip…]` sends only Get/Browse/List actions to real

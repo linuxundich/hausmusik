@@ -15,9 +15,12 @@ Completed items stay checked.
 - [x] **P0** Rooms, play/pause, next/previous, seek, group and member volume
 - [x] **P0** Stage with cover colors
 - [x] **P0** Local network permission (Android 17) and manual address
-- [ ] **P0** GENA events instead of one-second polling (embedded HTTP receiver, renewals)
-- [ ] **P0** Media3 session as a remote player: notification, lock screen, hardware volume buttons
-- [ ] **P0** Check which foreground service type Android 17 accepts for a remote player
+- [x] **P0** GENA events instead of one-second polling (embedded HTTP receiver, renewals)
+- [x] **P0** Media3 session as a remote player: notification, lock screen, hardware volume buttons
+- [x] **P0** Check which foreground service type Android 17 accepts for a remote player (`mediaPlayback` works)
+- [ ] **P1** Output switcher shows "This phone" instead of the room: needs a MediaRouter2 routing controller
+- [ ] **P1** Re-subscribe after a Wi-Fi change and after Doze (test on the real phone)
+- [ ] **P1** Test lock screen controls on a device with a lock screen
 - [ ] **P1** Remember the last room per Wi-Fi network
 
 ## Phase 2: Finding music

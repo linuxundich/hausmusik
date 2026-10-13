@@ -24,6 +24,18 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
         if (host.isNullOrBlank()) it.remove(manualHostKey) else it[manualHostKey] = host.trim()
     }
 
+    private val debugCallbackKey = stringPreferencesKey("debug_callback")
+
+    /**
+     * Debug builds only: "host:port" the speakers should send events to, e.g.
+     * "127.0.0.1:3400" for the fake household with `adb forward tcp:3400 tcp:3400`.
+     */
+    suspend fun debugCallback(): String? = store.data.first()[debugCallbackKey]
+
+    suspend fun setDebugCallback(value: String?) = store.edit {
+        if (value.isNullOrBlank()) it.remove(debugCallbackKey) else it[debugCallbackKey] = value.trim()
+    }
+
     /** The room the app showed last; any member UUID of the group. */
     suspend fun lastRoom(): String? = store.data.first()[lastGroupKey]
 

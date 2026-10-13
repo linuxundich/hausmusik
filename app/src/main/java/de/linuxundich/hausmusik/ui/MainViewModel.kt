@@ -13,15 +13,8 @@ import de.linuxundich.hausmusik.sonos.RepeatMode
 import de.linuxundich.hausmusik.sonos.SonosPlayer
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-
-/** A volume change: [uuid] null means the whole group. */
-private data class VolumeRequest(val groupId: String, val uuid: String?, val player: SonosPlayer?, val volume: Int)
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
@@ -32,20 +25,6 @@ class MainViewModel @Inject constructor(
 
     private val _messages = Channel<Int>(Channel.BUFFERED)
     val messages = _messages.receiveAsFlow()
-
-    private val volume = MutableStateFlow<VolumeRequest?>(null)
-
-    init {
-        // The slider moves at once; Sonos gets at most one request per 120 ms,
-        // always the latest value (Gnomos learned this the hard way).
-        viewModelScope.launch {
-            volume.filterNotNull().conflate().collect { r ->
-                if (r.player == null) repo.commandFor(r.groupId) { it.setGroupVolume(r.volume) }
-                else repo.setMemberVolume(r.player, r.volume)
-                delay(120)
-            }
-        }
-    }
 
     private fun run(@StringRes failure: Int = R.string.error_command, block: suspend () -> Result<Unit>) {
         viewModelScope.launch { block().onFailure { _messages.send(failure) } }
@@ -72,15 +51,9 @@ class MainViewModel @Inject constructor(
 
     fun seek(ms: Long) = run { repo.command { it.seekTo(ms) } }
 
-    fun setGroupVolume(groupId: String, v: Int) {
-        repo.setGroupVolumeOptimistic(groupId, v)
-        volume.value = VolumeRequest(groupId, null, null, v)
-    }
+    fun setGroupVolume(groupId: String, v: Int) = repo.requestGroupVolume(groupId, v)
 
-    fun setMemberVolume(groupId: String, player: SonosPlayer, v: Int) {
-        repo.setMemberVolumeOptimistic(groupId, player.uuid, v)
-        volume.value = VolumeRequest(groupId, player.uuid, player, v)
-    }
+    fun setMemberVolume(groupId: String, player: SonosPlayer, v: Int) = repo.requestMemberVolume(groupId, player, v)
 
     fun select(groupId: String) = repo.select(groupId)
 

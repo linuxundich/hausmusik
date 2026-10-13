@@ -13,7 +13,7 @@ first-generation (S1) players, because the author's household runs on them.
 | Interface | Decision |
 |---|---|
 | UPnP/SOAP on port 1400 | **Used.** Works on S1 and S2. Playback, queue, groups, library, favorites, alarms. |
-| GENA events (UPnP eventing) | Planned for phase 1. Needs an HTTP receiver in the app and subscription renewals. |
+| GENA events (UPnP eventing) | **Used** as triggers: a NOTIFY says *that* something changed, the app then reads the state with SOAP. |
 | Local WebSocket API on port 1443 | Not used. Undocumented, fixed API key, S2 only. Maybe later as a second path. |
 | Sonos Cloud Control API | Not used. Needs a Sonos account, an own server and a client secret. |
 | Music service APIs (SMAPI) | Not used. Sign-in only works through Sonos. Services are played through existing favorites and playlists. |
@@ -44,9 +44,34 @@ DOM, because it is the only XML API available on both the JVM and Android.
 
 ## State
 
-`HouseholdRepository` polls while the app is visible: the selected group once a
-second, topology every five seconds, other groups every three seconds. GENA
-events replace most of this in phase 1.
+`HouseholdRepository` keeps the household up to date while an owner needs it:
+the visible activity or the playback service. `SonosEvents` subscribes to
+AVTransport and RenderingControl of every player and to ZoneGroupTopology of
+one, renews the subscriptions and turns each NOTIFY into a trigger. The
+repository then reads the affected group again. Events are deliberately not
+parsed: GetPositionInfo stays the source of truth.
+
+Polling remains as a safety net: with working subscriptions the selected group
+every 10 s and the rest every 30 s; without them once a second and every three
+seconds, as before. The progress bar extrapolates between reads.
+
+## Media session
+
+`PlaybackService` (Media3 `MediaSessionService`) hosts `SonosSessionPlayer`, a
+`SimpleBasePlayer` with `DeviceInfo.PLAYBACK_TYPE_REMOTE` and a volume range of
+0 to 100. Android builds the media notification and the lock screen controls
+from it and sends the hardware volume buttons to it. Media3 only skips when the
+playlist has a neighbour, so the playlist is a window of up to three items
+around the current track; the neighbours stand for next() and previous().
+
+The service runs in the foreground (type `mediaPlayback`) while music plays and
+ends itself after ten minutes without playback when the app is not visible.
+With the screen off, Android does not route the volume buttons to remote
+sessions; this is a platform limit.
+
+Volume from the Stage, the rooms sheet, the notification and the buttons goes
+through one throttle in the repository: at most one request per 120 ms per
+target, always the latest value.
 
 ## Toolchain (checked 2026-10-13)
 
