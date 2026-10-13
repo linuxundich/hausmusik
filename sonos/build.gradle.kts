@@ -5,6 +5,7 @@
 plugins {
     `java-library`
     id("org.jetbrains.kotlin.jvm")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 java {
@@ -21,6 +22,7 @@ kotlin {
 dependencies {
     api(libs.kotlinx.coroutines.core)
     api(libs.okhttp)
+    api(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

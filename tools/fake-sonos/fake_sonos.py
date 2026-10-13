@@ -347,6 +347,7 @@ def act(p, service, action, a):
         return {}
     if action == "SaveQueue":
         SAVED.append((a["Title"], c.queue[:]))
+        VERSIONS["SavedQueuesUpdateID"] += 1
         return {"AssignedObjectID": f"SQ:{len(SAVED)}"}
     if action == "ConfigureSleepTimer":
         d = a.get("NewSleepTimerDuration", "")
@@ -399,6 +400,16 @@ def act(p, service, action, a):
 
 
 SUBSCRIPTIONS = {}  # sid -> (callback url, port, event path)
+VERSIONS = {"ShareListUpdateID": 1, "FavoritesUpdateID": 1, "SavedQueuesUpdateID": 1, "RadioFavoritesUpdateID": 1}
+
+
+def event_body(path):
+    """ContentDirectory events carry the list versions; the rest are plain triggers."""
+    if "ContentDirectory" in path:
+        props = "".join(f"<e:property><{k}>RINCON_FAKE000000101400,{v}</{k}></e:property>" for k, v in VERSIONS.items())
+        return f'<e:propertyset xmlns:e="urn:schemas-upnp-org:event-1-0">{props}</e:propertyset>'.encode()
+    return ('<e:propertyset xmlns:e="urn:schemas-upnp-org:event-1-0"><e:property>'
+            '<LastChange>&lt;Event/&gt;</LastChange></e:property></e:propertyset>').encode()
 
 
 def notify_all():
@@ -407,8 +418,7 @@ def notify_all():
 
     def send():
         for sid, (url, port, path) in subs:
-            body = ('<e:propertyset xmlns:e="urn:schemas-upnp-org:event-1-0"><e:property>'
-                    '<LastChange>&lt;Event/&gt;</LastChange></e:property></e:propertyset>').encode()
+            body = event_body(path)
             m = re.match(r"http://([^/:]+):(\d+)(/.*)?", url)
             if not m:
                 continue

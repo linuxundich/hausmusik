@@ -4,10 +4,13 @@
 
 package de.linuxundich.hausmusik.sonos
 
+import kotlinx.serialization.Serializable
+
 /**
  * One entry of a DIDL-Lite document: a track, an album, a favorite, a radio
  * station. Sonos wraps everything it describes in DIDL-Lite.
  */
+@Serializable
 data class DidlObject(
     val id: String,
     val parentId: String,

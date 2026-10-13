@@ -168,6 +168,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
                 onLicenses = { stack.add(Screen.Licenses) },
+                onClearCache = vm::clearListCache,
                 onBack = { stack.removeAt(stack.lastIndex) },
             )
             Screen.Licenses -> LicensesScreen(onBack = { stack.removeAt(stack.lastIndex) })

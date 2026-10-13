@@ -46,6 +46,11 @@ class MainViewModel @Inject constructor(
             { LyricsUi.Failed },
         )
 
+    fun clearListCache() = viewModelScope.launch {
+        repo.clearListCache()
+        _messages.send(R.string.cache_cleared)
+    }
+
     fun connectTo(host: String?) = viewModelScope.launch { repo.connectTo(host?.ifBlank { null }) }
 
 

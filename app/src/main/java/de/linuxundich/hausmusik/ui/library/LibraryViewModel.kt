@@ -91,14 +91,43 @@ class LibraryViewModel @Inject constructor(
         if (tab != LibraryTab.History && _lists.value[tab.objectId] !is ListState.Loaded) load(tab.objectId)
     }
 
-    /** Loads any container: a tab, an album, an artist, a genre. Results stay cached for the session. */
+    /**
+     * Loads any container: a tab, an album, an artist, a genre. A stored copy
+     * shows at once; Sonos is only asked again when the list's version (music
+     * share, favorites, playlists, radio) differs from the stored one.
+     */
     fun load(objectId: String, force: Boolean = false) {
         if (!force && _lists.value[objectId] is ListState.Loaded) return
-        _lists.update { it + (objectId to ListState.Loading) }
         viewModelScope.launch {
-            val result = repo.browseAll(objectId).onFailure { android.util.Log.w("Library", "browse $objectId failed", it) }
-            _lists.update { it + (objectId to result.fold({ ListState.Loaded(it) }, { ListState.Error })) }
+            val cached = if (force) null else repo.cachedList(objectId)
+            if (cached != null) _lists.update { it + (objectId to ListState.Loaded(cached.items)) }
+            if (cached?.current == true) return@launch
+            if (cached == null) _lists.update { it + (objectId to ListState.Loading) }
+            val result = repo.loadAndCache(objectId).onFailure { android.util.Log.w("Library", "browse $objectId failed", it) }
+            result.onSuccess { items -> _lists.update { it + (objectId to ListState.Loaded(items)) } }
+                .onFailure { if (cached == null) _lists.update { it + (objectId to ListState.Error) } }
         }
+    }
+
+    init {
+        // A list changed elsewhere (new favorite, re-indexed share): reload what is loaded.
+        viewModelScope.launch {
+            var last = repo.libraryVersions.value
+            repo.libraryVersions.collect { now ->
+                val changed = now.keys.filter { last.containsKey(it) && last[it] != now[it] }
+                last = now
+                if (changed.isEmpty()) return@collect
+                _lists.value.keys.filter { id -> changed.any { key -> affects(key, id) } }.forEach { load(it, force = true) }
+            }
+        }
+    }
+
+    private fun affects(key: String, objectId: String) = when (key) {
+        "ShareListUpdateID" -> objectId.startsWith("A:")
+        "FavoritesUpdateID" -> objectId.startsWith("FV:")
+        "SavedQueuesUpdateID" -> objectId.startsWith("SQ:")
+        "RadioFavoritesUpdateID" -> objectId.startsWith("R:")
+        else -> false
     }
 
     fun artUrl(uri: String?): String? = repo.artUrl(uri)

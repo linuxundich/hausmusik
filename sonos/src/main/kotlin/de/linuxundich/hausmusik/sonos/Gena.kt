@@ -23,6 +23,15 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
+/**
+ * The state variables of an event body (`e:propertyset`), values unescaped.
+ * Most events only serve as triggers; ContentDirectory's carry the list
+ * versions Hausmusik uses for its cache.
+ */
+fun parseEventProperties(body: String): Map<String, String> = runCatching {
+    Xml.parse(body).findAll("property").flatMap { it.children() }.associate { it.localName0 to it.textContent }
+}.getOrDefault(emptyMap())
+
 /** One NOTIFY a player sent. The body is kept raw; callers mostly use it as a trigger. */
 data class GenaNotify(val sid: String, val seq: Long?, val body: String)
 

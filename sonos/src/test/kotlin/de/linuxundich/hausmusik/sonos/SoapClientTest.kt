@@ -55,12 +55,15 @@ class SoapClientTest {
     }
 
     @Test
-    fun `browseAll follows pages and stops on an empty page`() = runTest {
-        val page = Fixtures.load("Browse-albums.xml")
+    fun `an empty page is asked again once, then the list counts as incomplete`() = runTest {
+        val page = Fixtures.load("Browse-albums.xml") // 3 items, TotalMatches 1061
+        val empty = page.replace(Regex("<Result>.*</Result>"), "<Result></Result>")
         server.server.enqueue(MockResponse.Builder().body(page).build())
-        server.server.enqueue(MockResponse.Builder().body(page.replace(Regex("<Result>.*</Result>"), "<Result></Result>")).build())
-        val all = client().browseAll("A:ALBUM", pageSize = 3)
-        assertEquals(3, all.size)
-        assertEquals(2, server.server.requestCount)
+        server.server.enqueue(MockResponse.Builder().body(empty).build())
+        server.server.enqueue(MockResponse.Builder().body(empty).build())
+        val listing = client().browseComplete("A:ALBUM", pageSize = 3)
+        assertEquals(3, listing.items.size)
+        assertEquals(false, listing.complete)
+        assertEquals(3, server.server.requestCount)
     }
 }

@@ -12,6 +12,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import de.linuxundich.hausmusik.data.history.CachedListDao
 import de.linuxundich.hausmusik.data.history.HistoryDao
 import de.linuxundich.hausmusik.data.net.LocalNetwork
 import de.linuxundich.hausmusik.data.history.HistoryDatabase
@@ -56,6 +57,9 @@ object AppModule {
 
     @Provides
     fun historyDao(db: HistoryDatabase): HistoryDao = db.history()
+
+    @Provides
+    fun cachedListDao(db: HistoryDatabase): CachedListDao = db.cachedLists()
 
     @Provides @Singleton @AppScope
     fun appScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

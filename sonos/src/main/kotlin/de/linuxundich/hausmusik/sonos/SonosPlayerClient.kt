@@ -159,16 +159,35 @@ class SonosPlayerClient(val baseUrl: HttpUrl, private val soap: SoapClient) {
     }
 
     /** Loads every page of a container. Empty containers return an empty list, not an error. */
-    suspend fun browseAll(objectId: String, pageSize: Int = 100, limit: Int = 5000): List<DidlObject> {
+    suspend fun browseAll(objectId: String, pageSize: Int = 100, limit: Int = 5000): List<DidlObject> =
+        browseComplete(objectId, pageSize, limit).items
+
+    /** A whole container plus whether Sonos really delivered all of it. */
+    data class Listing(val items: List<DidlObject>, val total: Int) {
+        val complete: Boolean get() = items.size >= total
+    }
+
+    /**
+     * Like [browseAll], but says whether the list is complete. An S1 player that
+     * is still resolving favorites may answer a page with no items although more
+     * exist; that page is asked for once more after a pause.
+     */
+    suspend fun browseComplete(objectId: String, pageSize: Int = 100, limit: Int = 5000): Listing {
         val out = mutableListOf<DidlObject>()
         var total: Int
+        var retried = false
         do {
             val page = browse(objectId, out.size, pageSize)
             total = page.totalMatches
-            if (page.items.isEmpty()) break
+            if (page.items.isEmpty()) {
+                if (retried || out.size >= total) break
+                retried = true
+                kotlinx.coroutines.delay(1000)
+                continue
+            }
             out += page.items
         } while (out.size < total && out.size < limit)
-        return out
+        return Listing(out, minOf(total, limit))
     }
 
     /**

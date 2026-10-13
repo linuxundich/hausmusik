@@ -51,6 +51,19 @@ class GenaTest {
     }
 
     @Test
+    fun `parses ContentDirectory event properties`() {
+        val body = """<e:propertyset xmlns:e="urn:schemas-upnp-org:event-1-0">
+            <e:property><SystemUpdateID>685</SystemUpdateID></e:property>
+            <e:property><ShareListUpdateID>RINCON_1,2355</ShareListUpdateID></e:property>
+            <e:property><FavoritesUpdateID>RINCON_2,300</FavoritesUpdateID></e:property>
+            </e:propertyset>"""
+        val p = parseEventProperties(body)
+        assertEquals("RINCON_1,2355", p["ShareListUpdateID"])
+        assertEquals("RINCON_2,300", p["FavoritesUpdateID"])
+        assertEquals(emptyMap<String, String>(), parseEventProperties("kein xml"))
+    }
+
+    @Test
     fun `subscribe sends callback and reads SID and timeout`() = runBlocking {
         server.server.enqueue(MockResponse.Builder().addHeader("SID", "uuid:sub-1").addHeader("TIMEOUT", "Second-600").build())
         val sub = GenaClient(OkHttpClient()).subscribe(server.server.url("/"), SonosService.AVTransport, "http://10.0.0.5:3400/ev")

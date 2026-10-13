@@ -50,6 +50,7 @@ fun SettingsScreen(
     onConnect: (String?) -> Unit,
     onLyrics: (Boolean) -> Unit,
     onLicenses: () -> Unit,
+    onClearCache: () -> Unit,
     onBack: () -> Unit,
 ) {
     var host by rememberSaveable(state.manualHost) { mutableStateOf(state.manualHost.orEmpty()) }
@@ -83,6 +84,10 @@ fun SettingsScreen(
                 Button(onClick = { onConnect(host) }, enabled = host.isNotBlank()) { Text(stringResource(R.string.setup_connect)) }
                 OutlinedButton(onClick = { host = ""; onConnect(null) }) { Text(stringResource(R.string.settings_search_auto)) }
             }
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            Text(stringResource(R.string.cache), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.cache_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = onClearCache) { Text(stringResource(R.string.cache_clear)) }
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.lyrics), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Row(verticalAlignment = Alignment.CenterVertically) {

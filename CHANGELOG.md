@@ -15,6 +15,18 @@ All notable changes to Hausmusik are documented here. The format follows
   by checkbox and by dragging a tile, sleep timer, creating and deleting an
   alarm, media output chip. No errors found.
 - The empty alarm list text is centered.
+- List cache: artists, albums, genres, favorites, playlists and radio are kept
+  on the phone (Room) and show at once. Hausmusik subscribes to the speakers'
+  library events and compares the list versions Sonos reports
+  (ShareListUpdateID, FavoritesUpdateID, SavedQueuesUpdateID,
+  RadioFavoritesUpdateID); only a changed list is loaded again, also while the
+  app is open. On the S1 household 1061 albums and 38 favorites came from the
+  cache after a restart. Settings can delete the stored lists.
+- Fixed: a page that an S1 player answers empty while still resolving
+  favorites ended the list early; it is now asked once more, and only complete
+  lists are stored.
+- S1 players stall now and then: one missed poll no longer shows the
+  reconnecting band, timeouts get four tries.
 - Release build signed with its own key (kept outside the repository) and
   installed on the Pixel; 3.5 MB after R8.
 - Fixed: requests to the speakers could go out over mobile data while Wi-Fi was

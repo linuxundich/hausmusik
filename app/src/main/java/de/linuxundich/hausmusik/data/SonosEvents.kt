@@ -10,6 +10,7 @@ import de.linuxundich.hausmusik.sonos.GenaClient
 import de.linuxundich.hausmusik.sonos.GenaServer
 import de.linuxundich.hausmusik.sonos.SonosPlayer
 import de.linuxundich.hausmusik.sonos.SonosService
+import de.linuxundich.hausmusik.sonos.parseEventProperties
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,6 +30,8 @@ sealed interface SonosTrigger {
     data class Transport(val playerUuid: String) : SonosTrigger
     data class Volume(val playerUuid: String) : SonosTrigger
     data object Topology : SonosTrigger
+    /** ContentDirectory state: list versions for the cache (ShareListUpdateID and friends). */
+    data class Library(val properties: Map<String, String>) : SonosTrigger
 }
 
 /**
@@ -69,7 +72,10 @@ class SonosEvents @Inject constructor(
                 put("${p.uuid}/${SonosService.AVTransport}", p to SonosService.AVTransport)
                 put("${p.uuid}/${SonosService.RenderingControl}", p to SonosService.RenderingControl)
             }
-            players.minByOrNull { it.uuid }?.let { put("${it.uuid}/${SonosService.ZoneGroupTopology}", it to SonosService.ZoneGroupTopology) }
+            players.minByOrNull { it.uuid }?.let {
+                put("${it.uuid}/${SonosService.ZoneGroupTopology}", it to SonosService.ZoneGroupTopology)
+                put("${it.uuid}/${SonosService.ContentDirectory}", it to SonosService.ContentDirectory)
+            }
         }
         (subs.keys - wanted.keys).forEach { key ->
             subs.remove(key)?.let { client.unsubscribe(it.player.baseUrl, it.service, it.sid) }
@@ -120,10 +126,13 @@ class SonosEvents @Inject constructor(
                 val sub = subs.values.firstOrNull { it.sid == n.sid }
                 Log.d(TAG, "event ${sub?.player?.roomName} ${sub?.service} seq ${n.seq}")
                 val trigger = when (sub?.service) {
+                    SonosService.ContentDirectory -> SonosTrigger.Library(parseEventProperties(n.body))
                     SonosService.AVTransport -> SonosTrigger.Transport(sub.player.uuid)
                     SonosService.RenderingControl -> SonosTrigger.Volume(sub.player.uuid)
-                    // The first NOTIFY can beat the SUBSCRIBE answer; read everything then.
-                    else -> SonosTrigger.Topology
+                    // The first NOTIFY can beat the SUBSCRIBE answer; read everything then
+                    // (and keep list versions if the body carries them).
+                    else -> parseEventProperties(n.body).takeIf { "ShareListUpdateID" in it }
+                        ?.let { SonosTrigger.Library(it) } ?: SonosTrigger.Topology
                 }
                 _triggers.emit(trigger)
             }

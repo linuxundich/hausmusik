@@ -12,6 +12,8 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.linuxundich.hausmusik.BuildConfig
+import de.linuxundich.hausmusik.data.history.CachedList
+import de.linuxundich.hausmusik.data.history.CachedListDao
 import de.linuxundich.hausmusik.data.net.LocalNetwork
 import de.linuxundich.hausmusik.di.AppScope
 import de.linuxundich.hausmusik.sonos.Alarm
@@ -65,6 +67,7 @@ class HouseholdRepository @Inject constructor(
     private val settings: Settings,
     private val events: SonosEvents,
     private val local: LocalNetwork,
+    private val cache: CachedListDao,
     @AppScope private val scope: CoroutineScope,
 ) {
     private val _state = MutableStateFlow(Household())
@@ -209,11 +212,43 @@ class HouseholdRepository @Inject constructor(
         if (restart) synchronized(this) { if (loop?.isActive != true) loop = scope.launch { run() } }
     }
 
+    // List versions from ContentDirectory events, for the library cache.
+    private val _libraryVersions = MutableStateFlow<Map<String, String>>(emptyMap())
+    val libraryVersions: StateFlow<Map<String, String>> = _libraryVersions.asStateFlow()
+
+    /**
+     * The version a cached list of [objectId] must match: the music share index
+     * for A:, favorites, saved queues (Sonos playlists), radio. Null when Sonos
+     * has not told us yet, or for lists that change all the time (the queue).
+     */
+    fun versionFor(objectId: String): String? {
+        val v = _libraryVersions.value
+        return when {
+            objectId.startsWith("A:") -> v["ShareListUpdateID"]
+            objectId.startsWith("FV:") -> v["FavoritesUpdateID"]
+            objectId.startsWith("SQ:") -> v["SavedQueuesUpdateID"]
+            objectId.startsWith("R:") -> v["RadioFavoritesUpdateID"]
+            else -> null
+        }
+    }
+
+    /** A key for this household, so two homes do not share a cache. */
+    fun householdKey(): String? = _state.value.allPlayers.minOfOrNull { it.uuid }
+
     private fun onTrigger(t: SonosTrigger) {
         when (t) {
             SonosTrigger.Topology -> pendingTopology = true
+            is SonosTrigger.Library -> {
+                val keep = t.properties.filterKeys { it.endsWith("UpdateID") }
+                if (keep.isNotEmpty()) _libraryVersions.update { it + keep }
+                return
+            }
             is SonosTrigger.Transport, is SonosTrigger.Volume -> {
-                val uuid = if (t is SonosTrigger.Transport) t.playerUuid else (t as SonosTrigger.Volume).playerUuid
+                val uuid = when (t) {
+                    is SonosTrigger.Transport -> t.playerUuid
+                    is SonosTrigger.Volume -> t.playerUuid
+                    else -> return
+                }
                 _state.value.groups.firstOrNull { g -> g.group.members.any { it.uuid == uuid } }?.let { pendingGroups += it.id }
             }
         }
@@ -313,9 +348,14 @@ class HouseholdRepository @Inject constructor(
                     _state.update { it.copy(connection = Connection.NoLocalNetwork) }
                     continue
                 }
-                _state.update { it.copy(connection = Connection.Reconnecting) }
                 lastSelected = 0L // try again on the next tick, not in ten seconds
-                if (++failures >= 3) {
+                // S1 players stall now and then (e.g. while answering many
+                // subscriptions): one miss is no reason for the band yet, and
+                // timeouts get one more try before giving up.
+                failures++
+                if (failures >= 2) _state.update { it.copy(connection = Connection.Reconnecting) }
+                val limit = if (e is java.net.SocketTimeoutException) 4 else 3
+                if (failures >= limit) {
                     // Rebooted speakers do not know our subscriptions any more.
                     events.stop()
                     entry = null
@@ -567,6 +607,41 @@ class HouseholdRepository @Inject constructor(
         val c = selectedCoordinator() ?: return Result.failure(IOException("no room"))
         return slow { c.browseAll(objectId, limit = limit) }
     }
+
+    private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+    private val listSerializer = kotlinx.serialization.builtins.ListSerializer(DidlObject.serializer())
+
+    /** The stored list and whether it still matches what Sonos reports. */
+    data class Cached(val items: List<DidlObject>, val current: Boolean)
+
+    suspend fun cachedList(objectId: String): Cached? {
+        val household = householdKey() ?: return null
+        val row = cache.get(household, objectId) ?: return null
+        val items = runCatching { json.decodeFromString(listSerializer, row.json) }.getOrNull() ?: return null
+        val version = versionFor(objectId)
+        val current = version != null && version == row.version
+        Log.d(TAG, "cache $objectId: ${items.size} items, ${if (current) "current" else "stale (${row.version} vs $version)"}")
+        return Cached(items, current)
+    }
+
+    /** Loads the whole list from Sonos and stores it with the current version. */
+    suspend fun loadAndCache(objectId: String): Result<List<DidlObject>> {
+        val version = versionFor(objectId)
+        Log.d(TAG, "load $objectId from Sonos (version $version)")
+        val c = selectedCoordinator() ?: return Result.failure(IOException("no room"))
+        return slow { c.browseComplete(objectId) }.map { listing ->
+            val household = householdKey()
+            // Only a complete list is worth keeping; a partial one would stick until the version changes.
+            if (listing.complete && household != null && objectId != "Q:0") {
+                cache.put(CachedList(household, objectId, version, System.currentTimeMillis(), json.encodeToString(listSerializer, listing.items)))
+            } else if (!listing.complete) {
+                Log.w(TAG, "$objectId incomplete: ${listing.items.size} of ${listing.total}, not cached")
+            }
+            listing.items
+        }
+    }
+
+    suspend fun clearListCache() = cache.clear()
 
     suspend fun search(term: String): Result<LibrarySearch> {
         val c = selectedCoordinator() ?: return Result.failure(IOException("no room"))

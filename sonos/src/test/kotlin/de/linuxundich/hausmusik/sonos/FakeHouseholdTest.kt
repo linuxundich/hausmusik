@@ -257,6 +257,31 @@ class FakeHouseholdTest {
     }
 
     @Test
+    fun `library events carry list versions`() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val server = GenaServer(scope)
+        val port = server.start()
+        try {
+            val first = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeout(5000) { server.events.first { "SavedQueuesUpdateID" in parseEventProperties(it.body) } }
+            }
+            GenaClient(OkHttpClient()).subscribe(url(0), SonosService.ContentDirectory, "http://127.0.0.1:$port/cd")
+            val before = parseEventProperties(first.await().body)
+            assertEquals("RINCON_FAKE000000101400,1", before["ShareListUpdateID"])
+            val next = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeout(5000) {
+                    server.events.first { parseEventProperties(it.body)["SavedQueuesUpdateID"] != before["SavedQueuesUpdateID"] }
+                }
+            }
+            wohnzimmer.saveQueue("Neu")
+            assertEquals("RINCON_FAKE000000101400,2", parseEventProperties(next.await().body)["SavedQueuesUpdateID"])
+        } finally {
+            server.stop()
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun `events arrive after a change`() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val server = GenaServer(scope)

@@ -43,6 +43,17 @@ class HistoryDaoTest {
     }
 
     @Test
+    fun `cached lists per household and object`() = runTest {
+        val lists = db.cachedLists()
+        lists.put(CachedList("H1", "A:ALBUM", "R,1", 1, "[]"))
+        lists.put(CachedList("H1", "A:ALBUM", "R,2", 2, "[1]"))
+        lists.put(CachedList("H2", "A:ALBUM", "R,9", 3, "[2]"))
+        assertEquals("R,2", lists.get("H1", "A:ALBUM")?.version)
+        assertEquals("[2]", lists.get("H2", "A:ALBUM")?.json)
+        assertEquals(null, lists.get("H1", "FV:2"))
+    }
+
+    @Test
     fun `trim keeps the newest and clear removes all`() = runTest {
         (1..10L).forEach { dao.insert(entry(it, "T$it")) }
         dao.trim(keep = 3)

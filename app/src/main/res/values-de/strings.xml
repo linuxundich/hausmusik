@@ -144,4 +144,8 @@
     <string name="licenses_apache">Apache License 2.0: apache.org/licenses/LICENSE-2.0. GNU GPL 3.0: gnu.org/licenses/gpl-3.0. Die vollständige Liste steht in NOTICE.md im Quellcode.</string>
     <string name="alarm_time">Weckzeit</string>
     <string name="library_slow">Sonos stellt die Liste noch zusammen. Beim ersten Mal kann das bis zu einer halben Minute dauern.</string>
+    <string name="cache">Gespeicherte Listen</string>
+    <string name="cache_body">Interpreten, Alben, Favoriten und Playlists liegen auf diesem Handy und werden nur neu geladen, wenn Sonos eine Änderung meldet.</string>
+    <string name="cache_clear">Gespeicherte Listen löschen</string>
+    <string name="cache_cleared">Gespeicherte Listen gelöscht</string>
 </resources>
