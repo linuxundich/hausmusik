@@ -132,7 +132,7 @@ fun LibraryScreen(
     val focus = remember { FocusRequester() }
     val wide = isWide()
     val linkState by vm.link.collectAsStateWithLifecycle()
-    linkState?.let { LinkDialog(it, onDismiss = vm::dismissLink) }
+    linkState?.let { LinkDialog(it, onRestart = vm::restartLink, onDismiss = vm::dismissLink) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -224,15 +224,27 @@ private fun ServicesHint() {
     )
 }
 
+/** From then on the link dialog suggests a new sign-in instead of the old page. */
+private const val STALE_AFTER_MS = 2 * 60_000L
+
 /** Opens the service's sign-in page and waits until the user confirmed it there. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun LinkDialog(state: LinkState, onDismiss: () -> Unit) {
+private fun LinkDialog(state: LinkState, onRestart: () -> Unit, onDismiss: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     fun open(url: String) = runCatching {
         context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
     }
     if (state is LinkState.Waiting) LaunchedEffect(state.url) { open(state.url) }
+    // After a while the page may show an error (Sonos' Spotify page answers 500 once the
+    // code expired); then a new sign-in helps, opening the old page again does not.
+    val stale by androidx.compose.runtime.produceState(false, state) {
+        value = false // produceState keeps the old value when the state changes
+        if (state is LinkState.Waiting) {
+            kotlinx.coroutines.delay((state.since + STALE_AFTER_MS - System.currentTimeMillis()).coerceAtLeast(0))
+            value = true
+        }
+    }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(if (state is LinkState.Done) Icons.Filled.Check else AppIcons.Link, null) },
@@ -248,6 +260,7 @@ private fun LinkDialog(state: LinkState, onDismiss: () -> Unit) {
                             LoadingIndicator(Modifier.size(32.dp))
                             Text(stringResource(R.string.link_polling), Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodySmall)
                         }
+                        if (stale) Text(stringResource(R.string.link_stale), style = MaterialTheme.typography.bodySmall)
                     }
                     is LinkState.Done -> Text(stringResource(R.string.link_done, state.name))
                     is LinkState.Failed -> Text(stringResource(R.string.link_failed, state.name))
@@ -256,14 +269,21 @@ private fun LinkDialog(state: LinkState, onDismiss: () -> Unit) {
         },
         confirmButton = {
             when (state) {
-                is LinkState.Waiting -> androidx.compose.material3.TextButton(onClick = { open(state.url) }) { Text(stringResource(R.string.link_open_again)) }
-                is LinkState.Done, is LinkState.Failed -> androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+                is LinkState.Waiting -> if (stale) {
+                    androidx.compose.material3.TextButton(onClick = onRestart) { Text(stringResource(R.string.link_restart)) }
+                } else {
+                    androidx.compose.material3.TextButton(onClick = { open(state.url) }) { Text(stringResource(R.string.link_open_again)) }
+                }
+                is LinkState.Failed -> androidx.compose.material3.TextButton(onClick = onRestart) { Text(stringResource(R.string.link_restart)) }
+                is LinkState.Done -> androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
                 else -> {}
             }
         },
         dismissButton = {
             if (state is LinkState.Starting || state is LinkState.Waiting) {
                 androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            } else if (state is LinkState.Failed) {
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
             }
         },
     )
@@ -373,7 +393,7 @@ fun ContainerScreen(
     // Local containers play by their ID; a service's own folders (its root, "Albums") cannot be played.
     val playable = container.uri != null || !container.id.startsWith(ServiceIds.OVERVIEW)
     val linkState by vm.link.collectAsStateWithLifecycle()
-    linkState?.let { LinkDialog(it, onDismiss = vm::dismissLink) }
+    linkState?.let { LinkDialog(it, onRestart = vm::restartLink, onDismiss = vm::dismissLink) }
     LaunchedEffect(container.id) { vm.load(container.id) }
     ProvideArtistImages(vm) {
         Scaffold(

@@ -53,7 +53,8 @@ sealed interface ListState {
 sealed interface LinkState {
     val name: String
     data class Starting(override val name: String) : LinkState
-    data class Waiting(override val name: String, val url: String, val code: String?) : LinkState
+    /** [since]: when the page was opened; the service's sign-in expires after a few minutes. */
+    data class Waiting(override val name: String, val url: String, val code: String?, val since: Long = System.currentTimeMillis()) : LinkState
     data class Done(override val name: String) : LinkState
     data class Failed(override val name: String) : LinkState
 }
@@ -94,11 +95,13 @@ class LibraryViewModel @Inject constructor(
     private val _link = MutableStateFlow<LinkState?>(null)
     val link: StateFlow<LinkState?> = _link.asStateFlow()
     private var linkJob: kotlinx.coroutines.Job? = null
+    private var linkItem: DidlObject? = null
 
     /** Starts linking the service behind a `link:<id>` entry. */
     fun startLink(item: DidlObject) {
         val serviceId = item.id.removePrefix("link:").toIntOrNull() ?: return
         linkJob?.cancel()
+        linkItem = item
         linkJob = viewModelScope.launch {
             _link.value = LinkState.Starting(item.title)
             val ok = runCatching {
@@ -112,6 +115,11 @@ class LibraryViewModel @Inject constructor(
                 if (_lists.value.containsKey(ServiceIds.MORE)) load(ServiceIds.MORE, force = true)
             }
         }
+    }
+
+    /** A fresh sign-in page with a new code, for when the old one expired or showed an error. */
+    fun restartLink() {
+        linkItem?.let(::startLink)
     }
 
     fun dismissLink() {

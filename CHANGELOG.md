@@ -8,6 +8,11 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Linking a service: after two minutes of waiting the dialog says that a
+  sign-in is only valid for a few minutes and offers *Start again*, which asks
+  the service for a new page and code (opening the old page again did not
+  help once it showed an error, as Sonos' Spotify page does with "500"). A
+  failed link offers *Start again* too.
 - Fixed: turning the phone closed the open sheet, dialog or library page and
   went back to the stage. The screen stack, the sheets, the play choice and
   the queue's dialogs now survive a rotation (also five quick turns in a row).

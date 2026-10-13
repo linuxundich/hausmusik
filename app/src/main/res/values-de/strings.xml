@@ -196,4 +196,6 @@
     <string name="details_setting">Details zu Interpret und Album</string>
     <string name="details_setting_wikipedia">Text von Wikipedia ergänzen</string>
     <string name="details_retry">Erneut versuchen</string>
+    <string name="link_restart">Neu starten</string>
+    <string name="link_stale">Zeigt die Seite einen Fehler? Eine Anmeldung gilt nur wenige Minuten; starte sie neu.</string>
 </resources>

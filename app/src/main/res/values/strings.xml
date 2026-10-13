@@ -198,4 +198,6 @@
     <string name="details_setting">Artist and album details</string>
     <string name="details_setting_wikipedia">Add a text from Wikipedia</string>
     <string name="details_retry">Try again</string>
+    <string name="link_restart">Start again</string>
+    <string name="link_stale">Does the page show an error? A sign-in is only valid for a few minutes; start again for a new one.</string>
 </resources>
