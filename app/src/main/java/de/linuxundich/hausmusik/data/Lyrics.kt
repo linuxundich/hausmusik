@@ -137,8 +137,9 @@ class LyricsRepository(
     companion object {
         /**
          * Lower is better: how far the entry's length is from the song's, plus a
-         * penalty when its last line does not fit the song (after its end, or
-         * so early that it belongs to a shorter version).
+         * penalty when lines come after the song's end. How long the song goes on
+         * after its last line says nothing: guitar solos and outros of over a
+         * minute are common ("Hit the Lights": 1:44 after the last line).
          */
         internal fun score(hit: LrclibTrack, durationMs: Long?): Double {
             if (durationMs == null) return 0.0
@@ -147,7 +148,6 @@ class LyricsRepository(
             val last = hit.syncedLyrics?.let(Lyrics::parseLrc)?.lastOrNull { it.text.isNotBlank() }?.timeMs?.div(1000.0)
             if (last != null) {
                 if (last > songS + 2) s += 1000.0
-                else if (songS - last > outroLimit(songS)) s += 60.0
             } else {
                 s += 20.0 // plain text only: synced lines are worth a few seconds of length
             }
@@ -155,19 +155,17 @@ class LyricsRepository(
         }
 
         /**
-         * How long a song may go on after its last line before the times look
-         * like another version's. Studio outros of 50 s and more are common
-         * ("Stronger Than Me": 49 s), so only a gap far beyond that counts.
+         * Times that probably belong to another version (see [Lyrics.suspect]): the
+         * entry is of another length, or lines come after the song's end. Times
+         * shifted within an entry of the right length cannot be told from the
+         * data; the user shifts them by hand.
          */
-        private fun outroLimit(songS: Double) = maxOf(90.0, songS * 0.4)
-
-        /** Times that probably belong to another version: see [Lyrics.suspect]. */
         internal fun suspect(l: Lyrics, durationMs: Long?, entryS: Double?): Boolean {
             if (!l.isSynced || durationMs == null) return false
             val songS = durationMs / 1000.0
             if (entryS != null && kotlin.math.abs(entryS - songS) > 5) return true
             val last = l.synced.lastOrNull { it.text.isNotBlank() }?.timeMs?.div(1000.0) ?: return false
-            return last > songS + 2 || songS - last > outroLimit(songS)
+            return last > songS + 2
         }
     }
 

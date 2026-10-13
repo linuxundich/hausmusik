@@ -674,12 +674,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def lrclib(self):
         """Fake LRCLIB with invented lines (app extra `-e details host:port`). "Grep the Sun" carries
-        the times of a shorter version, like a live album with the studio timing: they end far too early."""
+        the times of a longer version: lines come after the song's end, so the app doubts them."""
         url = urllib.parse.urlparse(self.path)
         q = {k: v[0] for k, v in urllib.parse.parse_qs(url.query).items()}
         def entry(t):
             short = t["title"] == "Grep the Sun"
-            end = t["dur"] * (0.55 if short else 0.9)
+            end = t["dur"] * (1.3 if short else 0.9)
             lines = [f"[{int(s // 60):02d}:{s % 60:05.2f}] {t['title']}, Zeile {n + 1}" for n, s in enumerate(range(8, int(end), 6))]
             return dict(trackName=t["title"], artistName=t["artist"], albumName=t["album"], duration=t["dur"], instrumental=False,
                         plainLyrics="\n".join(l.split("] ", 1)[1] for l in lines), syncedLyrics="\n".join(lines))

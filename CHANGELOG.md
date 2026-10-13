@@ -11,10 +11,10 @@ All notable changes to Hausmusik are documented here. The format follows
 - Lyrics that run off the music, as on live albums whose LRCLIB entry carries
   the studio times: press and hold the line being sung now and all lines
   shift to match, or move them in half-second steps. The shift is kept per
-  track. When the times look wrong (the lines end far before the song, or
-  the entry is of another length), a hint says so and offers the plain text.
-- Lyrics pick the better LRCLIB entry: besides the length, whether its last
-  line fits the song counts; a doubtful exact match is checked against the
+  track. When the times look wrong (lines after the song's end, or an
+  entry of another length), a hint says so and offers the plain text.
+- Lyrics pick the better LRCLIB entry: besides the length, lines after the song's
+  end count against it; a doubtful exact match is checked against the
   search.
 - Fixed: without a connection to the speakers (Wi-Fi lost, reconnecting), a
   list that was still loading kept saying "Sonos is putting the list
