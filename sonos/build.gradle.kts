@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Christoph Langner
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Pure Kotlin/JVM: everything that speaks to Sonos, testable without Android.
 plugins {
     `java-library`

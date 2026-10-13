@@ -8,6 +8,12 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Licensing: SPDX header (copyright and GPL-3.0-or-later) in every source file;
+  the Sonos layer names noson by Jean-Luc Barrière as its basis. NOTICE.md with
+  all third-party components and licenses; Credits in the README; in the app
+  the about section shows copyright, warranty notice and the noson credit, and
+  a screen lists the open source licenses.
+
 - `:sonos` module in plain Kotlin: SSDP discovery, SOAP client, DIDL-Lite parser,
   zone group topology, transport, volume, queue, browse and sleep timer calls.
   Tested against anonymised responses recorded from a first-generation (S1)

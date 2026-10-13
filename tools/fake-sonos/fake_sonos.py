@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Christoph Langner
+# SPDX-License-Identifier: GPL-3.0-or-later
 """A fake Sonos household for the emulator, tests and screenshots.
 
 Four invented players listen on ports 1401-1404. They answer the SOAP actions

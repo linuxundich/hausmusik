@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Christoph Langner
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package de.linuxundich.hausmusik.ui.queue
 
 import androidx.compose.foundation.ExperimentalFoundationApi

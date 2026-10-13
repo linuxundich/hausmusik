@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Christoph Langner
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Turn recorded fixtures (tools/fixtures-local) into test fixtures.
 
 Replaces player IDs (they contain MAC addresses), IP addresses and the NAS

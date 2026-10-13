@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Christoph Langner
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 pluginManagement {
     repositories {
         google {

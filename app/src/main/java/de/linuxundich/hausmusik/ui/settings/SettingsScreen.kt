@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Christoph Langner
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package de.linuxundich.hausmusik.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +46,7 @@ fun SettingsScreen(
     state: SettingsState,
     onConnect: (String?) -> Unit,
     onLyrics: (Boolean) -> Unit,
+    onLicenses: () -> Unit,
     onBack: () -> Unit,
 ) {
     var host by rememberSaveable(state.manualHost) { mutableStateOf(state.manualHost.orEmpty()) }
@@ -84,7 +88,10 @@ fun SettingsScreen(
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.settings_about), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.settings_copyright), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(R.string.settings_license), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.settings_noson), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = onLicenses) { Text(stringResource(R.string.licenses)) }
         }
     }
 }

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Christoph Langner
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package de.linuxundich.hausmusik.ui
 
 import androidx.activity.compose.BackHandler
@@ -36,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.produceState
 import de.linuxundich.hausmusik.ui.alarms.AlarmsScreen
+import de.linuxundich.hausmusik.ui.settings.LicensesScreen
 import de.linuxundich.hausmusik.ui.settings.SettingsScreen
 import de.linuxundich.hausmusik.ui.settings.SettingsState
 import de.linuxundich.hausmusik.ui.stage.LyricsUi
@@ -65,6 +69,7 @@ private sealed interface Screen {
     data class Container(val item: DidlObject) : Screen
     data object Alarms : Screen
     data object Settings : Screen
+    data object Licenses : Screen
 }
 
 @Composable
@@ -162,8 +167,10 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 SettingsState(manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled),
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
+                onLicenses = { stack.add(Screen.Licenses) },
                 onBack = { stack.removeAt(stack.lastIndex) },
             )
+            Screen.Licenses -> LicensesScreen(onBack = { stack.removeAt(stack.lastIndex) })
             is Screen.Container -> ContainerScreen(
                 library, screen.item, selected, snackbar,
                 onBack = { stack.removeAt(stack.lastIndex) },

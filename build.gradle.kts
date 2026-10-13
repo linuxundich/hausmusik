@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Christoph Langner
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // AGP 9 ships Kotlin itself (android.builtInKotlin). The classpath entry raises
 // the bundled Kotlin to the version in the catalogue; :sonos applies the plain
 // JVM plugin from the same classpath.

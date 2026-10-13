@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Christoph Langner
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package de.linuxundich.hausmusik.sonos
 
 /** Recorded (anonymised) responses of a first-generation Sonos household. */

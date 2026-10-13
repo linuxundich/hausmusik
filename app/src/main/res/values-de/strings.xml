@@ -124,7 +124,7 @@
     <string name="settings_lyrics">Liedtexte von LRCLIB</string>
     <string name="settings_about">Über</string>
     <string name="settings_version">Hausmusik %1$s</string>
-    <string name="settings_license">Freie Software unter der GPL-3.0-or-later. Keine Verbindung zu Sonos, Inc.</string>
+    <string name="settings_license">Freie Software unter der GNU GPL, Version 3 oder neuer. Sie kommt OHNE JEDE GEWÄHRLEISTUNG. Keine Verbindung zu Sonos, Inc.; Sonos ist eine Marke von Sonos, Inc.</string>
     <string name="library_history">Verlauf</string>
     <string name="history_empty">Noch ist nichts gelaufen, während Hausmusik verbunden war.</string>
     <string name="history_note">Liegt nur auf diesem Handy; Sonos führt keinen Verlauf. Tippen sucht den Titel.</string>
@@ -137,4 +137,9 @@
     <string name="offline_back_room">Hausmusik verbindet sich von selbst, sobald du zurück bist. Zuletzt: %1$s</string>
     <string name="offline_short">Nicht im WLAN</string>
     <string name="reconnecting">Lautsprecher kurz weg, verbinde neu …</string>
+    <string name="settings_copyright">© 2026 Christoph Langner</string>
+    <string name="settings_noson">Die Sonos-Implementierung basiert auf noson von Jean-Luc Barrière (GPL-3.0-or-later).</string>
+    <string name="licenses">Open-Source-Lizenzen</string>
+    <string name="licenses_intro">Hausmusik baut auf diesen Projekten auf. Danke an alle, die daran arbeiten.</string>
+    <string name="licenses_apache">Apache License 2.0: apache.org/licenses/LICENSE-2.0. GNU GPL 3.0: gnu.org/licenses/gpl-3.0. Die vollständige Liste steht in NOTICE.md im Quellcode.</string>
 </resources>

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Christoph Langner
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Sonos handling based on noson (libnoson) by Jean-Luc Barrière, GPL-3.0-or-later; see NOTICE.md.
+
 package de.linuxundich.hausmusik.sonos
 
 import java.io.StringReader

@@ -30,6 +30,14 @@ responses (`sonos/src/test/resources/fixtures`, produced by
 `tools/record-fixtures.py` and `tools/anonymize-fixtures.py`). XML is parsed with
 DOM, because it is the only XML API available on both the JVM and Android.
 
+## Origin of the Sonos layer
+
+`:sonos` is based on noson (libnoson) by Jean-Luc Barrière, GPL-3.0-or-later,
+which Gnomos uses. It follows libnoson's discovery, service calls, URI schemes
+and metadata handling, written anew in Kotlin; no noson source is included.
+Every source file in `sonos/src/main` says so in its header, and
+[NOTICE.md](../NOTICE.md) lists all third-party components.
+
 ## Lessons carried over from Gnomos
 
 - GetPositionInfo is the source of truth for the current track; events carry

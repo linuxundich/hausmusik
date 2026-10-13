@@ -33,6 +33,8 @@ What is planned next is in [BACKLOG.md](BACKLOG.md).
 2. It controls them with the same local UPnP interface the original Sonos apps used, on port 1400.
 3. Nothing leaves your home network. The only exception is the optional lyrics lookup at LRCLIB, off until you switch it on.
 
+The Sonos implementation is based on [noson](https://github.com/janbar/noson) by Jean-Luc Barrière, the library behind [noson-app](https://github.com/janbar/noson-app) and behind [Gnomos](https://github.com/linuxundich/gnomos), Hausmusik's sibling for the GNOME desktop.
+
 Streaming services such as Spotify can only be played through Sonos favorites and playlists that already exist in your Sonos system; their sign-in only works through the Sonos app.
 
 ## Build
@@ -45,8 +47,17 @@ Requirements: JDK 21, Android SDK 37.
 
 For development without real speakers, `tools/fake-sonos/fake_sonos.py` provides an invented household. See [docs/development.md](docs/development.md).
 
+## Credits
+
+- [noson](https://github.com/janbar/noson) by Jean-Luc Barrière (GPL-3.0-or-later): the Sonos implementation is based on it; it was written anew in Kotlin, no noson source files are included.
+- [SoCo](https://github.com/SoCo/SoCo) (MIT) as a second reference for protocol details.
+- Jetpack libraries, Material Icons, OkHttp, Coil, Dagger/Hilt and Kotlin (Apache-2.0).
+- Lyrics from [LRCLIB](https://lrclib.net), only when switched on.
+
+The full list with licenses is in [NOTICE.md](NOTICE.md) and in the app under Settings, Open source licenses.
+
 ## Use of AI
 
 Hausmusik is AI-assisted. Most of the code, the icon and the translations were written with AI assistance, directed by me: I set the requirements, made the design decisions, reviewed the results and test the app on my own Sonos household. Commits written with AI assistance carry a `Co-Authored-By` line.
 
-Hausmusik is free software under the [GPL-3.0-or-later](LICENSE). It is not affiliated with Sonos, Inc. Sonos is a trademark of Sonos, Inc.
+Hausmusik is free software under the [GPL-3.0-or-later](LICENSE), © 2026 Christoph Langner. It is not affiliated with Sonos, Inc. Sonos is a trademark of Sonos, Inc.

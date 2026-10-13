@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Christoph Langner
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Record read-only SOAP responses from a real Sonos household.
 
 Only Get*/Browse/List actions are sent; nothing changes on the speakers.

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Christoph Langner
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 /**
  * Signing data comes only from Gradle properties outside the repository
  * (~/.gradle/gradle.properties). Without them the release build is unsigned
