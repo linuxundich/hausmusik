@@ -84,6 +84,8 @@ data class StageActions(
     val onPrevious: () -> Unit,
     val onSeek: (Long) -> Unit,
     val onVolume: (Int) -> Unit,
+    /** The speaker icon left of the slider: volume of each room. */
+    val onRoomVolumes: () -> Unit = {},
     val onShuffle: () -> Unit,
     val onRepeat: () -> Unit,
     val onAlarms: () -> Unit,
@@ -253,7 +255,7 @@ private fun StageControls(group: GroupState, colors: CoverColors, actions: Stage
         Spacer(Modifier.height(8.dp))
         Transport(group, colors, actions, playBusy)
         Spacer(Modifier.height(12.dp))
-        VolumeRow(group.groupVolume, colors, actions.onVolume)
+        VolumeRow(group.groupVolume, colors, actions.onVolume, actions.onRoomVolumes)
     }
 }
 
@@ -421,10 +423,13 @@ private fun SmallToggle(icon: ImageVector, label: String, on: Boolean, colors: C
 }
 
 @Composable
-private fun VolumeRow(volume: Int, colors: CoverColors, onVolume: (Int) -> Unit) {
+private fun VolumeRow(volume: Int, colors: CoverColors, onVolume: (Int) -> Unit, onRoomVolumes: () -> Unit) {
     var dragging by remember { mutableStateOf<Float?>(null) }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(AppIcons.VolumeDown, contentDescription = null, tint = colors.content.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+        // A tap opens the volume of each room.
+        IconButton(onClick = onRoomVolumes) {
+            Icon(AppIcons.VolumeDown, contentDescription = stringResource(R.string.volume_rooms), tint = colors.content.copy(alpha = 0.85f), modifier = Modifier.size(22.dp))
+        }
         Slider(
             value = dragging ?: volume.toFloat(),
             onValueChange = {

@@ -13,6 +13,7 @@ Completed items stay checked.
 ## Phase 1: Control (MVP)
 
 - [x] **P0** Rooms, play/pause, next/previous, seek, group and member volume
+- [x] **P1** Volume sheet: every room with its own slider and mute button
 - [x] **P0** Stage with cover colors
 - [x] **P0** Local network permission (Android 17) and manual address
 - [x] **P0** GENA events instead of one-second polling (embedded HTTP receiver, renewals)

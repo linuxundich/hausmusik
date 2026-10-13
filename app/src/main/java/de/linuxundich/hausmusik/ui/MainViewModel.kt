@@ -101,6 +101,8 @@ class MainViewModel @Inject constructor(
 
     fun setMemberVolume(groupId: String, player: SonosPlayer, v: Int) = repo.requestMemberVolume(groupId, player, v)
 
+    fun setMemberMute(groupId: String, player: SonosPlayer, mute: Boolean) = run { repo.setMemberMute(groupId, player, mute) }
+
     fun select(groupId: String) = repo.select(groupId)
 
     fun setMembership(player: SonosPlayer, member: Boolean) {

@@ -99,6 +99,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var queueOpen by remember { mutableStateOf(false) }
     var timerOpen by remember { mutableStateOf(false) }
     var soundOpen by remember { mutableStateOf(false) }
+    var volumeOpen by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
     var lyricsConsent by remember { mutableStateOf(false) }
     val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
@@ -149,6 +150,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                     onRepeat = vm::cycleRepeat,
                     onAlarms = { stack.add(Screen.Alarms) },
                     onSound = { soundOpen = true },
+                    onRoomVolumes = { volumeOpen = true },
                     onSettings = { stack.add(Screen.Settings) },
                     onLyrics = { if (lyricsEnabled) showLyrics = !showLyrics else lyricsConsent = true },
                     timerLabel = selected.sleepRemainingMs?.let { ms ->
@@ -240,6 +242,18 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 }
             },
             dismissButton = { TextButton(onClick = { lyricsConsent = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (volumeOpen) {
+        de.linuxundich.hausmusik.ui.sound.VolumeSheet(
+            selected, colors,
+            de.linuxundich.hausmusik.ui.sound.VolumeActions(
+                onGroup = { vm.setGroupVolume(selected.id, it) },
+                onMember = { p, v -> vm.setMemberVolume(selected.id, p, v) },
+                onMute = { p, m -> vm.setMemberMute(selected.id, p, m) },
+            ),
+            snackbar = snackbar,
+            onDismiss = { volumeOpen = false },
         )
     }
     if (soundOpen) {

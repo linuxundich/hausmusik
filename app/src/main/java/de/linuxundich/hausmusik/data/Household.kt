@@ -30,6 +30,8 @@ data class GroupState(
     val artUrl: String? = null,
     val groupVolume: Int = 0,
     val memberVolumes: Map<String, Int> = emptyMap(),
+    /** Muted speakers of the group, by player UUID. */
+    val memberMutes: Map<String, Boolean> = emptyMap(),
     val actions: TransportActions = TransportActions(emptySet()),
     val playMode: PlayMode = PlayMode.Normal,
     val queueLength: Int = 0,

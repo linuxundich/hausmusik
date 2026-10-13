@@ -500,9 +500,11 @@ class HouseholdRepository @Inject constructor(
             val actions = async { c.transportActions() }
             val mode = async { runCatching { c.playMode() }.getOrDefault(PlayMode.Normal) }
             val volumes = gs.group.members.map { m -> async { m.uuid to client(m).volume() } }
+            val mutes = gs.group.members.map { m -> async { m.uuid to runCatching { client(m).mute() }.getOrDefault(false) } }
             val sleep = async { runCatching { c.remainingSleepTimerMs() }.getOrNull()?.takeIf { it > 0 } }
             next = next.copy(
                 actions = actions.await(), playMode = mode.await(), memberVolumes = volumes.awaitAll().toMap(),
+                memberMutes = mutes.awaitAll().toMap(),
                 sleepRemainingMs = sleep.await(),
             )
         }
@@ -573,6 +575,14 @@ class HouseholdRepository @Inject constructor(
         _state.update { s -> s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(groupVolume = v) else it }) }
         val coordinator = _state.value.groups.firstOrNull { it.id == groupId }?.group?.coordinator ?: return
         throttledVolume(groupId, v) { client(coordinator).setGroupVolume(it) }
+    }
+
+    /** Mutes or unmutes one speaker of [groupId]; the switch shows the new state at once. */
+    suspend fun setMemberMute(groupId: String, player: SonosPlayer, mute: Boolean): Result<Unit> {
+        _state.update { s ->
+            s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(memberMutes = it.memberMutes + (player.uuid to mute)) else it })
+        }
+        return busy(groupId, BusyKind.Other) { client(player).setMute(mute) }
     }
 
     fun requestMemberVolume(groupId: String, player: SonosPlayer, volume: Int) {

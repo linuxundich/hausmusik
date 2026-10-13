@@ -8,6 +8,12 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Volume of each room: the speaker icon left of the stage's volume slider
+  opens a "Volume" sheet with all rooms together, one slider per room and a
+  mute button per room.
+
+### Added
+
 - Fixed: a long room name on the stage ("Arbeitszimmer + Wohnzimmer") ran
   under the menu button; it is shortened now and keeps the menu free.
 
