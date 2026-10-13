@@ -189,7 +189,12 @@ class MusicServices @Inject constructor(
         val deadline = System.currentTimeMillis() + timeoutMs
         val pause = (pending.service.pollIntervalS.coerceIn(2, 10)) * 1000L
         while (System.currentTimeMillis() < deadline) {
-            val creds = runCatching { client.finishLink(pending.link) }.getOrElse { if (it is SmapiFault) throw it else null }
+            // Only a definite "no" ends the wait; hiccups (network, other faults) are asked again.
+            val creds = runCatching { client.finishLink(pending.link) }.getOrElse {
+                if (it is SmapiFault && it.unauthorized) throw it
+                android.util.Log.i("MusicServices", "waiting for ${pending.service.name}: ${it.message}")
+                null
+            }
             if (creds?.token != null) {
                 accounts.put(ServiceAccount(household, pending.service.id, pending.service.displayName, device, creds.token!!, creds.key,
                     sn = null, linkedAt = System.currentTimeMillis()))

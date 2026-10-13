@@ -97,11 +97,15 @@ data class SmapiItem(
 data class SmapiPage(val items: List<SmapiItem>, val index: Int, val total: Int)
 
 /** An SMAPI fault, e.g. `Client.NOT_LINKED_RETRY` or `Client.LoginUnauthorized`. */
-class SmapiFault(val code: String, message: String) : IOException("$code: $message") {
-    val notLinkedYet: Boolean get() = code.endsWith("NOT_LINKED_RETRY")
+class SmapiFault(val code: String, val reason: String) : IOException("$code: $reason") {
+    // bonob says "Client.NOT_LINKED_RETRY" in the code, Spotify says "Server"
+    // in the code and NOT_LINKED_RETRY in the fault string: look at both.
+    private fun says(word: String) = code.endsWith(word) || reason.trim().endsWith(word)
+
+    val notLinkedYet: Boolean get() = says("NOT_LINKED_RETRY")
     val unauthorized: Boolean
         get() = listOf("AuthTokenExpired", "LoginInvalid", "LoginUnauthorized", "LoginDisabled", "SessionIdInvalid", "NOT_LINKED_FAILURE")
-            .any { code.endsWith(it) }
+            .any(::says)
 }
 
 /**

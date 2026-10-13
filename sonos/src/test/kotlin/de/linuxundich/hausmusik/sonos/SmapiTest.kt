@@ -87,4 +87,16 @@ class SmapiTest {
             assertTrue(fault.unauthorized)
         }
     }
+
+    @Test
+    fun `Spotify's not-yet-linked answer keeps the link waiting`() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse.Builder().code(500).body("""<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><s:Fault>
+                <faultcode>s:Server</faultcode><faultstring>NOT_LINKED_RETRY</faultstring>
+                <detail><SonosError>5</SonosError></detail></s:Fault></s:Body></s:Envelope>""").build())
+            server.start()
+            val c = SmapiClient(OkHttpClient(), bonob.copy(uri = server.url("/ws").toString()), SmapiCredentials("dev", "hh"))
+            assertEquals(null, c.finishLink(SmapiLink("https://x", "code", false, null)))
+        }
+    }
 }
