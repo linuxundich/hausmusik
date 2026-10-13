@@ -74,6 +74,10 @@ class MainActivity : ComponentActivity() {
 
     private fun applyDebugHost(intent: Intent) {
         if (!BuildConfig.DEBUG) return
+        // Volume cap for tests on real speakers: -e volcap 25 (or -e volcap off).
+        intent.getStringExtra("volcap")?.let { cap ->
+            lifecycleScope.launch { settings.setDebugVolumeCap(cap.toIntOrNull()) }
+        }
         val callback = intent.getStringExtra("callback")
         val host = intent.getStringExtra("host")
         if (callback == null && host == null) return

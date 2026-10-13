@@ -11,6 +11,7 @@ import android.net.NetworkRequest
 import android.net.wifi.WifiManager
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import de.linuxundich.hausmusik.BuildConfig
 import de.linuxundich.hausmusik.di.AppScope
 import de.linuxundich.hausmusik.sonos.Alarm
 import de.linuxundich.hausmusik.sonos.AlarmClient
@@ -357,6 +358,9 @@ class HouseholdRepository @Inject constructor(
     }
 
     private suspend fun refreshGroups(ids: Set<String>) = coroutineScope {
+        if (volumeCap < 100 && _state.value.groups.any { g -> g.memberVolumes.values.any { it > volumeCap } }) {
+            launch { enforceVolumeCap() }
+        }
         val current = _state.value
         val selectedId = current.selected?.id
         val jobs = current.groups.filter { it.id in ids }.map { gs ->
@@ -427,15 +431,48 @@ class HouseholdRepository @Inject constructor(
         }
     }
 
+    /** Debug builds: the test cap from the settings; release builds never have one. */
+    @Volatile private var volumeCap: Int = 100
+
+    init {
+        if (BuildConfig.DEBUG) scope.launch {
+            settings.debugVolumeCap.collect {
+                volumeCap = it ?: 100
+                if (it != null) enforceVolumeCap()
+            }
+        }
+    }
+
+    /** Debug cap: puts every speaker above the cap back down to it. */
+    private suspend fun enforceVolumeCap() {
+        val cap = volumeCap
+        if (cap >= 100) return
+        for (p in _state.value.allPlayers) runCatching {
+            val c = client(p)
+            if (c.volume() > cap) {
+                Log.w(TAG, "volume cap: ${p.roomName} down to $cap")
+                c.setVolume(cap)
+            }
+        }
+    }
+
     fun requestGroupVolume(groupId: String, volume: Int) {
-        val v = volume.coerceIn(0, 100)
+        var v = volume.coerceIn(0, volumeCap)
+        // Sonos scales the members proportionally, so the loudest one may end up
+        // above the group value: keep it at or below the cap as well.
+        if (volumeCap < 100) {
+            val g = _state.value.groups.firstOrNull { it.id == groupId }
+            val loudest = g?.memberVolumes?.values?.maxOrNull() ?: 0
+            val current = g?.groupVolume ?: 0
+            if (loudest > 0 && current > 0) v = v.coerceAtMost(volumeCap * current / loudest)
+        }
         _state.update { s -> s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(groupVolume = v) else it }) }
         val coordinator = _state.value.groups.firstOrNull { it.id == groupId }?.group?.coordinator ?: return
         throttledVolume(groupId, v) { client(coordinator).setGroupVolume(it) }
     }
 
     fun requestMemberVolume(groupId: String, player: SonosPlayer, volume: Int) {
-        val v = volume.coerceIn(0, 100)
+        val v = volume.coerceIn(0, volumeCap)
         _state.update { s ->
             s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(memberVolumes = it.memberVolumes + (player.uuid to v)) else it })
         }
@@ -566,7 +603,8 @@ class HouseholdRepository @Inject constructor(
 
     /** Creates the alarm if it has no ID yet, otherwise updates it. */
     suspend fun saveAlarm(alarm: Alarm): Result<Unit> = alarmClient()?.let { c ->
-        runCatching { if (alarm.id == null) c.create(alarm) else c.update(alarm) }.map { }
+        val capped = alarm.copy(volume = alarm.volume.coerceAtMost(volumeCap))
+        runCatching { if (capped.id == null) c.create(capped) else c.update(capped) }.map { }
     } ?: Result.failure(IOException("not connected"))
 
     suspend fun deleteAlarm(id: String): Result<Unit> =

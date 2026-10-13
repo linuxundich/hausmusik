@@ -30,6 +30,17 @@ adb shell am start -n de.linuxundich.hausmusik.debug/de.linuxundich.hausmusik.Ma
 An empty `callback` extra switches back to the phone's own address.
 Hardware buttons in the emulator: `adb shell input keyevent KEYCODE_VOLUME_UP`.
 
+## Real speakers
+
+Allowed for tests, never above 25 % volume. Set the debug cap first:
+
+```sh
+adb shell am start -n de.linuxundich.hausmusik.debug/de.linuxundich.hausmusik.MainActivity -e volcap 25
+```
+
+`-e volcap off` removes it. Save mute, volumes, groups, track and position
+before a test and restore them afterwards; never touch the real queue.
+
 ## Recording fixtures
 
 `tools/record-fixtures.py <ip> [ip…]` sends only Get/Browse/List actions to real

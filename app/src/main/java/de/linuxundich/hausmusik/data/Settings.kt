@@ -7,6 +7,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -53,6 +54,16 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
     val lastRoomName: Flow<String?> = store.data.map { it[lastRoomNameKey] }
 
     suspend fun setLastRoomName(name: String) = store.edit { if (it[lastRoomNameKey] != name) it[lastRoomNameKey] = name }
+
+    private val volumeCapKey = intPreferencesKey("debug_volume_cap")
+
+    /**
+     * Debug builds only: highest volume the app may set on any speaker, for
+     * tests on real speakers. Null means no cap.
+     */
+    val debugVolumeCap: Flow<Int?> = store.data.map { it[volumeCapKey] }
+
+    suspend fun setDebugVolumeCap(cap: Int?) = store.edit { if (cap == null) it.remove(volumeCapKey) else it[volumeCapKey] = cap.coerceIn(0, 100) }
 
     /** The room the app showed last; any member UUID of the group. */
     suspend fun lastRoom(): String? = store.data.first()[lastGroupKey]

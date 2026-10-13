@@ -15,6 +15,10 @@ All notable changes to Hausmusik are documented here. The format follows
   by checkbox and by dragging a tile, sleep timer, creating and deleting an
   alarm, media output chip. No errors found.
 - The empty alarm list text is centered.
+- Debug builds: a volume cap for tests on real speakers (`-e volcap 25`). It
+  keeps every speaker at or below the cap, also when Sonos scales a group
+  proportionally, clamps alarm volumes and puts any speaker above it back down.
+  Tested on the S1 household: twelve presses of volume up ended at 24.
 - Landscape reviewed screen by screen and reworked:
   - Sheets get wider and lose the drag handle; the rooms sheet shows tiles and
     "plays with" side by side, the sound sheet two speakers per row.
