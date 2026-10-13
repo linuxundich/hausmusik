@@ -53,7 +53,10 @@ All notable changes to Hausmusik are documented here. The format follows
   playlists and tracks play through the queue with the account serial the
   household already uses for that service (read from its favorites).
   *Unlink* sits on the service's start page. The fake household now includes
-  a small bonob for tests.
+  a small bonob for tests. Tested on the real S1 household with bonob:
+  linking, browsing down to tracks, appending a 40-track album to the queue
+  and playing it (with the account serial `sn=7` from the favorites);
+  queue and volumes restored afterwards.
 - Fixed: a page that an S1 player answers empty while still resolving
   favorites ended the list early; it is now asked once more, and only complete
   lists are stored.

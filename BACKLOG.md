@@ -44,7 +44,7 @@ Completed items stay checked.
 - [x] **P1** Cache library lists, refresh only when Sonos reports a new list version
 - [x] **P1** Artist pictures from Deezer (opt-in)
 - [x] **P1** Music services through SMAPI: link (AppLink/DeviceLink), browse, play; tested against the fake bonob
-- [ ] **P1** bonob on the real household: link once (needs Christoph's Navidrome sign-in), browse, play one track
+- [x] **P1** bonob on the real household: linked, browsed, album appended and played
 - [ ] **P1** Search inside a linked service (client has `search`, the library search does not use it yet)
 - [ ] **P1** Spotify through SMAPI: link and browse; check whether Sonos still accepts third-party tokens
 - [ ] **P1** TuneIn on the real household: browse and play a station (fake tested)
