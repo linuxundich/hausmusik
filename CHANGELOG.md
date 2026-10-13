@@ -8,6 +8,12 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- New app icon, design 4b-3 "LEDs in the speaker ring": a gable of LED dots
+  inside a speaker surround, the peak in a sand accent, in Sonos-like colors
+  (near-black ground, warm white). Symmetric around the center; themed
+  (monochrome) variant included. Chosen from the drafts at
+  https://claude.ai/artifact/P639rGUidzRnMTWcfZgGzN.
+
 - The widget knows where it is: without Wi-Fi it shows "Not on Wi-Fi" (a
   tap opens the Wi-Fi picker), in a network without Sonos "No speakers
   here", while searching "Looking for speakers", and "Reconnecting" over the

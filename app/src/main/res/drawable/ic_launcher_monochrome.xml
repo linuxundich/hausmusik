@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Hausmusik icon 4b-3 "LEDs in the speaker ring": a gable of LED dots inside a
+     speaker surround, peak in the accent. Drawn in a 100-unit box, scaled into
+     the adaptive icon's safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <group android:scaleX="0.75" android:scaleY="0.75" android:translateX="10" android:translateY="11.25">
-        <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
-            android:pathData="M28,54 L50,35 L72,54 V75 a4,4 0 0,1 -4,4 H32 a4,4 0 0,1 -4,-4 Z M40,62 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0 Z M47.4,47 a2.6,2.6 0 1,0 5.2,0 a2.6,2.6 0 1,0 -5.2,0 Z" />
-        <path android:fillColor="#FFFFFFFF" android:pathData="M46,62 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" />
-        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3.5" android:strokeLineCap="round"
-            android:pathData="M77,50 a13,13 0 0,1 0,18" />
-        <path android:strokeColor="#FFFFFFFF" android:strokeAlpha="0.55" android:strokeWidth="3.5" android:strokeLineCap="round"
-            android:pathData="M83,44 a21,21 0 0,1 0,30" />
+    <group android:scaleX="0.68" android:scaleY="0.68" android:translateX="20" android:translateY="20">
+        <path android:strokeColor="#FF000000" android:strokeWidth="3.5" android:pathData="M12,50 a38,38 0 1,0 76,0 a38,38 0 1,0 -76,0" />
+        <path android:fillColor="#FF000000" android:pathData="M27.3,69 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M27.3,59.5 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M36.8,69 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M36.8,59.5 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M36.8,50 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M46.3,69 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M46.3,59.5 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M46.3,50 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M46.3,40.5 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M55.8,69 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M55.8,59.5 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M55.8,50 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M65.3,69 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M65.3,59.5 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z M46.3,31 a3.7,3.7 0 1,0 7.4,0 a3.7,3.7 0 1,0 -7.4,0 Z" />
     </group>
 </vector>
