@@ -1,6 +1,15 @@
 package de.linuxundich.hausmusik.ui.queue
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
+import de.linuxundich.hausmusik.ui.theme.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -67,6 +76,8 @@ data class QueueActions(
     val load: suspend () -> Result<List<DidlObject>>,
     val playTrack: (Int) -> Unit,
     val remove: suspend (Int) -> Result<Unit>,
+    /** Moves the track at [from] so that it ends up at position [to] (both 1-based). */
+    val move: suspend (from: Int, to: Int) -> Result<Unit>,
     val moveToNext: suspend (Int) -> Result<Unit>,
     val clear: suspend () -> Result<Unit>,
     val save: suspend (String) -> Result<Unit>,
@@ -74,7 +85,7 @@ data class QueueActions(
 
 /**
  * The queue of the selected room. Tap plays, swipe to the left removes, a long
- * press offers "play next". Dragging to reorder follows later.
+ * press offers "play next". The handle on the right reorders by dragging.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -83,6 +94,7 @@ fun QueueSheet(
     colors: CoverColors,
     artUrl: (String?) -> String?,
     actions: QueueActions,
+    snackbar: SnackbarHostState,
     onDismiss: () -> Unit,
 ) {
     var items by remember { mutableStateOf<List<DidlObject>?>(null) }
@@ -125,16 +137,56 @@ fun QueueSheet(
             Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) { LoadingIndicator(color = colors.accent) }
             return@ModalBottomSheet
         }
+        // Dragging by the handle reorders a local copy; Sonos gets one move on drop.
+        var order by remember(loaded) { mutableStateOf(loaded.mapIndexed { i, t -> (i + 1) to t }) }
+        var dragKey by remember { mutableStateOf<Int?>(null) }
+        var dragOffset by remember { mutableFloatStateOf(0f) }
+        Box {
         LazyColumn(state = list, modifier = Modifier.fillMaxWidth()) {
-            itemsIndexed(loaded, key = { i, t -> "$version/$i/${t.id}" }) { i, t ->
-                val nr = i + 1
+            itemsIndexed(order, key = { _, (nr, t) -> "$version/$nr/${t.id}" }) { index, (nr, t) ->
+                val dragging = dragKey == nr
                 QueueRow(
-                    t, nr, playing = nr == current, colors, artUrl,
-                    onClick = { actions.playTrack(nr) },
-                    onRemove = { edit { actions.remove(nr) } },
-                    onPlayNext = { edit { actions.moveToNext(nr) } },
+                    t, index + 1, playing = nr == current, colors, artUrl,
+                    onClick = { actions.playTrack(index + 1) },
+                    onRemove = { edit { actions.remove(index + 1) } },
+                    onPlayNext = { edit { actions.moveToNext(index + 1) } },
+                    modifier = Modifier
+                        .zIndex(if (dragging) 1f else 0f)
+                        .graphicsLayer { if (dragging) { translationY = dragOffset; shadowElevation = 16f } },
+                    handle = Modifier.pointerInput(nr) {
+                        detectDragGestures(
+                            onDragStart = { dragKey = nr; dragOffset = 0f },
+                            onDrag = { change, amount ->
+                                change.consume()
+                                dragOffset += amount.y
+                                val items = list.layoutInfo.visibleItemsInfo
+                                val from = order.indexOfFirst { it.first == nr }
+                                val me = items.firstOrNull { it.index == from } ?: return@detectDragGestures
+                                val center = me.offset + dragOffset + me.size / 2
+                                val target = items.firstOrNull { it.index != from && center.toInt() in it.offset..(it.offset + it.size) }
+                                if (target != null) {
+                                    order = order.toMutableList().apply { add(target.index, removeAt(from)) }
+                                    dragOffset += me.offset - target.offset
+                                }
+                            },
+                            onDragEnd = {
+                                val from = nr
+                                val to = order.indexOfFirst { it.first == nr } + 1
+                                dragKey = null
+                                dragOffset = 0f
+                                if (from != to) edit { actions.move(from, to) }
+                            },
+                            onDragCancel = {
+                                dragKey = null
+                                dragOffset = 0f
+                                order = loaded.mapIndexed { i, t -> (i + 1) to t }
+                            },
+                        )
+                    },
                 )
             }
+        }
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
         }
     }
 
@@ -172,11 +224,14 @@ private fun QueueRow(
     onClick: () -> Unit,
     onRemove: () -> Unit,
     onPlayNext: () -> Unit,
+    modifier: Modifier = Modifier,
+    handle: Modifier = Modifier,
 ) {
     var menu by remember { mutableStateOf(false) }
     val dismiss = rememberSwipeToDismissBoxState()
     SwipeToDismissBox(
         state = dismiss,
+        modifier = modifier,
         enableDismissFromStartToEnd = false,
         onDismiss = { if (it == SwipeToDismissBoxValue.EndToStart) onRemove() },
         backgroundContent = {
@@ -207,6 +262,9 @@ private fun QueueRow(
                     Text(t.creator.orEmpty(), fontSize = 12.sp, color = colors.content.copy(alpha = 0.65f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Text(formatTime(t.durationMs), fontSize = 12.sp, color = colors.content.copy(alpha = 0.5f))
+                Box(handle.size(40.dp), contentAlignment = Alignment.Center) {
+                    Icon(AppIcons.DragHandle, stringResource(R.string.queue_move), tint = colors.content.copy(alpha = 0.6f))
+                }
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.queue_play_next)) }, enabled = !playing, onClick = { menu = false; onPlayNext() })

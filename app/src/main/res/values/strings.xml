@@ -111,4 +111,5 @@
     <string name="rooms_merged">%1$s now plays with %2$s</string>
     <string name="rooms_drag_hint">Hold a tile and drop it on another room to play together.</string>
     <string name="undo">Undo</string>
+    <string name="queue_move">Move</string>
 </resources>

@@ -454,6 +454,14 @@ class HouseholdRepository @Inject constructor(
 
     suspend fun removeFromQueue(trackNumber: Int): Result<Unit> = command { it.removeTrackFromQueue(trackNumber) }
 
+    /**
+     * Moves the track at [from] so it ends up at [to] (1-based). Sonos counts
+     * InsertBefore in the old numbering, so moving down needs one more.
+     */
+    suspend fun moveInQueue(from: Int, to: Int): Result<Unit> = command { c ->
+        if (from != to) c.reorderQueue(from, 1, if (to > from) to + 1 else to)
+    }
+
     /** Moves a queued track right behind the one that plays now. */
     suspend fun moveToNext(trackNumber: Int): Result<Unit> = command { c ->
         val current = _state.value.selected?.nowPlaying?.queuePosition ?: 0

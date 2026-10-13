@@ -164,10 +164,12 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 load = { vm.loadQueue() },
                 playTrack = { vm.playQueueTrack(it) },
                 remove = { vm.removeFromQueue(it) },
+                move = { from, to -> vm.moveInQueue(from, to) },
                 moveToNext = { vm.moveToNext(it) },
                 clear = { vm.clearQueue() },
                 save = { vm.saveQueue(it) },
             ),
+            snackbar = snackbar,
             onDismiss = { queueOpen = false },
         )
     }

@@ -326,12 +326,19 @@ def act(p, service, action, a):
     if action == "RemoveAllTracksFromQueue":
         c.queue, c.track = [], 1; return {}
     if action == "RemoveTrackFromQueue":
-        i = int(a["ObjectID"].split("/")[-1]); del c.queue[i - 1]; return {}
+        i = int(a["ObjectID"].split("/")[-1]); del c.queue[i - 1]
+        if i < c.track:  # the playing track keeps playing, one place earlier
+            c.track -= 1
+        return {}
     if action == "ReorderTracksInQueue":
         s, n, b = int(a["StartingIndex"]), int(a["NumberOfTracks"]), int(a["InsertBefore"])
+        playing = c.current()
         moved = c.queue[s - 1:s - 1 + n]; del c.queue[s - 1:s - 1 + n]
         if b > s: b -= n
-        c.queue[b - 1:b - 1] = moved; return {}
+        c.queue[b - 1:b - 1] = moved
+        if playing in c.queue:  # like Sonos: the playing track stays the playing track
+            c.track = next(i for i, t in enumerate(c.queue) if t is playing) + 1
+        return {}
     if action == "SaveQueue":
         SAVED.append((a["Title"], c.queue[:]))
         return {"AssignedObjectID": f"SQ:{len(SAVED)}"}

@@ -162,6 +162,22 @@ class FakeHouseholdTest {
     }
 
     @Test
+    fun `moving tracks keeps the playing track`() = runBlocking {
+        val c = wohnzimmer
+        c.seekTrack(4)
+        val playing = c.positionInfo().track!!.title
+        val before = c.browseAll("Q:0").map { it.title }
+        // Down: track 2 to position 4 means InsertBefore 5 in the old numbering.
+        c.reorderQueue(2, 1, 5)
+        val after = c.browseAll("Q:0").map { it.title }
+        assertEquals(listOf(before[0], before[2], before[3], before[1], before[4]), after)
+        assertEquals(playing, c.positionInfo().track!!.title)
+        assertEquals(3, c.positionInfo().trackNumber)
+        c.removeTrackFromQueue(1)
+        assertEquals(playing, c.positionInfo().track!!.title)
+    }
+
+    @Test
     fun `replace queue and play an album`() = runBlocking {
         val c = arbeitszimmer
         val uuid = c.zoneGroups().first { it.coordinator.roomName == "Arbeitszimmer" }.coordinator.uuid

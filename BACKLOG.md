@@ -27,7 +27,8 @@ Completed items stay checked.
 
 - [x] **P0** Favorites, albums, radio, playlists, album tracks
 - [x] **P0** Queue: remove (swipe), play next (long press), clear, save as Sonos playlist
-- [ ] **P1** Queue: reorder by dragging
+- [x] **P1** Queue: reorder by dragging (handle)
+- [ ] **P2** Queue: scroll automatically while dragging near the edge
 - [ ] **P1** Show messages above open sheets (they currently appear behind them)
 - [x] **P1** Search in the music share
 - [x] **P1** Artists and genres

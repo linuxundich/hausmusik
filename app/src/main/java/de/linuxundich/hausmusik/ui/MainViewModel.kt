@@ -115,6 +115,7 @@ class MainViewModel @Inject constructor(
     suspend fun loadQueue(): Result<List<DidlObject>> = repo.browseAll("Q:0", limit = 1000)
 
     suspend fun removeFromQueue(nr: Int) = repo.removeFromQueue(nr).also { r -> r.onFailure { _messages.send(R.string.error_command) } }
+    suspend fun moveInQueue(from: Int, to: Int) = repo.moveInQueue(from, to).also { r -> r.onFailure { _messages.send(R.string.error_command) } }
     suspend fun moveToNext(nr: Int) = repo.moveToNext(nr).also { r -> r.onFailure { _messages.send(R.string.error_command) } }
     suspend fun clearQueue() = repo.clearQueue().also { r -> r.onFailure { _messages.send(R.string.error_command) } }
     suspend fun saveQueue(title: String) = repo.saveQueue(title).also { r ->
