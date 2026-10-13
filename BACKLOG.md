@@ -68,6 +68,16 @@ Completed items stay checked.
 - [x] **P1** Quick Settings tile
 - [ ] **P2** App shortcuts and intents for Tasker
 - [ ] **P2** Check Wear OS through the media session
+- [ ] **P3** Voice commands, parked (Christoph, 2026-10-13). Finding on the
+  Pixel 10: Gemini does not reach Hausmusik's media session, not even for
+  "stop the music". It sent the command to Spotify (and woke its session
+  again after Spotify was closed); Hausmusik got nothing. Probably because
+  the session plays no audio on the phone. Plan when picked up: a microphone
+  button (stage, library, Quick Settings tile) with on-device speech
+  recognition and a local parser ("stop", "louder", "play Metallica from
+  bonob in the living room"); needs search inside services first. Later
+  AppFunctions, once Google opens them to all apps; play-from-search in the
+  media session for Android Auto.
 
 ## Phase 5: Release
 
