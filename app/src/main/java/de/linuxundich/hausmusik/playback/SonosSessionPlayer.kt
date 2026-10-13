@@ -13,6 +13,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.HouseholdRepository
 import de.linuxundich.hausmusik.sonos.SourceKind
+import de.linuxundich.hausmusik.system.RouteIds
 import de.linuxundich.hausmusik.sonos.TransportState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -171,7 +172,11 @@ class SonosSessionPlayer(private val household: HouseholdRepository) : SimpleBas
 
     private companion object {
         const val STEP = 2
-        val REMOTE: DeviceInfo = DeviceInfo.Builder(DeviceInfo.PLAYBACK_TYPE_REMOTE).setMinVolume(0).setMaxVolume(100).build()
+        // The routing controller ID ties the session to the route provider's
+        // session, so the output chip shows the room (SonosRouteProvider).
+        val REMOTE: DeviceInfo = DeviceInfo.Builder(DeviceInfo.PLAYBACK_TYPE_REMOTE).setMinVolume(0).setMaxVolume(100)
+            .setRoutingControllerId(RouteIds.SESSION_ID)
+            .build()
         val VOLUME_COMMANDS = intArrayOf(
             COMMAND_GET_DEVICE_VOLUME,
             COMMAND_SET_DEVICE_VOLUME,

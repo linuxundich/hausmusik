@@ -70,6 +70,15 @@ On a Pixel 10 with Android 17 the volume buttons reach the session also with
 the screen off and on the lock screen; the emulator does not route them while
 the screen is off.
 
+`SonosRouteProvider` (a `MediaRoute2ProviderService`, Android 11+) publishes
+every group as a media route and one routing session for the selected group.
+The media session's `DeviceInfo.routingControllerId` carries the same ID, so
+the system matches both: the output chip shows the room, the output switcher
+lists the rooms. Android binds route providers only while someone discovers
+routes, so the playback service registers a `MediaRouter2` discovery callback
+for remote playback. "Stop streaming" pauses but keeps the session, because in
+the background the provider would not be bound again to bring it back.
+
 Volume from the Stage, the rooms sheet, the notification and the buttons goes
 through one throttle in the repository: at most one request per 120 ms per
 target, always the latest value.

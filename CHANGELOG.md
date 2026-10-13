@@ -42,6 +42,11 @@ All notable changes to Hausmusik are documented here. The format follows
 - Sound: bass, treble and loudness for every speaker of the selected group.
 - The timer button shows the remaining sleep time.
 - Landscape layout for the Stage: cover on the left, controls on the right.
+- The media output chip on the notification shows the room instead of "This
+  phone". The system output switcher lists every room: tap one to show it,
+  "+" lets it play along, the slider sets the group volume, "Stop streaming"
+  pauses. Done with a MediaRoute2ProviderService (Android 11+) whose session is
+  linked to the media session through DeviceInfo.routingControllerId.
 - History: every track that plays while Hausmusik is connected, per day, kept
   only on the phone (Room); a tap searches the library for it.
 - Lyrics on the Stage: time-synced from LRCLIB, the current line lights up, a

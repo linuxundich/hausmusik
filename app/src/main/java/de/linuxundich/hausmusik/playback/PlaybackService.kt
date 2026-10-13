@@ -2,6 +2,10 @@ package de.linuxundich.hausmusik.playback
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.media.MediaRoute2Info
+import android.media.MediaRouter2
+import android.media.RouteDiscoveryPreference
+import android.os.Build
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -32,6 +36,7 @@ class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var idleTimer: Job? = null
+    private var routeCallback: (() -> Unit)? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -43,6 +48,18 @@ class PlaybackService : MediaSessionService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         session = MediaSession.Builder(this, player).setSessionActivity(open).build()
+        // Android binds route providers only while someone discovers routes. By
+        // asking for remote playback routes ourselves, SonosRouteProvider gets
+        // bound and the output chip can show the room.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val router = MediaRouter2.getInstance(this)
+            val callback = object : MediaRouter2.RouteCallback() {}
+            router.registerRouteCallback(
+                mainExecutor, callback,
+                RouteDiscoveryPreference.Builder(listOf(MediaRoute2Info.FEATURE_REMOTE_PLAYBACK), false).build(),
+            )
+            routeCallback = { router.unregisterRouteCallback(callback) }
+        }
         scope.launch {
             household.state.map { it.selected?.isPlaying == true }.distinctUntilChanged().collect { playing ->
                 idleTimer?.cancel()
@@ -62,6 +79,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        routeCallback?.invoke()
         scope.cancel()
         session?.run {
             player.release()

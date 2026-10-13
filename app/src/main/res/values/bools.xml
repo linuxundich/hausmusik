@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- MediaRoute2ProviderService exists from Android 11 (API 30). -->
+    <bool name="route_provider">false</bool>
+</resources>
