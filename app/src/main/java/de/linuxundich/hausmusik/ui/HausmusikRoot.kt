@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalResources
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -101,8 +102,11 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var soundOpen by remember { mutableStateOf(false) }
     var volumeOpen by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
+    var detailsOpen by rememberSaveable { mutableStateOf(false) }
     var lyricsConsent by remember { mutableStateOf(false) }
     val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
+    val detailsOn by vm.detailsEnabled.collectAsStateWithLifecycle()
+    val detailsWikipedia by vm.detailsWikipedia.collectAsStateWithLifecycle()
     val stageBusy by vm.stageBusy.collectAsStateWithLifecycle()
     val artistImagesOn by vm.artistImagesEnabled.collectAsStateWithLifecycle()
     val now = selected.nowPlaying
@@ -152,6 +156,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                     onSound = { soundOpen = true },
                     onRoomVolumes = { volumeOpen = true },
                     onSettings = { stack.add(Screen.Settings) },
+                    onDetails = { detailsOpen = true },
                     onLyrics = { if (lyricsEnabled) showLyrics = !showLyrics else lyricsConsent = true },
                     timerLabel = selected.sleepRemainingMs?.let { ms ->
                         stringResource(R.string.sleep_minutes, ((ms + 59_999) / 60_000).toInt())
@@ -170,10 +175,12 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             )
             Screen.Alarms -> AlarmsScreen(hiltViewModel(), onBack = { stack.removeAt(stack.lastIndex) })
             Screen.Settings -> SettingsScreen(
-                SettingsState(manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn),
+                SettingsState(manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn, detailsOn, detailsWikipedia),
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
                 onArtistImages = vm::setArtistImagesEnabled,
+                onDetails = vm::setDetailsEnabled,
+                onDetailsWikipedia = vm::setDetailsWikipedia,
                 onLicenses = { stack.add(Screen.Licenses) },
                 onClearCache = vm::clearListCache,
                 onBack = { stack.removeAt(stack.lastIndex) },
@@ -229,6 +236,22 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             snackbar = snackbar,
             onDismiss = { queueOpen = false },
         )
+    }
+    if (detailsOpen) {
+        val playing = selected.nowPlaying
+        if (playing == null) {
+            detailsOpen = false
+        } else {
+            de.linuxundich.hausmusik.ui.details.DetailsSheet(
+                playing, detailsOn, colors,
+                de.linuxundich.hausmusik.ui.details.DetailsActions(
+                    loadArtist = { vm.artistDetails(it) },
+                    loadAlbum = { title, artist -> vm.albumDetails(title, artist) },
+                    onEnable = { vm.setDetailsEnabled(true) },
+                ),
+                onDismiss = { detailsOpen = false },
+            )
+        }
     }
     if (lyricsConsent) {
         AlertDialog(

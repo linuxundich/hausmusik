@@ -78,7 +78,7 @@ class ArtistImages(
         private const val RETRY_MS = 30L * 24 * 3600 * 1000
 
         /** Compilation "artists" have no face; asking Deezer would return some random band. */
-        private val COLLECTIONS = setOf("various artists", "various", "verschiedene interpreten", "diverse", "va", "unknown artist", "unbekannter interpret", "soundtrack")
+        internal val COLLECTIONS = setOf("various artists", "various", "verschiedene interpreten", "diverse", "va", "unknown artist", "unbekannter interpret", "soundtrack")
 
         /** Lower case, without a leading "the", accents and punctuation: "The Beatles" = "beatles". */
         internal fun normalize(name: String): String =

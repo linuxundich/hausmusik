@@ -72,6 +72,14 @@ Artist pictures come from the public [Deezer API](https://developers.deezer.com)
 only after the user switches them on. Hausmusik is not affiliated with Deezer;
 the pictures belong to their respective rights holders.
 
+Artist and album details come from [MusicBrainz](https://musicbrainz.org), whose
+core data is in the public domain (CC0), and optionally from
+[Wikipedia](https://www.wikipedia.org) through [Wikidata](https://www.wikidata.org).
+Wikipedia texts are licensed under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); Hausmusik shows
+the text unchanged with a link to its page. Both are used only after the user
+switches them on. Hausmusik is not affiliated with these projects.
+
 ## Test data
 
 - `sonos/src/test/resources/fixtures/` holds responses recorded from the

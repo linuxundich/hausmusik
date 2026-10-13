@@ -51,6 +51,11 @@ Completed items stay checked.
 - [x] **P1** TuneIn on the real household: browsed, station played
 - [ ] **P2** Services with UserId sign-in (user name and password form)
 
+- [x] **P1** Artist and album details (MusicBrainz + Wikipedia, opt-in) in a sheet on the stage
+- [ ] **P2** Details from the library too (long press on an artist or album) and from the queue
+- [ ] **P2** Keep details on disk (now until the app ends) and show an artist picture in the sheet
+- [ ] **P2** Test the details sheet with the fake household (fake MusicBrainz in `fake_sonos.py`)
+
 ## Phase 3: Rooms and everyday use
 
 - [x] **P0** Group by checkbox, sleep timer

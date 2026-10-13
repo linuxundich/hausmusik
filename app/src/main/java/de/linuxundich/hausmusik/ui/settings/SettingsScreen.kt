@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import de.linuxundich.hausmusik.BuildConfig
 import de.linuxundich.hausmusik.R
 
-data class SettingsState(val manualHost: String?, val connectedTo: String?, val lyricsEnabled: Boolean, val artistImagesEnabled: Boolean = false)
+data class SettingsState(val manualHost: String?, val connectedTo: String?, val lyricsEnabled: Boolean, val artistImagesEnabled: Boolean = false, val detailsEnabled: Boolean = false, val detailsWikipedia: Boolean = true)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +50,8 @@ fun SettingsScreen(
     onConnect: (String?) -> Unit,
     onLyrics: (Boolean) -> Unit,
     onArtistImages: (Boolean) -> Unit,
+    onDetails: (Boolean) -> Unit = {},
+    onDetailsWikipedia: (Boolean) -> Unit = {},
     onLicenses: () -> Unit,
     onClearCache: () -> Unit,
     onBack: () -> Unit,
@@ -101,6 +103,18 @@ fun SettingsScreen(
                 Switch(checked = state.artistImagesEnabled, onCheckedChange = onArtistImages)
             }
             Text(stringResource(R.string.artist_images_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.details_setting), Modifier.weight(1f))
+                Switch(checked = state.detailsEnabled, onCheckedChange = onDetails)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.details_setting_wikipedia), Modifier.weight(1f),
+                    color = if (state.detailsEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                )
+                Switch(checked = state.detailsWikipedia, onCheckedChange = onDetailsWikipedia, enabled = state.detailsEnabled)
+            }
+            Text(stringResource(R.string.details_consent_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.settings_about), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)

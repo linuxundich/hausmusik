@@ -182,4 +182,20 @@
     <string name="search_share">Music share</string>
     <string name="search_source_failed">Could not be searched.</string>
     <string name="search_podcasts">Podcasts</string>
+    <string name="details">Details</string>
+    <string name="details_artist">Artist</string>
+    <string name="details_album">Album</string>
+    <string name="details_nothing_playing">Nothing is playing.</string>
+    <string name="details_none_artist">No information found for this artist.</string>
+    <string name="details_none_album">No information found for this album.</string>
+    <string name="details_failed">The information could not be loaded. Is the phone online?</string>
+    <string name="details_type_person">Person</string>
+    <string name="details_type_group">Group</string>
+    <string name="details_source_wikipedia">Text: Wikipedia (CC BY-SA)</string>
+    <string name="details_source_musicbrainz">MusicBrainz</string>
+    <string name="details_consent_body">Background on the artist and album comes from free sources: facts from MusicBrainz and, if you like, a short text from Wikipedia. For that, the artist and album names are sent to musicbrainz.org, and the Wikipedia text also asks wikidata.org and wikipedia.org. Nothing else leaves your home network.</string>
+    <string name="details_consent_yes">Show details</string>
+    <string name="details_setting">Artist and album details</string>
+    <string name="details_setting_wikipedia">Add a text from Wikipedia</string>
+    <string name="details_retry">Try again</string>
 </resources>

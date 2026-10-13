@@ -12,6 +12,7 @@ import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.HouseholdRepository
 import de.linuxundich.hausmusik.ui.stage.StageBusy
 import de.linuxundich.hausmusik.data.BusyKind
+import de.linuxundich.hausmusik.data.DetailsRepository
 import de.linuxundich.hausmusik.data.LyricsRepository
 import de.linuxundich.hausmusik.data.Settings
 import de.linuxundich.hausmusik.sonos.NowPlaying
@@ -34,6 +35,7 @@ class MainViewModel @Inject constructor(
     private val repo: HouseholdRepository,
     private val settings: Settings,
     private val lyricsRepo: LyricsRepository,
+    private val detailsRepo: DetailsRepository,
 ) : ViewModel() {
 
     val lyricsEnabled: StateFlow<Boolean> = settings.lyricsEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
@@ -43,6 +45,13 @@ class MainViewModel @Inject constructor(
     fun setLyricsEnabled(on: Boolean) = viewModelScope.launch { settings.setLyricsEnabled(on) }
     val artistImagesEnabled: StateFlow<Boolean> = settings.artistImagesEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
     fun setArtistImagesEnabled(on: Boolean) = viewModelScope.launch { settings.setArtistImagesEnabled(on) }
+
+    val detailsEnabled: StateFlow<Boolean> = settings.detailsEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val detailsWikipedia: StateFlow<Boolean> = settings.detailsWikipediaEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    fun setDetailsEnabled(on: Boolean) = viewModelScope.launch { settings.setDetailsEnabled(on) }
+    fun setDetailsWikipedia(on: Boolean) = viewModelScope.launch { settings.setDetailsWikipediaEnabled(on) }
+    suspend fun artistDetails(name: String) = detailsRepo.artist(name)
+    suspend fun albumDetails(title: String, artist: String?) = detailsRepo.album(title, artist)
 
     suspend fun lyrics(now: NowPlaying): LyricsUi =
         lyricsRepo.find(now.title, now.artist, now.album, now.durationMs).fold(

@@ -8,6 +8,13 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Artist and album details: *Details* in the stage menu (or a tap on the
+  artist and album line) opens a sheet with facts from MusicBrainz (type,
+  country, years, genres, release date) and, if wanted, a short Wikipedia text
+  in the phone's language (English as fallback), found through Wikidata. Off
+  until switched on, in the sheet or in the settings, where the Wikipedia text
+  has its own switch. MusicBrainz is asked at most once a second and once more
+  when it answers 503 or 429; answers are kept until the app ends.
 - Volume of each room: the speaker icon left of the stage's volume slider
   opens a "Volume" sheet with all rooms together, one slider per room and a
   mute button per room.

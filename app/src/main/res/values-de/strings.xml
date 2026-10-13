@@ -180,4 +180,20 @@
     <string name="search_share">Musikfreigabe</string>
     <string name="search_source_failed">Ließ sich nicht durchsuchen.</string>
     <string name="search_podcasts">Podcasts</string>
+    <string name="details">Details</string>
+    <string name="details_artist">Interpret</string>
+    <string name="details_album">Album</string>
+    <string name="details_nothing_playing">Es läuft nichts.</string>
+    <string name="details_none_artist">Zu diesem Interpreten wurde nichts gefunden.</string>
+    <string name="details_none_album">Zu diesem Album wurde nichts gefunden.</string>
+    <string name="details_failed">Die Angaben ließen sich nicht laden. Ist das Handy online?</string>
+    <string name="details_type_person">Person</string>
+    <string name="details_type_group">Gruppe</string>
+    <string name="details_source_wikipedia">Text: Wikipedia (CC BY-SA)</string>
+    <string name="details_source_musicbrainz">MusicBrainz</string>
+    <string name="details_consent_body">Hintergründe zu Interpret und Album kommen aus freien Quellen: Fakten von MusicBrainz und, wenn du magst, ein kurzer Text von Wikipedia. Dafür gehen die Namen von Interpret und Album an musicbrainz.org, der Wikipedia-Text fragt zusätzlich wikidata.org und wikipedia.org. Sonst verlässt nichts dein Heimnetz.</string>
+    <string name="details_consent_yes">Details zeigen</string>
+    <string name="details_setting">Details zu Interpret und Album</string>
+    <string name="details_setting_wikipedia">Text von Wikipedia ergänzen</string>
+    <string name="details_retry">Erneut versuchen</string>
 </resources>

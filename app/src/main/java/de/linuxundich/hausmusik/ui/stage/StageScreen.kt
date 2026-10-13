@@ -5,6 +5,7 @@ package de.linuxundich.hausmusik.ui.stage
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -90,6 +91,8 @@ data class StageActions(
     val onSound: () -> Unit,
     val onSettings: () -> Unit,
     val onLyrics: () -> Unit,
+    /** Background on the playing artist and album. */
+    val onDetails: () -> Unit = {},
     /** "23 min" while a sleep timer runs. */
     val timerLabel: String? = null,
     /** The speaker icon left of the slider: volume of each room. */
@@ -245,7 +248,13 @@ private fun StageControls(group: GroupState, colors: CoverColors, actions: Stage
             now.kind == SourceKind.Radio -> listOfNotNull(now.station, now.artist).joinToString(" · ")
             else -> listOfNotNull(now.artist, now.album).joinToString(" · ")
         }
-        Text(sub, color = colors.content.copy(alpha = 0.72f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            sub, color = colors.content.copy(alpha = 0.72f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            // Artist and album open their background info; a radio station has none.
+            modifier = if (now != null && now.kind != SourceKind.Radio && (now.artist != null || now.album != null)) {
+                Modifier.clickable(onClickLabel = stringResource(R.string.details), onClick = actions.onDetails)
+            } else Modifier,
+        )
         Spacer(Modifier.height(16.dp))
         if (now?.durationMs != null && now.durationMs!! > 0) {
             Progress(group, colors, actions.onSeek)
@@ -265,6 +274,7 @@ private fun StageMenu(colors: CoverColors, actions: StageActions) {
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.queue_more), tint = colors.content.copy(alpha = 0.85f)) }
         AppMenu(open, { open = false }, menuColors(colors)) {
+            Item(AppIcons.Info, stringResource(R.string.details)) { open = false; actions.onDetails() }
             Item(AppIcons.Alarm, stringResource(R.string.alarms)) { open = false; actions.onAlarms() }
             Item(AppIcons.Tune, stringResource(R.string.sound)) { open = false; actions.onSound() }
             Item(Icons.Filled.Settings, stringResource(R.string.settings)) { open = false; actions.onSettings() }

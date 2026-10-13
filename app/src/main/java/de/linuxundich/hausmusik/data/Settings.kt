@@ -46,6 +46,21 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
     suspend fun setArtistImagesEnabled(on: Boolean) = store.edit { it[artistImagesKey] = on; it[artistHintKey] = true }
     suspend fun dismissArtistImagesHint() = store.edit { it[artistHintKey] = true }
 
+    private val detailsKey = booleanPreferencesKey("details_enabled")
+    private val detailsWikipediaKey = booleanPreferencesKey("details_wikipedia_enabled")
+
+    /**
+     * Background on the playing artist and album from MusicBrainz; off until the
+     * user agrees, since it sends artist and album names to musicbrainz.org.
+     */
+    val detailsEnabled: Flow<Boolean> = store.data.map { it[detailsKey] ?: false }
+
+    /** Adds a Wikipedia text (through Wikidata) to the facts; only matters while [detailsEnabled]. */
+    val detailsWikipediaEnabled: Flow<Boolean> = store.data.map { it[detailsWikipediaKey] ?: true }
+
+    suspend fun setDetailsEnabled(on: Boolean) = store.edit { it[detailsKey] = on }
+    suspend fun setDetailsWikipediaEnabled(on: Boolean) = store.edit { it[detailsWikipediaKey] = on }
+
     private val debugCallbackKey = stringPreferencesKey("debug_callback")
 
     /**
