@@ -8,6 +8,9 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Fixed: a long room name on the stage ("Arbeitszimmer + Wohnzimmer") ran
+  under the menu button; it is shortened now and keeps the menu free.
+
 - Messages show as one pill at the top of the screen, above everything
   (design C from https://claude.ai/artifact/Pj4FGtisTCz7KWgnHxHpQp): light
   on the stage and the sheets, dark on the library. They no longer hide

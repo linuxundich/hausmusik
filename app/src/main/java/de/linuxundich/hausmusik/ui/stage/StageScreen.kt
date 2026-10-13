@@ -194,7 +194,9 @@ fun StageScreen(
             } else {
                 Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // The menu sits on the right: keep its width free on both sides, so a long
+                        // room name ("Arbeitszimmer + Wohnzimmer") is shortened instead of running under it.
+                        Column(Modifier.padding(horizontal = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             RoomChip(group.group.displayName, colors, actions.onRooms)
                             WaitingWave(otherBusy, colors, Modifier.padding(top = 4.dp))
                         }
