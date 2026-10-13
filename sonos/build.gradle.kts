@@ -23,3 +23,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
 }
+
+tasks.test {
+    // FakeHouseholdTest starts tools/fake-sonos/fake_sonos.py; it is skipped without python3.
+    systemProperty("fakeSonos", rootProject.file("tools/fake-sonos/fake_sonos.py").absolutePath)
+}

@@ -1,0 +1,240 @@
+package de.linuxundich.hausmusik.sonos
+
+import java.io.File
+import java.net.Socket
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
+import org.junit.Before
+import org.junit.Test
+
+/**
+ * The client against tools/fake-sonos/fake_sonos.py: a second, independent
+ * implementation of the protocol. Each test gets a fresh household.
+ */
+class FakeHouseholdTest {
+    private lateinit var process: Process
+    private val soap = SoapClient(OkHttpClient.Builder().readTimeout(5, TimeUnit.SECONDS).build())
+    private val base = 1541
+
+    private fun url(i: Int): HttpUrl = "http://127.0.0.1:${base + i}/".toHttpUrl()
+    private val wohnzimmer get() = SonosPlayerClient(url(0), soap)
+    private val kueche get() = SonosPlayerClient(url(1), soap)
+    private val arbeitszimmer get() = SonosPlayerClient(url(2), soap)
+    private val bad get() = SonosPlayerClient(url(3), soap)
+
+    @Before
+    fun start() {
+        val script = System.getProperty("fakeSonos")?.let(::File)
+        assumeTrue("fake_sonos.py not found", script?.exists() == true)
+        val python = listOf("/usr/bin/python3", "/usr/local/bin/python3").firstOrNull { File(it).canExecute() }
+        assumeTrue("python3 not found", python != null)
+        process = ProcessBuilder(python, "-I", script!!.path, "--bind", "127.0.0.1", "--advertise", "127.0.0.1", "--port-base", "$base")
+            .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
+        val deadline = System.currentTimeMillis() + 5000
+        while (System.currentTimeMillis() < deadline) {
+            if (runCatching { Socket("127.0.0.1", base + 3).close() }.isSuccess) return
+            Thread.sleep(50)
+        }
+        error("fake household did not start")
+    }
+
+    @After
+    fun stop() {
+        if (::process.isInitialized) {
+            process.destroy()
+            process.waitFor(3, TimeUnit.SECONDS)
+        }
+    }
+
+    @Test
+    fun `topology lists three groups with Wohnzimmer and Kueche together`() = runBlocking {
+        val groups = wohnzimmer.zoneGroups()
+        assertEquals(listOf("Arbeitszimmer", "Bad", "Wohnzimmer + Küche"), groups.map { it.displayName })
+        assertEquals(base + 1, groups.last().members[1].baseUrl.port)
+    }
+
+    @Test
+    fun `play and pause`() = runBlocking {
+        val c = arbeitszimmer
+        assertEquals(TransportState.Paused, c.transportState())
+        c.play()
+        assertEquals(TransportState.Playing, c.transportState())
+        c.pause()
+        assertEquals(TransportState.Paused, c.transportState())
+    }
+
+    @Test
+    fun `radio has no next and reports station and stream`() = runBlocking {
+        val c = arbeitszimmer
+        val now = NowPlaying.from(c.positionInfo(), c.mediaInfo())!!
+        assertEquals(SourceKind.Radio, now.kind)
+        assertEquals("Radio Tuxfunk", now.station)
+        assertEquals("Uptime", now.title)
+        assertEquals("Penny Guin", now.artist)
+        assertFalse(c.transportActions().canNext)
+        try {
+            c.next()
+            error("next on radio must fail")
+        } catch (e: SoapFault) {
+            assertEquals(701, e.upnpErrorCode)
+        }
+    }
+
+    @Test
+    fun `queue track with metadata and absolute cover`() = runBlocking {
+        val c = wohnzimmer
+        val now = NowPlaying.from(c.positionInfo(), c.mediaInfo())!!
+        assertEquals(SourceKind.Queue, now.kind)
+        assertEquals("Kernel Panic Ballads", now.album)
+        assertEquals(1, now.queuePosition)
+        assertEquals("http://127.0.0.1:${base}/getaa?u=album0", c.absoluteArtUrl(now.albumArtUri))
+        assertTrue(c.transportActions().canNext)
+        c.next()
+        assertEquals(2, c.positionInfo().trackNumber)
+    }
+
+    @Test
+    fun `member follows its coordinator`() = runBlocking {
+        val m = kueche.mediaInfo()
+        assertEquals(SourceKind.GroupMember, SourceKind.of("", m.currentUri.orEmpty()))
+    }
+
+    @Test
+    fun `group volume scales members proportionally`() = runBlocking {
+        assertEquals(24, wohnzimmer.groupVolume()) // 30 and 18
+        wohnzimmer.setGroupVolume(48)
+        assertEquals(60, wohnzimmer.volume())
+        assertEquals(36, kueche.volume())
+    }
+
+    @Test
+    fun `join and leave a group`() = runBlocking {
+        val wz = wohnzimmer.zoneGroups().first { it.coordinator.roomName == "Wohnzimmer" }.coordinator
+        bad.joinGroup(wz.uuid)
+        assertEquals("Wohnzimmer + 2", wohnzimmer.zoneGroups().first { it.coordinator.uuid == wz.uuid }.displayName)
+        bad.leaveGroup()
+        assertTrue(wohnzimmer.zoneGroups().any { it.displayName == "Bad" })
+    }
+
+    @Test
+    fun `coordinator leaving hands the group over`() = runBlocking {
+        wohnzimmer.leaveGroup()
+        val names = arbeitszimmer.zoneGroups().map { it.displayName }
+        assertTrue(names.toString(), "Küche" in names && "Wohnzimmer" in names)
+        assertEquals(TransportState.Playing, kueche.transportState())
+    }
+
+    @Test
+    fun `queue editing`() = runBlocking {
+        val c = wohnzimmer
+        fun titles(r: List<DidlObject>) = r.map { it.title }
+        val before = titles(c.browseAll("Q:0"))
+        assertEquals(5, before.size)
+        c.removeTrackFromQueue(3)
+        assertEquals(before - before[2], titles(c.browseAll("Q:0")))
+        c.reorderQueue(4, 1, 2) // last one right behind the first
+        assertEquals(listOf(before[0], before[4], before[1], before[3]), titles(c.browseAll("Q:0")))
+        val first = c.addToQueue("x-rincon-playlist:X#A:ALBUM/1", asNext = true)
+        assertEquals(2, first)
+        assertEquals("Pacman Syncs", c.browseAll("Q:0")[1].title)
+        val id = c.saveQueue("Test")
+        assertTrue(id.startsWith("SQ:"))
+        assertTrue(c.browseAll("SQ:").any { it.title == "Test" })
+        c.removeAllTracksFromQueue()
+        assertEquals(0, c.browse("Q:0").totalMatches)
+    }
+
+    @Test
+    fun `replace queue and play an album`() = runBlocking {
+        val c = arbeitszimmer
+        val uuid = c.zoneGroups().first { it.coordinator.roomName == "Arbeitszimmer" }.coordinator.uuid
+        val album = c.browseAll("A:ALBUM").first { it.title == "Hutmacher" }
+        c.removeAllTracksFromQueue()
+        c.addToQueue(album.uri!!)
+        c.useQueue(uuid)
+        c.seekTrack(1)
+        c.play()
+        val now = NowPlaying.from(c.positionInfo(), c.mediaInfo())!!
+        assertEquals(SourceKind.Queue, now.kind)
+        assertEquals("Red Hat Rag", now.title)
+        assertEquals(TransportState.Playing, c.transportState())
+    }
+
+    @Test
+    fun `play mode and sleep timer`() = runBlocking {
+        val c = wohnzimmer
+        c.setPlayMode(PlayMode(shuffle = true, repeat = RepeatMode.All))
+        assertEquals(PlayMode(true, RepeatMode.All), c.playMode())
+        c.configureSleepTimer(15 * 60_000L)
+        val left = c.remainingSleepTimerMs()!!
+        assertTrue(left in 14 * 60_000L..15 * 60_000L)
+        c.configureSleepTimer(null)
+        assertEquals(null, c.remainingSleepTimerMs())
+    }
+
+    @Test
+    fun `tone settings`() = runBlocking {
+        val c = bad
+        c.setBass(-4)
+        c.setTreble(3)
+        c.setLoudness(false)
+        assertEquals(-4, c.bass())
+        assertEquals(3, c.treble())
+        assertFalse(c.loudness())
+    }
+
+    @Test
+    fun `alarms create update delete`() = runBlocking {
+        val alarms = AlarmClient(url(0), soap)
+        assertEquals(2, alarms.list().size)
+        val id = alarms.create(Alarm(null, 7 * 60 + 15, 30, Recurrence(setOf(1, 3, 5)), true, "RINCON_FAKE000000401400"))
+        val created = alarms.list().first { it.id == id }
+        assertEquals(setOf(1, 3, 5), created.recurrence.days)
+        assertEquals(7 * 60 + 15, created.startMinutes)
+        alarms.update(created.copy(enabled = false, volume = 33))
+        val updated = alarms.list().first { it.id == id }
+        assertFalse(updated.enabled)
+        assertEquals(33, updated.volume)
+        alarms.delete(id)
+        assertEquals(2, alarms.list().size)
+    }
+
+    @Test
+    fun `events arrive after a change`() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val server = GenaServer(scope)
+        val port = server.start()
+        try {
+            val sub = GenaClient(OkHttpClient()).subscribe(url(3), SonosService.RenderingControl, "http://127.0.0.1:$port/ev")
+            assertNotNull(sub.sid)
+            // The initial NOTIFY may already be on its way; wait for one that follows the change.
+            val event = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeout(5000) { server.events.first { it.sid == sub.sid } }
+            }
+            bad.setVolume(40)
+            assertEquals(sub.sid, event.await().sid)
+            val renewed = GenaClient(OkHttpClient()).renew(url(3), SonosService.RenderingControl, sub.sid)
+            assertEquals(sub.sid, renewed.sid)
+        } finally {
+            server.stop()
+            scope.cancel()
+        }
+    }
+}

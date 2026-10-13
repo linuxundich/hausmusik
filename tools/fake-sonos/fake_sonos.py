@@ -483,11 +483,16 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--advertise", default="127.0.0.1", help="host the app uses to reach this machine (emulator: 10.0.2.2)")
     ap.add_argument("--bind", default="0.0.0.0")
+    ap.add_argument("--port-base", type=int, default=1401, help="port of the first room; the others follow")
     ap.add_argument("-v", "--verbose", action="store_true")
     ARGS = ap.parse_args()
     ADVERTISE = ARGS.advertise
+    for i, p in enumerate(sorted(players.values(), key=lambda p: p.port)):
+        p.port = ARGS.port_base + i
+    by_port.clear()
+    by_port.update({p.port: p for p in players.values()})
     servers = [ThreadingHTTPServer((ARGS.bind, port), Handler) for port in by_port]
     for s in servers[1:]:
         threading.Thread(target=s.serve_forever, daemon=True).start()
-    print("Fake Sonos household:", ", ".join(f"{p.room} :{p.port}" for p in by_port.values()))
+    print("Fake Sonos household:", ", ".join(f"{p.room} :{p.port}" for p in by_port.values()), flush=True)
     servers[0].serve_forever()
