@@ -36,7 +36,7 @@ Completed items stay checked.
 ## Phase 3: Rooms and everyday use
 
 - [x] **P0** Group by checkbox, sleep timer
-- [ ] **P1** Group by dragging room tiles (from design A)
+- [x] **P1** Group by dragging room tiles (from design A), with undo
 - [x] **P1** Show the remaining sleep time
 - [x] **P1** Alarms: list, create, edit, duplicate
 - [x] **P1** Sound: bass, treble, loudness

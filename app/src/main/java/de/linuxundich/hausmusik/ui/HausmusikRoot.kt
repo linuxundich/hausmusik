@@ -146,6 +146,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             household, colors,
             RoomActions(
                 onSelect = { vm.select(it); roomsOpen = false },
+                onMerge = { source, target -> vm.merge(source, target) },
                 onPlayPause = vm::playPause,
                 onGroupVolume = vm::setGroupVolume,
                 onMemberVolume = vm::setMemberVolume,

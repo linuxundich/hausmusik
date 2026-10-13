@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.HouseholdRepository
 import de.linuxundich.hausmusik.data.QueueMode
 import de.linuxundich.hausmusik.sonos.DidlObject
@@ -61,6 +62,13 @@ class MainViewModel @Inject constructor(
         val groupId = household.value.selected?.id ?: return
         run { repo.setMembership(player, groupId, member) }
     }
+
+    /** Merges [source] into [target]; returns an undo action, or null when it failed. */
+    suspend fun merge(source: GroupState, target: GroupState): (suspend () -> Unit)? =
+        repo.mergeGroups(source, target).fold(
+            { moved -> { repo.separate(moved).onFailure { _messages.send(R.string.error_command) } } },
+            { _messages.send(R.string.error_command); null },
+        )
 
     fun pauseAll() = run {
         runCatching {

@@ -1,5 +1,29 @@
 package de.linuxundich.hausmusik.ui.rooms
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,6 +70,8 @@ import de.linuxundich.hausmusik.ui.theme.CoverColors
 
 data class RoomActions(
     val onSelect: (String) -> Unit,
+    /** Drop of one group onto another; returns a message to show, with undo. */
+    val onMerge: suspend (GroupState, GroupState) -> (suspend () -> Unit)?,
     val onPlayPause: (String) -> Unit,
     val onGroupVolume: (String, Int) -> Unit,
     val onMemberVolume: (String, SonosPlayer, Int) -> Unit,
@@ -63,7 +89,9 @@ data class RoomActions(
 fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, onDismiss: () -> Unit) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val container = lerp(colors.backgroundBottom, colors.backgroundTop, 0.35f)
+    val snackbar = remember { SnackbarHostState() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = container, contentColor = colors.content) {
+        Box {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.rooms), fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -72,10 +100,7 @@ fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, 
                 }
             }
             Spacer(Modifier.height(8.dp))
-            household.groups.forEach { g ->
-                GroupCard(g, g.id == household.selected?.id, colors, actions)
-                Spacer(Modifier.height(8.dp))
-            }
+            RoomTiles(household, colors, actions, snackbar)
             val selected = household.selected ?: return@Column
             Spacer(Modifier.height(12.dp))
             Text(
@@ -112,34 +137,126 @@ fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, 
             }
             Spacer(Modifier.height(24.dp))
         }
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        }
+    }
+}
+
+/**
+ * Every group as a tile, two per row. A tap shows the group on the Stage; a
+ * long press lifts the tile, and dropping it on another tile lets those rooms
+ * play together.
+ */
+@Composable
+private fun RoomTiles(household: Household, colors: CoverColors, actions: RoomActions, snackbar: SnackbarHostState) {
+    val bounds = remember { mutableStateMapOf<String, Rect>() }
+    var dragged by remember { mutableStateOf<String?>(null) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var hover by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val resources = LocalResources.current
+    val haptics = LocalHapticFeedback.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        household.groups.chunked(2).forEach { row ->
+            // The row of the lifted tile draws above the rows after it.
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.zIndex(if (row.any { it.id == dragged }) 1f else 0f)) {
+                row.forEach { g ->
+                    val isDragged = dragged == g.id
+                    GroupTile(
+                        g, selected = g.id == household.selected?.id, dropTarget = hover == g.id, lifted = isDragged, colors = colors, actions = actions,
+                        modifier = Modifier
+                            .weight(1f)
+                            .onGloballyPositioned { bounds[g.id] = it.boundsInRoot() }
+                            .zIndex(if (isDragged) 1f else 0f)
+                            .graphicsLayer {
+                                if (isDragged) {
+                                    translationX = offset.x
+                                    translationY = offset.y
+                                    scaleX = 1.05f
+                                    scaleY = 1.05f
+                                    shadowElevation = 24f
+                                    rotationZ = -2f
+                                }
+                            }
+                            .pointerInput(g.id) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = {
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        dragged = g.id
+                                        offset = Offset.Zero
+                                    },
+                                    onDrag = { change, delta ->
+                                        change.consume()
+                                        offset += delta
+                                        val center = bounds[g.id]?.center?.plus(offset)
+                                        hover = center?.let { c -> bounds.entries.firstOrNull { it.key != g.id && it.value.contains(c) }?.key }
+                                    },
+                                    onDragEnd = {
+                                        val target = hover?.let { id -> household.groups.firstOrNull { it.id == id } }
+                                        dragged = null
+                                        hover = null
+                                        offset = Offset.Zero
+                                        if (target != null) scope.launch {
+                                            val undo = actions.onMerge(g, target) ?: return@launch
+                                            val result = snackbar.showSnackbar(
+                                                resources.getString(R.string.rooms_merged, g.group.displayName, target.group.coordinator.roomName),
+                                                actionLabel = resources.getString(R.string.undo),
+                                                duration = SnackbarDuration.Long,
+                                            )
+                                            if (result == SnackbarResult.ActionPerformed) undo()
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        dragged = null
+                                        hover = null
+                                        offset = Offset.Zero
+                                    },
+                                )
+                            },
+                    )
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+        if (household.groups.size > 1) {
+            Text(stringResource(R.string.rooms_drag_hint), fontSize = 12.sp, color = colors.content.copy(alpha = 0.6f))
+        }
     }
 }
 
 @Composable
-private fun GroupCard(g: GroupState, selected: Boolean, colors: CoverColors, actions: RoomActions) {
+private fun GroupTile(
+    g: GroupState,
+    selected: Boolean,
+    dropTarget: Boolean,
+    lifted: Boolean,
+    colors: CoverColors,
+    actions: RoomActions,
+    modifier: Modifier,
+) {
     Surface(
         onClick = { actions.onSelect(g.id) },
         shape = RoundedCornerShape(20.dp),
-        color = if (selected) colors.accent.copy(alpha = 0.18f) else Color.Transparent,
+        color = when {
+            // A lifted tile must hide what it is dragged over.
+            lifted -> lerp(colors.backgroundBottom, colors.backgroundTop, 0.6f)
+            dropTarget -> colors.accent.copy(alpha = 0.35f)
+            selected -> colors.accent.copy(alpha = 0.18f)
+            else -> colors.subtle.copy(alpha = 0.08f)
+        },
         contentColor = colors.content,
+        border = if (dropTarget) BorderStroke(2.dp, colors.accent) else null,
+        modifier = modifier,
     ) {
         Column(Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Cover(
-                    g.artUrl, Modifier.size(48.dp), corner = 10.dp, placeholderColor = colors.subtle,
+                    g.artUrl, Modifier.size(44.dp), corner = 10.dp, placeholderColor = colors.subtle,
                     iconColor = colors.content.copy(alpha = 0.5f),
                     icon = if (g.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker,
                 )
-                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                    Text(g.group.displayName, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    val state = when {
-                        g.nowPlaying == null -> stringResource(R.string.rooms_idle)
-                        g.transport == TransportState.Paused || g.transport == TransportState.Stopped ->
-                            "${g.nowPlaying.station ?: g.nowPlaying.title} · ${stringResource(R.string.rooms_paused)}"
-                        else -> listOfNotNull(g.nowPlaying.title, g.nowPlaying.artist).joinToString(" · ")
-                    }
-                    Text(state, fontSize = 12.sp, color = colors.content.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+                Spacer(Modifier.weight(1f))
                 IconButton(onClick = { actions.onPlayPause(g.id) }, enabled = g.nowPlaying != null) {
                     Icon(
                         if (g.isPlaying) AppIcons.Pause else AppIcons.Play,
@@ -148,6 +265,14 @@ private fun GroupCard(g: GroupState, selected: Boolean, colors: CoverColors, act
                     )
                 }
             }
+            Spacer(Modifier.height(6.dp))
+            Text(g.group.displayName, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val state = when {
+                g.nowPlaying == null -> stringResource(R.string.rooms_idle)
+                !g.isPlaying -> "${g.nowPlaying.station ?: g.nowPlaying.title} · ${stringResource(R.string.rooms_paused)}"
+                else -> listOfNotNull(g.nowPlaying.title, g.nowPlaying.artist).joinToString(" · ")
+            }
+            Text(state, fontSize = 12.sp, color = colors.content.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             VolumeSlider(g.groupVolume, colors, Modifier.fillMaxWidth()) { actions.onGroupVolume(g.id, it) }
         }
     }

@@ -215,8 +215,10 @@ class HouseholdRepository @Inject constructor(
                 ?: groups.firstOrNull()?.coordinator?.uuid
             old.copy(groups = newGroups, selectedId = selected)
         }
-        // New groups have no state yet.
-        pendingGroups += _state.value.groups.filter { it.nowPlaying == null && it.positionReadAt == 0L }.map { it.id }
+        // New groups have no state yet, changed groups need their member volumes.
+        pendingGroups += _state.value.groups.filter { g ->
+            g.positionReadAt == 0L || g.group.members.map { it.uuid }.toSet() != g.memberVolumes.keys && g.memberVolumes.isNotEmpty()
+        }.map { it.id }
     }
 
     private suspend fun refreshGroups(ids: Set<String>) = coroutineScope {
@@ -342,6 +344,26 @@ class HouseholdRepository @Inject constructor(
             pendingTopology = true
             refreshNow()
         }
+
+    /**
+     * Lets every room of [source] play along with [target]. Returns the moved
+     * players so the UI can undo the move.
+     */
+    suspend fun mergeGroups(source: GroupState, target: GroupState): Result<List<SonosPlayer>> = runCatching {
+        source.group.members.forEach { client(it).joinGroup(target.id) }
+        source.group.members
+    }.also {
+        pendingTopology = true
+        refreshNow()
+    }
+
+    /** Takes the given players out of their groups again (undo of [mergeGroups]). */
+    suspend fun separate(players: List<SonosPlayer>): Result<Unit> = runCatching {
+        players.forEach { client(it).leaveGroup() }
+    }.also {
+        pendingTopology = true
+        refreshNow()
+    }
 
     // Content
 

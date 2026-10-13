@@ -106,4 +106,7 @@
     <string name="search_intro">Durchsucht die Musikfreigabe deines Sonos-Systems.</string>
     <string name="search_nothing">Nichts gefunden</string>
     <string name="search_tracks">Titel</string>
+    <string name="rooms_merged">%1$s spielt jetzt mit %2$s</string>
+    <string name="rooms_drag_hint">Kachel gedrückt halten und auf einen anderen Raum ziehen, um gemeinsam zu spielen.</string>
+    <string name="undo">Rückgängig</string>
 </resources>
