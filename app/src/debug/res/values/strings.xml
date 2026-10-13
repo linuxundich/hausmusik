@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-FileCopyrightText: 2026 Christoph Langner -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <!-- Debug builds sit next to the release on the same phone; the name tells them apart. -->
+    <string name="app_name" translatable="false">Hausmusik Dev</string>
+</resources>

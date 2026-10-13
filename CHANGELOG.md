@@ -8,6 +8,9 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Debug builds are called "Hausmusik Dev", so they cannot be mistaken for
+  the release when both are on one phone.
+
 - Tested on the real first-generation (S1) household, all speakers muted and
   everything restored afterwards: play and pause, events from the speakers
   (about 2 s), volume buttons in the app and with the screen off (S1 scales
