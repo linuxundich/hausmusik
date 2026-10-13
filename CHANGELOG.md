@@ -8,6 +8,13 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Fixed: the first search after starting the app could show "Speakers
+  briefly gone, reconnecting". Setting up the music services asks the
+  speaker for household, serial number and the 35 KB service list; on an S1
+  a poll then timed out and counted as a lost speaker. These requests now
+  count as long requests, like library loads, and any timeout during one is
+  tolerated.
+
 - The library search covers the linked services too: the music share, bonob
   and Spotify are searched at once and shown as sections (artists, albums,
   tracks, playlists), each as soon as its source answers. Search categories

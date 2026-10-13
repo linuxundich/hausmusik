@@ -110,16 +110,17 @@ class MusicServices @Inject constructor(
 
     private fun coordinator() = repo.selectedCoordinator() ?: throw IOException("not connected")
 
+    // Asked once per household; while the speaker works on these, polls may wait.
     private suspend fun identity(): Pair<String, String> = mutex.withLock {
         val c = coordinator()
-        val h = household ?: c.householdId().also { household = it }
-        val d = deviceId ?: c.serialNumber().also { deviceId = it }
+        val h = household ?: repo.whileBusy { c.householdId() }.also { household = it }
+        val d = deviceId ?: repo.whileBusy { c.serialNumber() }.also { deviceId = it }
         h to d
     }
 
-    /** Every service of the household with an MService catalogue. */
+    /** Every service of the household with an MService catalogue (about 35 KB from an S1). */
     suspend fun available(): List<MusicService> =
-        catalogue ?: coordinator().musicServices().also { catalogue = it }
+        catalogue ?: repo.whileBusy { coordinator().musicServices() }.also { catalogue = it }
 
     /**
      * The overview. Before anything is linked: the well-known services and

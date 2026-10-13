@@ -388,7 +388,7 @@ class HouseholdRepository @Inject constructor(
             } catch (e: IOException) {
                 Log.w(TAG, "poll failed: ${e.message}")
                 // A slow library request keeps an S1 player busy; that is not a lost speaker.
-                if (e is java.net.SocketTimeoutException && slowRequests.get() > 0) {
+                if (e is java.io.InterruptedIOException && slowRequests.get() > 0) {
                     withTimeoutOrNull(1000) { wakeUp.receive() }
                     continue
                 }
@@ -661,9 +661,16 @@ class HouseholdRepository @Inject constructor(
 
     private val slowRequests = java.util.concurrent.atomic.AtomicInteger(0)
 
-    private suspend fun <T> slow(block: suspend () -> T): Result<T> {
+    private suspend fun <T> slow(block: suspend () -> T): Result<T> = runCatching { whileBusy(block) }
+
+    /**
+     * Runs a long request to the speakers (library, music services). Meanwhile
+     * a timed-out poll does not count as a lost speaker: an S1 answers one
+     * request after another, and the reconnecting band would show for nothing.
+     */
+    suspend fun <T> whileBusy(block: suspend () -> T): T {
         slowRequests.incrementAndGet()
-        return try { runCatching { block() } } finally { slowRequests.decrementAndGet() }
+        return try { block() } finally { slowRequests.decrementAndGet() }
     }
 
     suspend fun browseAll(objectId: String, limit: Int = 3000): Result<List<DidlObject>> {
