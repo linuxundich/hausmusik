@@ -31,6 +31,7 @@ import de.linuxundich.hausmusik.sonos.SsdpDiscovery
 import de.linuxundich.hausmusik.sonos.playsDirectly
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.roundToInt
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -477,7 +478,14 @@ class HouseholdRepository @Inject constructor(
             s.copy(groups = s.groups.map { g ->
                 val u = updated[g.id] ?: return@map g
                 // A volume the user is dragging right now wins over what the speaker reported a moment ago.
-                if (volumeInFlight.containsKey(g.id)) u.copy(group = g.group, groupVolume = g.groupVolume) else u.copy(group = g.group)
+                // That holds for the group slider and for single speakers ("<group>/<uuid>").
+                val dragging = volumeInFlight.keys.filter { it == g.id || it.startsWith("${g.id}/") }
+                if (dragging.isEmpty()) return@map u.copy(group = g.group)
+                val keep = dragging.mapNotNull { k -> k.substringAfter('/', "").ifEmpty { null } }
+                u.copy(
+                    group = g.group, groupVolume = g.groupVolume,
+                    memberVolumes = u.memberVolumes + g.memberVolumes.filterKeys { it in keep },
+                )
             })
         }
     }
@@ -488,8 +496,10 @@ class HouseholdRepository @Inject constructor(
         val position = async { c.positionInfo() }
         val media = async { c.mediaInfo() }
         val groupVolume = async { c.groupVolume() }
-        // Mute for every group, not only the selected one: the room tiles show it.
+        // Mute and volume of every speaker, not only in the selected group: the room
+        // tiles show mute, and the group slider leaves muted speakers alone (audibleVolume).
         val mutes = gs.group.members.map { m -> async { m.uuid to runCatching { client(m).mute() }.getOrDefault(false) } }
+        val volumes = gs.group.members.map { m -> async { m.uuid to client(m).volume() } }
         val now = NowPlaying.from(position.await(), media.await())
         var next = gs.copy(
             transport = transport.await(),
@@ -501,14 +511,15 @@ class HouseholdRepository @Inject constructor(
         if (full) {
             val actions = async { c.transportActions() }
             val mode = async { runCatching { c.playMode() }.getOrDefault(PlayMode.Normal) }
-            val volumes = gs.group.members.map { m -> async { m.uuid to client(m).volume() } }
             val sleep = async { runCatching { c.remainingSleepTimerMs() }.getOrNull()?.takeIf { it > 0 } }
             next = next.copy(
-                actions = actions.await(), playMode = mode.await(), memberVolumes = volumes.awaitAll().toMap(),
+                actions = actions.await(), playMode = mode.await(),
                 sleepRemainingMs = sleep.await(),
             )
         }
-        next.copy(groupVolume = groupVolume.await(), memberMutes = mutes.awaitAll().toMap())
+        val vols = volumes.awaitAll().toMap()
+        val muted = mutes.awaitAll().toMap()
+        next.copy(groupVolume = audibleVolume(vols, muted) ?: groupVolume.await(), memberVolumes = vols, memberMutes = muted)
     }
 
     // Volume: the slider moves at once; Sonos gets at most one request per
@@ -562,7 +573,15 @@ class HouseholdRepository @Inject constructor(
         }
     }
 
+    /** Volumes of the audible speakers when the drag on the group slider began. */
+    private val groupDrags = ConcurrentHashMap<String, Pair<Map<String, Int>, Long>>()
+
     fun requestGroupVolume(groupId: String, volume: Int) {
+        val group = _state.value.groups.firstOrNull { it.id == groupId }
+        if (group != null && audibleVolume(group.memberVolumes, group.memberMutes) != null) {
+            requestAudibleVolume(group, volume.coerceIn(0, 100))
+            return
+        }
         var v = volume.coerceIn(0, volumeCap)
         // Sonos scales the members proportionally, so the loudest one may end up
         // above the group value: keep it at or below the cap as well.
@@ -575,6 +594,28 @@ class HouseholdRepository @Inject constructor(
         _state.update { s -> s.copy(groups = s.groups.map { if (it.id == groupId) it.copy(groupVolume = v) else it }) }
         val coordinator = _state.value.groups.firstOrNull { it.id == groupId }?.group?.coordinator ?: return
         throttledVolume(groupId, v) { client(coordinator).setGroupVolume(it) }
+    }
+
+    /**
+     * Group volume with some speakers muted: Sonos' SetGroupVolume would scale the
+     * muted ones too, so they come back louder (or a muted room gets loud by
+     * accident). Instead the audible speakers are scaled like Sonos does, each
+     * on its own, from their volumes when the drag began; muted ones stay.
+     */
+    private fun requestAudibleVolume(group: GroupState, v: Int) {
+        val now = System.currentTimeMillis()
+        val start = groupDrags[group.id]?.takeIf { now - it.second < 1_500 }?.first
+            ?: group.memberVolumes.filterKeys { group.memberMutes[it] != true }
+        groupDrags[group.id] = start to now
+        val avg = start.values.average()
+        val targets = start.mapValues { (_, old) -> (if (avg <= 0.0) v else (old * v / avg).roundToInt()).coerceIn(0, volumeCap) }
+        _state.update { s ->
+            s.copy(groups = s.groups.map { if (it.id == group.id) it.copy(groupVolume = v.coerceAtMost(volumeCap), memberVolumes = it.memberVolumes + targets) else it })
+        }
+        for ((uuid, target) in targets) {
+            val player = group.group.members.firstOrNull { it.uuid == uuid } ?: continue
+            throttledVolume("${group.id}/$uuid", target) { client(player).setVolume(it) }
+        }
     }
 
     /** Mutes or unmutes one speaker of [groupId]; the switch shows the new state at once. */
@@ -832,4 +873,14 @@ class HouseholdRepository @Inject constructor(
             return "http://$withPort/".toHttpUrlOrNull()
         }
     }
+}
+
+/**
+ * The group volume to show when only some speakers are muted: the mean of the
+ * audible ones. Null when none or all are muted; then Sonos' own group volume holds.
+ */
+internal fun audibleVolume(volumes: Map<String, Int>, mutes: Map<String, Boolean>): Int? {
+    val audible = volumes.filterKeys { mutes[it] != true }
+    if (audible.isEmpty() || audible.size == volumes.size) return null
+    return audible.values.average().roundToInt()
 }
