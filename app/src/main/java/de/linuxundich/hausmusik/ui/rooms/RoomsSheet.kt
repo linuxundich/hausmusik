@@ -7,7 +7,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.getValue
@@ -92,10 +91,9 @@ data class RoomActions(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, onDismiss: () -> Unit) {
+fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, snackbar: SnackbarHostState, onDismiss: () -> Unit) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val container = lerp(colors.backgroundBottom, colors.backgroundTop, 0.35f)
-    val snackbar = remember { SnackbarHostState() }
     ModalBottomSheet(
         onDismissRequest = onDismiss, sheetState = sheet, containerColor = container, contentColor = colors.content,
         sheetMaxWidth = sheetMaxWidth(), dragHandle = sheetDragHandle(),
@@ -130,7 +128,7 @@ fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, 
                 }
             }
         }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        de.linuxundich.hausmusik.ui.common.MessageHost(snackbar)
         }
     }
 }

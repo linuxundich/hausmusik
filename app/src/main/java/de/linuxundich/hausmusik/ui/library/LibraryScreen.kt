@@ -57,7 +57,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -178,7 +177,7 @@ fun LibraryScreen(
             )
         },
         bottomBar = { if (group != null) MiniPlayer(group, onMiniPlayer, onPlayPause) },
-        snackbarHost = { SnackbarHost(snackbar) },
+        // Messages show as the app-wide pill at the top (MessageHost in the root).
     ) { padding ->
         ProvideArtistImages(vm) {
             Column(Modifier.padding(padding)) {
@@ -396,7 +395,7 @@ fun ContainerScreen(
                 )
             },
             bottomBar = { if (group != null) MiniPlayer(group, onMiniPlayer, onPlayPause) },
-            snackbarHost = { SnackbarHost(snackbar) },
+            // Messages show as the app-wide pill at the top (MessageHost in the root).
         ) { padding ->
             val person = container.upnpClass.contains("person")
             val artistImage = LocalArtistImage.current

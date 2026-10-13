@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -189,9 +188,8 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         }
     }
 
-    if (stack.last() is Screen.Stage) {
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 72.dp))
-    }
+    // One pill at the top for every screen; open sheets place their own host above this one.
+    de.linuxundich.hausmusik.ui.common.MessageHost(snackbar, onDark = stack.last() is Screen.Stage)
     if (household.connection == Connection.Reconnecting || household.connection == Connection.Searching) {
         ReconnectingBanner(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 56.dp))
     }
@@ -209,6 +207,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onMembership = vm::setMembership,
                 onPauseAll = vm::pauseAll,
             ),
+            snackbar = snackbar,
             onDismiss = { roomsOpen = false },
         )
     }

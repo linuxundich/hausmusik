@@ -8,6 +8,13 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Messages show as one pill at the top of the screen, above everything
+  (design C from https://claude.ai/artifact/Pj4FGtisTCz7KWgnHxHpQp): light
+  on the stage and the sheets, dark on the library. They no longer hide
+  behind the queue or rooms sheet; each sheet hosts the pill in its own
+  window, and the whole app shares one message queue. Messages end by
+  themselves after their duration; *Undo* stays available while one shows.
+
 - Spotify and TuneIn tested on the real S1 household: Spotify browses (your
   albums, playlists, charts) and an album appended to the queue played;
   TuneIn browses and a station (Deutschlandfunk) played. Everything restored

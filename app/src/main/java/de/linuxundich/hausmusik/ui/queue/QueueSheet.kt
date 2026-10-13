@@ -6,7 +6,6 @@ package de.linuxundich.hausmusik.ui.queue
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.graphicsLayer
@@ -195,7 +194,7 @@ fun QueueSheet(
                 )
             }
         }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        de.linuxundich.hausmusik.ui.common.MessageHost(snackbar)
         }
     }
 
