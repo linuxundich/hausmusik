@@ -84,8 +84,6 @@ data class StageActions(
     val onPrevious: () -> Unit,
     val onSeek: (Long) -> Unit,
     val onVolume: (Int) -> Unit,
-    /** The speaker icon left of the slider: volume of each room. */
-    val onRoomVolumes: () -> Unit = {},
     val onShuffle: () -> Unit,
     val onRepeat: () -> Unit,
     val onAlarms: () -> Unit,
@@ -94,6 +92,8 @@ data class StageActions(
     val onLyrics: () -> Unit,
     /** "23 min" while a sleep timer runs. */
     val timerLabel: String? = null,
+    /** The speaker icon left of the slider: volume of each room. */
+    val onRoomVolumes: () -> Unit = {},
 )
 
 /** Commands the speakers have not confirmed yet: the play button, or anything else. */
