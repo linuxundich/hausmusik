@@ -14,7 +14,6 @@ import de.linuxundich.hausmusik.data.services.MusicServices
 import de.linuxundich.hausmusik.data.services.ServiceIds
 import de.linuxundich.hausmusik.data.history.HistoryEntry
 import de.linuxundich.hausmusik.sonos.DidlObject
-import de.linuxundich.hausmusik.sonos.LibrarySearch
 import javax.inject.Inject
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +21,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.withLock
+import de.linuxundich.hausmusik.data.services.displayName
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -56,11 +58,28 @@ sealed interface LinkState {
     data class Failed(override val name: String) : LinkState
 }
 
+/** One kind of hit within a source: [kind] is "artists", "albums", "tracks" or a service's own category. */
+data class SearchGroup(val kind: String, val items: List<DidlObject>)
+
+/**
+ * The hits of one source: the music share ([service] null) or a linked
+ * service. Each source shows as soon as it answered; a slow one keeps
+ * [loading] meanwhile.
+ */
+data class SearchSection(
+    val key: String,
+    val service: String?,
+    val groups: List<SearchGroup> = emptyList(),
+    val loading: Boolean = true,
+    val failed: Boolean = false,
+)
+
 sealed interface SearchState {
     data object Idle : SearchState
-    data object Loading : SearchState
-    data object Error : SearchState
-    data class Done(val result: LibrarySearch) : SearchState
+    data class Results(val sections: List<SearchSection>) : SearchState {
+        val done: Boolean get() = sections.none { it.loading }
+        val empty: Boolean get() = done && sections.all { it.groups.isEmpty() }
+    }
 }
 
 @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -135,12 +154,49 @@ class LibraryViewModel @Inject constructor(
                 if (q.trim().length < 2) {
                     emit(SearchState.Idle)
                 } else {
-                    emit(SearchState.Loading)
-                    emit(repo.search(q).fold({ SearchState.Done(it) }, { SearchState.Error }))
+                    emitAll(searchEverywhere(q.trim()))
                 }
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SearchState.Idle)
+
+    /** The music share and every linked service at once; each section fills in when its source answers. */
+    private fun searchEverywhere(q: String) = kotlinx.coroutines.flow.channelFlow {
+        val linked = runCatching { services.linked() }.getOrDefault(emptyList())
+        val sections = java.util.concurrent.ConcurrentHashMap<String, SearchSection>()
+        val order = listOf("share") + linked.map { "svc:${it.id}" }
+        sections["share"] = SearchSection("share", null)
+        linked.forEach { sections["svc:${it.id}"] = SearchSection("svc:${it.id}", it.displayName) }
+        val lock = kotlinx.coroutines.sync.Mutex()
+        suspend fun publish(key: String, change: (SearchSection) -> SearchSection) = lock.withLock {
+            sections[key] = change(sections.getValue(key))
+            send(SearchState.Results(order.map { sections.getValue(it) }))
+        }
+        send(SearchState.Results(order.map { sections.getValue(it) }))
+        launch {
+            repo.search(q).fold(
+                { r ->
+                    publish("share") {
+                        it.copy(loading = false, groups = listOf(
+                            SearchGroup("artists", r.artists), SearchGroup("albums", r.albums), SearchGroup("tracks", r.tracks),
+                        ).filter { g -> g.items.isNotEmpty() })
+                    }
+                },
+                { publish("share") { it.copy(loading = false, failed = true) } },
+            )
+        }
+        linked.forEach { svc ->
+            launch {
+                runCatching { services.search(svc.id, q) }.fold(
+                    { r -> publish("svc:${svc.id}") { it.copy(loading = false, groups = r.map { (k, items) -> SearchGroup(k, items) }) } },
+                    { e ->
+                        android.util.Log.w("Library", "search in ${svc.name} failed", e)
+                        publish("svc:${svc.id}") { it.copy(loading = false, failed = true) }
+                    },
+                )
+            }
+        }
+    }
 
     fun setQuery(q: String) {
         _query.value = q

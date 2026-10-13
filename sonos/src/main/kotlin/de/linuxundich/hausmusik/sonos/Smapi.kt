@@ -27,6 +27,8 @@ data class MusicService(
     val auth: String,
     val pollIntervalS: Int,
     val presentationMapUri: String?,
+    /** Newer services (Spotify) name their presentation map in a JSON manifest instead. */
+    val manifestUri: String? = null,
 ) {
     /** The account type Sonos uses in descriptors and favorites. */
     val type: Int get() = id * 256 + 7
@@ -57,6 +59,7 @@ data class MusicService(
                     auth = policy?.attr("Auth").orEmpty(),
                     pollIntervalS = policy?.attr("PollInterval")?.toIntOrNull() ?: 5,
                     presentationMapUri = e.child("Presentation")?.child("PresentationMap")?.attr("Uri"),
+                    manifestUri = e.child("Manifest")?.attr("Uri"),
                 )
             }
         }
@@ -93,6 +96,9 @@ data class SmapiItem(
     /** Collections that can be opened; tracks, streams and programs are played. */
     val isContainer: Boolean get() = canEnumerate && itemType !in setOf("track", "stream", "program")
 }
+
+/** A search category: [id] as the presentation map names it ("artists"), [searchId] to pass to search. */
+data class SearchCategory(val id: String, val searchId: String)
 
 data class SmapiPage(val items: List<SmapiItem>, val index: Int, val total: Int)
 
@@ -222,12 +228,13 @@ class SmapiClient(
     }
 
     /** The search categories the service offers, read from its presentation map. */
-    suspend fun searchCategories(): List<String> {
-        val uri = service.presentationMapUri ?: return emptyList()
-        val text = withContext(Dispatchers.IO) {
-            http.newCall(Request.Builder().url(uri).header("User-Agent", USER_AGENT).build()).await().use { it.body.string() }
-        }
-        return parseSearchCategories(text)
+    suspend fun searchCategories(): List<SearchCategory> {
+        val uri = service.presentationMapUri ?: service.manifestUri?.let { presentationMapFromManifest(get(it)) } ?: return emptyList()
+        return parseSearchCategories(get(uri))
+    }
+
+    private suspend fun get(uri: String): String = withContext(Dispatchers.IO) {
+        http.newCall(Request.Builder().url(uri).header("User-Agent", USER_AGENT).build()).await().use { it.body.string() }
     }
 
     companion object {
@@ -235,11 +242,19 @@ class SmapiClient(
         private const val USER_AGENT = "Linux UPnP/1.0 Sonos/85.0-66270 (ACR_hausmusik)"
         private val XML = "text/xml; charset=\"utf-8\"".toMediaType()
 
-        internal fun parseSearchCategories(xml: String): List<String> = runCatching {
+        internal fun parseSearchCategories(xml: String): List<SearchCategory> = runCatching {
             Xml.parse(xml).findAll("SearchCategories").firstOrNull()?.children()
                 ?.filter { it.localName0 == "Category" || it.localName0 == "CustomCategory" }
-                ?.mapNotNull { it.attr("mappedId") ?: it.attr("id") }?.toList()
+                ?.mapNotNull { e ->
+                    val id = e.attr("id") ?: e.attr("stringId") ?: return@mapNotNull null
+                    SearchCategory(id, e.attr("mappedId") ?: id)
+                }?.toList()
         }.getOrNull().orEmpty()
+
+        private val PRESENTATION_MAP = Regex(""""presentationMap"\s*:\s*\{[^}]*"uri"\s*:\s*"([^"]+)"""")
+
+        /** `"presentationMap": {"version": 3, "uri": "https://…"}` in a service manifest. */
+        internal fun presentationMapFromManifest(json: String): String? = PRESENTATION_MAP.find(json)?.groupValues?.get(1)
 
         internal fun parsePage(result: org.w3c.dom.Element): SmapiPage {
             val items = result.children().mapNotNull { e ->

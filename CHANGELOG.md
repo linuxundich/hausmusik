@@ -8,6 +8,12 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- The library search covers the linked services too: the music share, bonob
+  and Spotify are searched at once and shown as sections (artists, albums,
+  tracks, playlists), each as soon as its source answers. Search categories
+  come from the service's presentation map, for Spotify through its
+  manifest. Items a service lists twice (bonob) no longer crash the list.
+
 - Covers appear much faster when skipping. The next three tracks' covers are
   loaded in the background; requests for the same cover from stage, palette,
   widget and media notification share one fetch (the notification now loads

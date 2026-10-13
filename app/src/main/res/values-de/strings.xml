@@ -103,7 +103,7 @@
     <string name="library_genres">Genres</string>
     <string name="search">Suchen</string>
     <string name="search_hint">Interpret, Album oder Titel</string>
-    <string name="search_intro">Durchsucht die Musikfreigabe deines Sonos-Systems.</string>
+    <string name="search_intro">Durchsucht die Musikfreigabe deines Sonos-Systems und deine verknüpften Dienste.</string>
     <string name="search_nothing">Nichts gefunden</string>
     <string name="search_tracks">Titel</string>
     <string name="rooms_merged">%1$s spielt jetzt mit %2$s</string>
@@ -173,4 +173,7 @@
     <string name="widget_searching">Suche Lautsprecher …</string>
     <string name="widget_reconnecting">Verbinde neu …</string>
     <string name="waiting_for_speakers">Warte auf die Lautsprecher</string>
+    <string name="search_share">Musikfreigabe</string>
+    <string name="search_source_failed">Ließ sich nicht durchsuchen.</string>
+    <string name="search_podcasts">Podcasts</string>
 </resources>

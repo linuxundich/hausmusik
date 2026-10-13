@@ -323,7 +323,7 @@ class FakeHouseholdTest {
         val tracks = smapi.metadata(albums.items[4].id).items
         assertEquals(listOf("Ice Floe", "Waddle", "Fish Supper", "Colony", "Snow Crash"), tracks.map { it.title })
         assertEquals(listOf("Pinguinzoo"), smapi.search("albums", "pinguin").items.map { it.title })
-        assertEquals(listOf("artists", "albums", "tracks"), smapi.searchCategories())
+        assertEquals(listOf("artists", "albums", "tracks"), smapi.searchCategories().map { it.id })
 
         val sn = SmapiClient.accountSerial(bonob.id, wohnzimmer.browseAll("FV:2").asSequence().map { it.uri })
         assertEquals("7", sn)

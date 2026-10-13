@@ -109,4 +109,19 @@ class SmapiTest {
         assertEquals(null, SmapiClient.itemOf("x-file-cifs://nas/music/a.mp3"))
         assertEquals(null, SmapiClient.uriOfCover("http://cdn.example/a.jpg"))
     }
+
+    @Test
+    fun `search categories keep their name and the ID to search with`() {
+        val map = """<Presentation><PresentationMap type="Search"><Match><SearchCategories>
+            <Category id="artists" mappedId="search:artist"/><Category id="albums"/><CustomCategory stringId="Playlists" mappedId="search:playlist"/>
+            </SearchCategories></Match></PresentationMap></Presentation>"""
+        assertEquals(
+            listOf(SearchCategory("artists", "search:artist"), SearchCategory("albums", "albums"), SearchCategory("Playlists", "search:playlist")),
+            SmapiClient.parseSearchCategories(map),
+        )
+        assertEquals(
+            "https://example.org/pm.xml",
+            SmapiClient.presentationMapFromManifest("""{"schemaVersion":"1.0","presentationMap":{"version":3,"uri":"https://example.org/pm.xml"},"strings":{"uri":"x"}}"""),
+        )
+    }
 }

@@ -296,27 +296,62 @@ private fun SearchResults(
         SearchState.Idle -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) {
             Text(stringResource(R.string.search_intro), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        SearchState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
-        SearchState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.library_error)) }
-        is SearchState.Done -> if (state.result.isEmpty) {
+        is SearchState.Results -> if (state.empty) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) { Text(stringResource(R.string.search_nothing)) }
         } else LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
-            fun section(title: Int, items: List<DidlObject>) {
-                if (items.isEmpty()) return
-                item(key = "h$title") {
+            // Only label the sources when there is more than the music share.
+            val labelled = state.sections.size > 1
+            state.sections.forEach { section ->
+                if (labelled) item(key = "s/${section.key}") {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            section.service ?: stringResource(R.string.search_share),
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
+                        )
+                        if (section.loading) LoadingIndicator(Modifier.size(24.dp))
+                    }
+                }
+                if (!section.loading && section.groups.isEmpty()) item(key = "e/${section.key}") {
                     Text(
-                        stringResource(title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+                        stringResource(if (section.failed) R.string.search_source_failed else R.string.search_nothing),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     )
                 }
-                items(items, key = { "$title/${it.id}" }) { item ->
-                    ItemRow(item, artUrl) { if (item.isContainer) onOpenContainer(item) else onPlay(item) }
+                section.groups.forEach { group ->
+                    item(key = "h/${section.key}/${group.kind}") {
+                        Text(
+                            searchGroupLabel(group.kind), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
+                        )
+                    }
+                    // Services may list one item twice (bonob does): the position keeps keys unique.
+                    itemsIndexed(group.items, key = { i, it -> "${section.key}/${group.kind}/$i/${it.id}" }) { _, item ->
+                        ItemRow(item, artUrl) { if (item.isContainer) onOpenContainer(item) else onPlay(item) }
+                    }
                 }
             }
-            section(R.string.library_artists, state.result.artists)
-            section(R.string.library_albums, state.result.albums)
-            section(R.string.search_tracks, state.result.tracks)
+            if (state.sections.size == 1 && !state.done) item(key = "loading") {
+                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+            }
         }
+    }
+}
+
+/** "artists", "search:album", "Playlists" … as a heading. */
+@Composable
+private fun searchGroupLabel(kind: String): String {
+    val k = kind.lowercase().substringAfter(':')
+    return when {
+        k.startsWith("artist") -> stringResource(R.string.library_artists)
+        k.startsWith("album") -> stringResource(R.string.library_albums)
+        k.startsWith("track") || k.startsWith("song") -> stringResource(R.string.search_tracks)
+        k.startsWith("playlist") -> stringResource(R.string.library_playlists)
+        k.startsWith("podcast") -> stringResource(R.string.search_podcasts)
+        else -> kind.substringAfter(':').replaceFirstChar { it.uppercase() }
     }
 }
 

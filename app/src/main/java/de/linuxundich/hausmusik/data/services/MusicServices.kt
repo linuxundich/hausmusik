@@ -16,6 +16,8 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
@@ -201,16 +203,32 @@ class MusicServices @Inject constructor(
         return page.items.map { SmapiClient.toDidl(c.service, sn, it, ServiceIds.of(sid, it.id)) }
     }
 
-    /** Searches artists, albums and tracks of one linked service. */
-    suspend fun search(serviceId: Int, term: String): Map<String, List<DidlObject>> {
-        val c = client(serviceId)
-        val sn = serial(serviceId)
-        val categories = runCatching { c.searchCategories() }.getOrDefault(emptyList()).ifEmpty { listOf("artists", "albums", "tracks") }
-        return categories.associateWith { cat ->
-            runCatching { c.search(cat, term).items }.getOrDefault(emptyList())
-                .map { SmapiClient.toDidl(c.service, sn, it, ServiceIds.of(serviceId, it.id)) }
-        }
+    /** The services this household has linked in Hausmusik, A to Z. */
+    suspend fun linked(): List<MusicService> {
+        val ids = linkedIds()
+        return available().filter { it.id in ids }.sortedBy { it.name.lowercase() }
     }
+
+    /**
+     * Searches one linked service: artists, albums and tracks first, then
+     * whatever else it offers (playlists, podcasts). [perCategory] results each.
+     */
+    suspend fun search(serviceId: Int, term: String, perCategory: Int = 8): List<Pair<String, List<DidlObject>>> =
+        kotlinx.coroutines.coroutineScope {
+            val c = client(serviceId)
+            val sn = serial(serviceId)
+            val categories = runCatching { c.searchCategories() }.getOrDefault(emptyList())
+                .ifEmpty { listOf("artists", "albums", "tracks").map { de.linuxundich.hausmusik.sonos.SearchCategory(it, it) } }
+            val order = listOf("artist", "album", "track")
+            categories.sortedBy { cat -> order.indexOfFirst { cat.id.lowercase().startsWith(it) }.let { if (it < 0) order.size else it } }
+                .map { cat ->
+                    async {
+                        cat.id to runCatching { c.search(cat.searchId, term, count = perCategory).items }.getOrDefault(emptyList())
+                            .distinctBy { it.id }
+                            .map { SmapiClient.toDidl(c.service, sn, it, ServiceIds.of(serviceId, it.id)) }
+                    }
+                }.awaitAll().filter { it.second.isNotEmpty() }
+        }
 
     /**
      * The account serial for `sn=`: the one the household already uses in its
