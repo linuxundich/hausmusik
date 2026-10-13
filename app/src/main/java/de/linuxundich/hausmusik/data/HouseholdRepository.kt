@@ -81,6 +81,39 @@ class HouseholdRepository @Inject constructor(
 
     // Set by events, consumed by the loop.
     private val pendingGroups = ConcurrentHashMap.newKeySet<String>()
+
+    // Waiting for the speakers: a command counts as busy from the moment it is
+    // sent until a read of its group (or of the topology) started after the
+    // command had finished, so the UI shows the change, not just the request.
+    private val busySeq = java.util.concurrent.atomic.AtomicLong()
+    private val _busy = MutableStateFlow<List<Busy>>(emptyList())
+    val busy: StateFlow<List<Busy>> = _busy.asStateFlow()
+
+    private fun beginBusy(groupId: String?, kind: BusyKind): Long {
+        val id = busySeq.incrementAndGet()
+        _busy.update { it + Busy(id, groupId, kind) }
+        // A safety net: never spin for longer than this.
+        scope.launch { delay(BUSY_LIMIT_MS); endBusy(id) }
+        return id
+    }
+
+    private fun commandDone(id: Long) {
+        val at = System.currentTimeMillis()
+        _busy.update { list -> list.map { if (it.id == id) it.copy(finishedAt = at) else it } }
+    }
+
+    private fun endBusy(id: Long) = _busy.update { list -> list.filterNot { it.id == id } }
+
+    /** Called after a read that began at [startedAt]: what it read is now confirmed. */
+    private fun settleBusy(startedAt: Long, groupIds: Set<String>, topology: Boolean) {
+        if (_busy.value.isEmpty()) return
+        _busy.update { list ->
+            list.filterNot { b ->
+                val done = b.finishedAt ?: return@filterNot false
+                done <= startedAt && (if (b.groupId == null) topology else b.groupId in groupIds)
+            }
+        }
+    }
     @Volatile private var pendingTopology = false
 
     fun client(player: SonosPlayer) = SonosPlayerClient(player.baseUrl, soap)
@@ -303,8 +336,10 @@ class HouseholdRepository @Inject constructor(
             val now = System.currentTimeMillis()
             try {
                 var readSomething = false
+                var readTopology = false
                 if (pendingTopology || now - lastTopology > (if (evented) 60_000 else 5_000)) {
                     readSomething = true
+                    readTopology = true
                     pendingTopology = false
                     refreshTopology()
                     lastTopology = now
@@ -326,6 +361,7 @@ class HouseholdRepository @Inject constructor(
                     refreshGroups(ids)
                     readSomething = true
                 }
+                settleBusy(now, ids, readTopology)
                 // Only a successful read proves the speakers are there; a quiet
                 // tick between polls must not clear a failure.
                 if (readSomething) {
@@ -465,6 +501,7 @@ class HouseholdRepository @Inject constructor(
     private fun throttledVolume(key: String, value: Int, send: suspend (Int) -> Unit) {
         volumeInFlight[key] = value
         if (volumeSenders[key]?.isActive == true) return
+        val token = beginBusy(key.substringBefore('/'), BusyKind.Other)
         volumeSenders[key] = scope.launch {
             var sent: Int? = null
             while (true) {
@@ -475,6 +512,7 @@ class HouseholdRepository @Inject constructor(
                 delay(120)
             }
             volumeInFlight.remove(key)
+            commandDone(token)
             pendingGroups += key.substringBefore('/')
             refreshNow()
         }
@@ -548,45 +586,53 @@ class HouseholdRepository @Inject constructor(
     fun selectedCoordinator(): SonosPlayerClient? = _state.value.selected?.let { client(it.group.coordinator) }
 
     /** Runs [block] against the selected coordinator and polls right after. */
-    suspend fun command(block: suspend (SonosPlayerClient) -> Unit): Result<Unit> {
+    suspend fun command(kind: BusyKind = BusyKind.Other, block: suspend (SonosPlayerClient) -> Unit): Result<Unit> {
         val id = _state.value.selected?.id ?: return Result.failure(IOException("no room"))
         val c = selectedCoordinator() ?: return Result.failure(IOException("no room"))
-        // Read the group again right away instead of waiting for its event.
-        return runCatching { block(c) }.also { pendingGroups += id; refreshNow() }
+        return busy(id, kind) { block(c) }
     }
 
-    suspend fun commandFor(groupId: String, block: suspend (SonosPlayerClient) -> Unit): Result<Unit> {
+    suspend fun commandFor(groupId: String, kind: BusyKind = BusyKind.Other, block: suspend (SonosPlayerClient) -> Unit): Result<Unit> {
         val g = _state.value.groups.firstOrNull { it.id == groupId } ?: return Result.failure(IOException("no room"))
-        return runCatching { block(client(g.group.coordinator)) }.also { pendingGroups += groupId; refreshNow() }
+        return busy(groupId, kind) { block(client(g.group.coordinator)) }
+    }
+
+    /** Runs [block] as busy for [groupId], then reads the group again right away instead of waiting for its event. */
+    private suspend fun <T> busy(groupId: String, kind: BusyKind, block: suspend () -> T): Result<T> {
+        val token = beginBusy(groupId, kind)
+        return runCatching { block() }.also {
+            if (it.isFailure) endBusy(token) else commandDone(token)
+            pendingGroups += groupId
+            refreshNow()
+        }
+    }
+
+    /** Like [busy] for changes of the groups themselves; settles with the next topology read. */
+    private suspend fun <T> topologyBusy(block: suspend () -> T): Result<T> {
+        val token = beginBusy(null, BusyKind.Other)
+        return runCatching { block() }.also {
+            if (it.isFailure) endBusy(token) else commandDone(token)
+            pendingTopology = true
+            refreshNow()
+        }
     }
 
     /** Lets [player] play along with the group [groupId], or leave it. */
     suspend fun setMembership(player: SonosPlayer, groupId: String, member: Boolean): Result<Unit> =
-        runCatching {
-            if (member) client(player).joinGroup(groupId) else client(player).leaveGroup()
-        }.also {
-            pendingTopology = true
-            refreshNow()
-        }
+        topologyBusy { if (member) client(player).joinGroup(groupId) else client(player).leaveGroup() }
 
     /**
      * Lets every room of [source] play along with [target]. Returns the moved
      * players so the UI can undo the move.
      */
-    suspend fun mergeGroups(source: GroupState, target: GroupState): Result<List<SonosPlayer>> = runCatching {
+    suspend fun mergeGroups(source: GroupState, target: GroupState): Result<List<SonosPlayer>> = topologyBusy {
         source.group.members.forEach { client(it).joinGroup(target.id) }
         source.group.members
-    }.also {
-        pendingTopology = true
-        refreshNow()
     }
 
     /** Takes the given players out of their groups again (undo of [mergeGroups]). */
-    suspend fun separate(players: List<SonosPlayer>): Result<Unit> = runCatching {
+    suspend fun separate(players: List<SonosPlayer>): Result<Unit> = topologyBusy {
         players.forEach { client(it).leaveGroup() }
-    }.also {
-        pendingTopology = true
-        refreshNow()
     }
 
     // Content
@@ -741,6 +787,7 @@ class HouseholdRepository @Inject constructor(
 
     companion object {
         private const val TAG = "Household"
+        private const val BUSY_LIMIT_MS = 15_000L
         private val RETRY_DELAYS = listOf(2_000L, 5_000L, 10_000L, 30_000L)
 
         /** "192.168.0.59" → http://192.168.0.59:1400/, "10.0.2.2:1401" keeps its port. */

@@ -10,6 +10,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.linuxundich.hausmusik.R
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.HouseholdRepository
+import de.linuxundich.hausmusik.ui.stage.StageBusy
+import de.linuxundich.hausmusik.data.BusyKind
 import de.linuxundich.hausmusik.data.LyricsRepository
 import de.linuxundich.hausmusik.data.Settings
 import de.linuxundich.hausmusik.sonos.NowPlaying
@@ -67,13 +69,22 @@ class MainViewModel @Inject constructor(
 
     fun playPause() = run {
         val playing = household.value.selected?.isPlaying == true
-        repo.command { if (playing) it.pause() else it.play() }
+        repo.command(BusyKind.PlayPause) { if (playing) it.pause() else it.play() }
     }
 
     fun playPause(groupId: String) = run {
         val playing = household.value.groups.firstOrNull { it.id == groupId }?.isPlaying == true
-        repo.commandFor(groupId) { if (playing) it.pause() else it.play() }
+        repo.commandFor(groupId, BusyKind.PlayPause) { if (playing) it.pause() else it.play() }
     }
+
+    /** What the selected room is still waiting for, for the stage's indicators. */
+    val stageBusy: StateFlow<StageBusy> = kotlinx.coroutines.flow.combine(repo.busy, household) { busy, h ->
+        val id = h.selected?.id
+        StageBusy(
+            play = busy.any { it.kind == BusyKind.PlayPause && it.groupId == id },
+            other = busy.any { it.kind == BusyKind.Other && (it.groupId == id || it.groupId == null) },
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StageBusy())
 
     fun next() = run { repo.command { it.next() } }
 

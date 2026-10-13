@@ -8,6 +8,16 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Waiting indicator while the speakers have not answered yet (design A + B
+  from https://claude.ai/artifact/VHMYvndVYtRUQ7g35h3E7f): play/pause shows
+  the morphing Material 3 Expressive loading indicator in the button, every
+  other command (skip, seek, volume, shuffle, grouping) a short wavy line
+  under the room chip. A command counts until a read of its group started
+  after the command had returned, so the indicator ends when the change is
+  visible; it only appears after 300 ms and gives up after 15 s.
+- `tools/fake-sonos/fake_sonos.py --slow 1.5` lets every command wait like a
+  busy S1, to see the indicators in the emulator.
+
 - Fixed: covers of Spotify tracks stayed empty on S1 speakers. The speaker
   fetches such a picture from the internet first (about 4 s) and serves
   requests one after another; stage, palette, widget and notification asked

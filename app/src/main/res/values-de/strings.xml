@@ -172,4 +172,5 @@
     <string name="widget_no_speakers_body">In diesem Netz antwortet kein Sonos.</string>
     <string name="widget_searching">Suche Lautsprecher …</string>
     <string name="widget_reconnecting">Verbinde neu …</string>
+    <string name="waiting_for_speakers">Warte auf die Lautsprecher</string>
 </resources>

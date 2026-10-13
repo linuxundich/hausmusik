@@ -42,6 +42,16 @@ data class GroupState(
     val isPlaying: Boolean get() = transport == TransportState.Playing || transport == TransportState.Transitioning
 }
 
+/** What a running command waits for: the play button, or anything else. */
+enum class BusyKind { PlayPause, Other }
+
+/**
+ * A command the speakers have not confirmed yet. [groupId] null means a
+ * change of the groups themselves; [finishedAt] is set once the request
+ * returned, and the entry goes away with the next read after that.
+ */
+data class Busy(val id: Long, val groupId: String?, val kind: BusyKind, val finishedAt: Long? = null)
+
 /** Tone settings of one speaker. */
 data class SoundSettings(val bass: Int, val treble: Int, val loudness: Boolean)
 

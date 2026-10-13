@@ -653,6 +653,8 @@ class Handler(BaseHTTPRequestHandler):
         service, action = m.groups()
         inner = re.search(rf"<u:{action}[^>]*>(.*)</u:{action}>", body, re.S)
         args = {k: html.unescape(v) for k, v in re.findall(r"<(\w+)>(.*?)</\1>", inner.group(1) if inner else "", re.S)}
+        if ARGS.slow and not re.match(r"(Get|Browse|List)", action):
+            time.sleep(ARGS.slow)
         try:
             with lock:
                 out = act(self.player(), service, action, args)
@@ -673,6 +675,7 @@ if __name__ == "__main__":
     ap.add_argument("--advertise", default="127.0.0.1", help="host the app uses to reach this machine (emulator: 10.0.2.2)")
     ap.add_argument("--bind", default="0.0.0.0")
     ap.add_argument("--port-base", type=int, default=1401, help="port of the first room; the others follow")
+    ap.add_argument("--slow", type=float, default=0, help="seconds every command waits, like a busy S1 (Get/Browse stay fast)")
     ap.add_argument("-v", "--verbose", action="store_true")
     ARGS = ap.parse_args()
     ADVERTISE = ARGS.advertise

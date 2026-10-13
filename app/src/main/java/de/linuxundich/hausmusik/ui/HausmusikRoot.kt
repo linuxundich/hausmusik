@@ -103,6 +103,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var showLyrics by remember { mutableStateOf(false) }
     var lyricsConsent by remember { mutableStateOf(false) }
     val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
+    val stageBusy by vm.stageBusy.collectAsStateWithLifecycle()
     val artistImagesOn by vm.artistImagesEnabled.collectAsStateWithLifecycle()
     val now = selected.nowPlaying
     val lyricsKey = now?.let { listOf(it.title, it.artist, it.album, it.durationMs) }
@@ -156,6 +157,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                     },
                 ),
                 lyrics = if (showLyrics && lyricsEnabled) lyrics ?: LyricsUi.Loading else null,
+                busy = stageBusy,
             )
             Screen.Library -> LibraryScreen(
                 library, selected, snackbar,

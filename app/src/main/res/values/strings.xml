@@ -174,4 +174,5 @@
     <string name="widget_no_speakers_body">No Sonos answers in this network.</string>
     <string name="widget_searching">Looking for speakers …</string>
     <string name="widget_reconnecting">Reconnecting …</string>
+    <string name="waiting_for_speakers">Waiting for the speakers</string>
 </resources>

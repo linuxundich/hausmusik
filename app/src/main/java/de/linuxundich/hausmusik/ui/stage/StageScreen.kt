@@ -37,6 +37,11 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -89,6 +94,42 @@ data class StageActions(
     val timerLabel: String? = null,
 )
 
+/** Commands the speakers have not confirmed yet: the play button, or anything else. */
+data class StageBusy(val play: Boolean = false, val other: Boolean = false)
+
+/**
+ * True once [flag] has been set for [after] ms: quick answers show nothing,
+ * so the indicators do not flicker on every tap.
+ */
+@Composable
+private fun delayed(flag: Boolean, after: Long = 300): Boolean {
+    val shown by produceState(false, flag) {
+        if (flag) {
+            kotlinx.coroutines.delay(after)
+            value = true
+        } else {
+            value = false
+        }
+    }
+    return shown
+}
+
+/** A short wave under the room while the speakers have not answered yet. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun WaitingWave(visible: Boolean, colors: CoverColors, modifier: Modifier = Modifier) {
+    // Always takes its height, so nothing jumps when it appears.
+    Box(modifier.size(width = 160.dp, height = 10.dp), contentAlignment = Alignment.Center) {
+        androidx.compose.animation.AnimatedVisibility(visible, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+            LinearWavyProgressIndicator(
+                modifier = Modifier.fillMaxWidth().height(10.dp),
+                color = colors.accent,
+                trackColor = Color.Transparent,
+            )
+        }
+    }
+}
+
 /** The Stage: what plays in the selected room, large and in the cover's colors. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -97,7 +138,10 @@ fun StageScreen(
     colors: CoverColors,
     actions: StageActions,
     lyrics: LyricsUi? = null,
+    busy: StageBusy = StageBusy(),
 ) {
+    val playBusy = delayed(busy.play)
+    val otherBusy = delayed(busy.other)
     val swipeThreshold = with(LocalDensity.current) { 80.dp.toPx() }
     Box(
         Modifier
@@ -124,7 +168,10 @@ fun StageScreen(
                     Spacer(Modifier.width(32.dp))
                     Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.weight(1f)) { RoomChip(group.group.displayName, colors, actions.onRooms) }
+                            Column(Modifier.weight(1f)) {
+                                RoomChip(group.group.displayName, colors, actions.onRooms)
+                                WaitingWave(otherBusy, colors, Modifier.padding(start = 16.dp, top = 4.dp))
+                            }
                             IconAction(AppIcons.Queue, stringResource(R.string.queue), colors, actions.onQueue)
                             IconAction(AppIcons.Library, stringResource(R.string.library), colors, actions.onLibrary)
                             IconAction(AppIcons.Lyrics, stringResource(R.string.lyrics), colors, actions.onLyrics, on = lyrics != null)
@@ -140,21 +187,24 @@ fun StageScreen(
                             StageMenu(colors, actions)
                         }
                         Spacer(Modifier.weight(1f))
-                        StageControls(group, colors, actions)
+                        StageControls(group, colors, actions, playBusy)
                         Spacer(Modifier.weight(1f))
                     }
                 }
             } else {
                 Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        RoomChip(group.group.displayName, colors, actions.onRooms)
-                        Box(Modifier.align(Alignment.CenterEnd).padding(top = 8.dp)) { StageMenu(colors, actions) }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RoomChip(group.group.displayName, colors, actions.onRooms)
+                            WaitingWave(otherBusy, colors, Modifier.padding(top = 4.dp))
+                        }
+                        Box(Modifier.align(Alignment.TopEnd).padding(top = 8.dp)) { StageMenu(colors, actions) }
                     }
                     Spacer(Modifier.weight(0.4f))
                     val square = Modifier.fillMaxWidth().widthIn(max = 420.dp).aspectRatio(1f)
                     if (lyrics != null) LyricsView(group, lyrics, colors, actions.onSeek, square) else StageCover(group, colors, square)
                     Spacer(Modifier.height(24.dp))
-                    StageControls(group, colors, actions)
+                    StageControls(group, colors, actions, playBusy)
                     Spacer(Modifier.weight(0.6f))
                     BottomActions(colors, actions, lyricsShown = lyrics != null)
                     Spacer(Modifier.height(8.dp))
@@ -177,7 +227,7 @@ private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifie
 }
 
 @Composable
-private fun StageControls(group: GroupState, colors: CoverColors, actions: StageActions) {
+private fun StageControls(group: GroupState, colors: CoverColors, actions: StageActions, playBusy: Boolean) {
     val now = group.nowPlaying
     Column(Modifier.fillMaxWidth()) {
         Text(
@@ -198,7 +248,7 @@ private fun StageControls(group: GroupState, colors: CoverColors, actions: Stage
             Spacer(Modifier.height(36.dp))
         }
         Spacer(Modifier.height(8.dp))
-        Transport(group, colors, actions)
+        Transport(group, colors, actions, playBusy)
         Spacer(Modifier.height(12.dp))
         VolumeRow(group.groupVolume, colors, actions.onVolume)
     }
@@ -302,8 +352,10 @@ private fun Progress(group: GroupState, colors: CoverColors, onSeek: (Long) -> U
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun Transport(group: GroupState, colors: CoverColors, actions: StageActions) {
+private fun Transport(group: GroupState, colors: CoverColors, actions: StageActions, playBusy: Boolean) {
+    val waitingLabel = stringResource(R.string.waiting_for_speakers)
     val isRadio = group.nowPlaying?.kind == SourceKind.Radio
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         SmallToggle(AppIcons.Shuffle, stringResource(R.string.shuffle), group.playMode.shuffle, colors, enabled = !isRadio, onClick = actions.onShuffle)
@@ -318,11 +370,19 @@ private fun Transport(group: GroupState, colors: CoverColors, actions: StageActi
             modifier = Modifier.size(width = 96.dp, height = 72.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    if (group.isPlaying) AppIcons.Pause else AppIcons.Play,
-                    contentDescription = stringResource(if (group.isPlaying) R.string.pause else R.string.play),
-                    modifier = Modifier.size(34.dp),
-                )
+                // Waiting for the speakers: the morphing indicator takes the icon's place.
+                if (playBusy) {
+                    LoadingIndicator(
+                        Modifier.size(44.dp).semantics { contentDescription = waitingLabel },
+                        color = colors.onAccent,
+                    )
+                } else {
+                    Icon(
+                        if (group.isPlaying) AppIcons.Pause else AppIcons.Play,
+                        contentDescription = stringResource(if (group.isPlaying) R.string.pause else R.string.play),
+                        modifier = Modifier.size(34.dp),
+                    )
+                }
             }
         }
         RoundButton(AppIcons.SkipNext, stringResource(R.string.next), colors, enabled = group.actions.canNext, onClick = actions.onNext)
