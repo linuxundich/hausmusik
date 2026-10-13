@@ -8,6 +8,15 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- The widget knows where it is: without Wi-Fi it shows "Not on Wi-Fi" (a
+  tap opens the Wi-Fi picker), in a network without Sonos "No speakers
+  here", while searching "Looking for speakers", and "Reconnecting" over the
+  last state; controls and queue only show with speakers in reach. It checks
+  the network itself on every redraw, and while offline asks Android to wake
+  it when a Wi-Fi network appears, also with the app not running (such a
+  request fires once, so it is only made while offline). A periodic update
+  every 30 minutes catches a lost network when the app is not running.
+
 - Home screen widget redesigned in the stage's look: background gradient and
   accent from the cover (night blue and amber without one), a pill-shaped
   play button. Three sizes: one row; a large player with a big cover, room,

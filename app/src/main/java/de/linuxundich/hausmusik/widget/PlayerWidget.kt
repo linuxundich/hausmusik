@@ -74,6 +74,9 @@ import de.linuxundich.hausmusik.ui.theme.CoverColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** What the widget can show: the player, or why there is none. */
+private enum class WidgetStatus { Ready, Reconnecting, Searching, NoWifi, NoSpeakers }
+
 /** Cover colors and the background gradient drawn from them. */
 private data class WidgetLook(val colors: CoverColors, val background: Bitmap)
 
@@ -91,11 +94,21 @@ class PlayerWidget : GlanceAppWidget() {
             // The session stays alive between updates, so the state is observed
             // here instead of being read once.
             val state by household.state.collectAsState()
+            // Asked directly: with the app not running, the household state may be old.
+            val local = WidgetNetwork.hasLocalNetwork(context)
             // Connect briefly on every redraw: without the app open nothing polls, and
             // the widget would show what was known when the app last ran.
-            LaunchedEffect(Unit) { HouseholdAccess.withSelected(context) { _, _ -> } }
-            val offline = state.connection == Connection.NoLocalNetwork
-            val group = state.selected.takeIf { !offline }
+            LaunchedEffect(local) { if (local) HouseholdAccess.withSelected(context) { _, _ -> } }
+            val status = when {
+                !local || state.connection == Connection.NoLocalNetwork -> WidgetStatus.NoWifi
+                state.connection is Connection.NotFound -> WidgetStatus.NoSpeakers
+                state.selected == null -> WidgetStatus.Searching
+                state.connection == Connection.Reconnecting -> WidgetStatus.Reconnecting
+                else -> WidgetStatus.Ready
+            }
+            val offline = status == WidgetStatus.NoWifi
+            LaunchedEffect(offline) { if (offline) WidgetNetwork.wakeOnLocalNetwork(context) }
+            val group = state.selected.takeIf { status == WidgetStatus.Ready || status == WidgetStatus.Reconnecting }
             val cover by produceState<Bitmap?>(null, group?.artUrl) { value = group?.artUrl?.let { loadCover(context, it) } }
             val look by produceState(lookOf(null), cover) { value = withContext(Dispatchers.Default) { lookOf(cover) } }
             val size = LocalSize.current
@@ -110,14 +123,58 @@ class PlayerWidget : GlanceAppWidget() {
                     .background(ImageProvider(look.background), contentScale = ContentScale.FillBounds),
             ) {
                 when {
+                    group == null -> Status(context, status, c, size.height >= LARGE.height)
                     tall -> Column(GlanceModifier.fillMaxSize()) {
-                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxWidth().height(LARGE.height))
+                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxWidth().height(LARGE.height), status)
                         QueueList(context, group, queue, c)
                     }
                     size.height >= LARGE.height && size.width >= LARGE.width ->
-                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxSize())
-                    else -> Compact(context, group, cover, offline, c)
+                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxSize(), status)
+                    else -> Compact(context, group, cover, offline, c, status)
                 }
+            }
+        }
+    }
+
+    /**
+     * No player when the speakers cannot be reached: what is wrong and what
+     * helps. No Wi-Fi: a tap opens the Wi-Fi picker; otherwise the app.
+     */
+    @Composable
+    private fun Status(context: Context, status: WidgetStatus, c: CoverColors, roomy: Boolean) {
+        val (icon, title, body) = when (status) {
+            WidgetStatus.NoWifi -> Triple(R.drawable.ic_wifi_off, R.string.offline_short, R.string.widget_no_wifi_body)
+            WidgetStatus.NoSpeakers -> Triple(R.drawable.ic_speaker, R.string.widget_no_speakers, R.string.widget_no_speakers_body)
+            else -> Triple(R.drawable.ic_speaker, R.string.widget_searching, null)
+        }
+        val action = if (status == WidgetStatus.NoWifi) {
+            val panel = if (android.os.Build.VERSION.SDK_INT >= 29) android.provider.Settings.Panel.ACTION_WIFI else android.provider.Settings.ACTION_WIFI_SETTINGS
+            androidx.glance.appwidget.action.actionStartActivity(android.content.Intent(panel).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        } else {
+            actionStartActivity<MainActivity>()
+        }
+        val iconBox = @Composable {
+            Box(GlanceModifier.size(if (roomy) 56.dp else 44.dp).cornerRadius(if (roomy) 18.dp else 14.dp).background(ColorProvider(c.subtle)), contentAlignment = Alignment.Center) {
+                Image(ImageProvider(icon), null, GlanceModifier.size(if (roomy) 28.dp else 22.dp), colorFilter = ColorFilter.tint(ColorProvider(c.accent)))
+            }
+        }
+        val texts = @Composable {
+            Text(context.getString(title), maxLines = 1, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = if (roomy) 18.sp else 15.sp, color = ColorProvider(c.content)))
+            if (body != null) {
+                Text(context.getString(body), maxLines = 2, style = TextStyle(fontSize = 13.sp, color = ColorProvider(c.content.copy(alpha = 0.7f))))
+            }
+        }
+        if (roomy) {
+            Column(GlanceModifier.fillMaxSize().padding(20.dp).clickable(action), verticalAlignment = Alignment.CenterVertically) {
+                iconBox()
+                Spacer(GlanceModifier.height(12.dp))
+                texts()
+            }
+        } else {
+            Row(GlanceModifier.fillMaxSize().padding(12.dp).clickable(action), verticalAlignment = Alignment.CenterVertically) {
+                iconBox()
+                Spacer(GlanceModifier.width(12.dp))
+                Column(GlanceModifier.defaultWeight()) { texts() }
             }
         }
     }
@@ -180,14 +237,15 @@ class PlayerWidget : GlanceAppWidget() {
 
     /** One row: cover, title and room, controls. */
     @Composable
-    private fun Compact(context: Context, group: GroupState?, cover: Bitmap?, offline: Boolean, c: CoverColors) {
+    private fun Compact(context: Context, group: GroupState?, cover: Bitmap?, offline: Boolean, c: CoverColors, status: WidgetStatus) {
         Row(GlanceModifier.fillMaxSize().padding(10.dp).clickable(actionStartActivity<MainActivity>()), verticalAlignment = Alignment.CenterVertically) {
             CoverImage(cover, c, 56.dp, 16.dp)
             Spacer(GlanceModifier.width(10.dp))
             Column(GlanceModifier.defaultWeight()) {
                 Text(title(context, group), maxLines = 1, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp, color = ColorProvider(c.content)))
                 Text(
-                    listOf(subtitle(context, group, offline), group?.group?.displayName.orEmpty()).filter { it.isNotEmpty() }.joinToString(" · "),
+                    if (status == WidgetStatus.Reconnecting) context.getString(R.string.widget_reconnecting)
+                    else listOf(subtitle(context, group, offline), group?.group?.displayName.orEmpty()).filter { it.isNotEmpty() }.joinToString(" · "),
                     maxLines = 1, style = TextStyle(fontSize = 12.sp, color = ColorProvider(c.content.copy(alpha = 0.7f))),
                 )
             }
@@ -197,7 +255,7 @@ class PlayerWidget : GlanceAppWidget() {
 
     /** Large cover, room, title over two lines, artist, controls. */
     @Composable
-    private fun Large(context: Context, group: GroupState?, cover: Bitmap?, offline: Boolean, c: CoverColors, modifier: GlanceModifier) {
+    private fun Large(context: Context, group: GroupState?, cover: Bitmap?, offline: Boolean, c: CoverColors, modifier: GlanceModifier, status: WidgetStatus) {
         Row(modifier.padding(14.dp).clickable(actionStartActivity<MainActivity>()), verticalAlignment = Alignment.CenterVertically) {
             CoverImage(cover, c, 112.dp, 20.dp)
             Spacer(GlanceModifier.width(14.dp))
@@ -206,7 +264,8 @@ class PlayerWidget : GlanceAppWidget() {
                     Image(ImageProvider(R.drawable.ic_speaker), null, GlanceModifier.size(14.dp), colorFilter = ColorFilter.tint(ColorProvider(c.accent)))
                     Spacer(GlanceModifier.width(4.dp))
                     Text(
-                        group?.group?.displayName ?: context.getString(R.string.app_name), maxLines = 1,
+                        if (status == WidgetStatus.Reconnecting) context.getString(R.string.widget_reconnecting)
+                        else group?.group?.displayName ?: context.getString(R.string.app_name), maxLines = 1,
                         style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = ColorProvider(c.accent)),
                     )
                 }
@@ -283,6 +342,17 @@ class PlayerWidget : GlanceAppWidget() {
 
 class PlayerWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = PlayerWidget()
+
+    override fun onUpdate(context: Context, appWidgetManager: android.appwidget.AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        // Also after a reboot or an app update: the registration does not survive either.
+        WidgetNetwork.wakeOnLocalNetwork(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        WidgetNetwork.unwatch(context)
+    }
 }
 
 class PlayPauseAction : ActionCallback {

@@ -169,4 +169,9 @@
     <string name="service_tap_to_link">Tap to link</string>
     <string name="services_more">More services</string>
     <string name="widget_queue_empty">The queue is empty.</string>
+    <string name="widget_no_wifi_body">Tap to choose a Wi-Fi network.</string>
+    <string name="widget_no_speakers">No speakers here</string>
+    <string name="widget_no_speakers_body">No Sonos answers in this network.</string>
+    <string name="widget_searching">Looking for speakers …</string>
+    <string name="widget_reconnecting">Reconnecting …</string>
 </resources>

@@ -74,6 +74,10 @@
         </service>
 
         <receiver
+            android:name=".widget.NetworkChangeReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".widget.PlayerWidgetReceiver"
             android:exported="true"
             android:label="@string/widget_label">
