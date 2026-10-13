@@ -50,7 +50,8 @@ The Apache License 2.0 is at <https://www.apache.org/licenses/LICENSE-2.0>.
 ### Icons
 
 Several icons (play, pause, skip, volume, queue, shuffle, repeat, speaker,
-timer, library, radio, album, playlist, lyrics, drag handle, Wi-Fi off) are
+timer, library, radio, album, playlist, lyrics, drag handle, Wi-Fi off,
+alarm, tune, play next, playlist add, copy, delete sweep, save, link) are
 path data taken from Google's
 [Material Icons](https://github.com/google/material-design-icons), Apache-2.0,
 in `ui/theme/Icons.kt` and `res/drawable/ic_*.xml`. The app icon is the
