@@ -75,32 +75,40 @@ class MusicServices @Inject constructor(
         catalogue ?: coordinator().musicServices().also { catalogue = it }
 
     /**
-     * The overview: linked services and those that need no sign-in, then the
-     * well-known ones and those the household already uses that can be
-     * linked, then one entry for the long rest.
+     * The overview. Before anything is linked: the well-known services and
+     * those the household already uses, the rest under "More services".
+     * Once one service is linked, only the linked ones; everything else moves
+     * to "More services" (Christoph's choice, 2026-10-13).
      */
     suspend fun overview(): List<DidlObject> {
-        val (household, _) = identity()
         val all = available()
-        val linked = accounts.forHousehold(household).first().map { it.serviceId }.toSet()
-        val top = POPULAR + usedServiceIds()
-        val ready = all.filter { it.id in linked || it.id in top && it.anonymous }.sortedBy { it.name.lowercase() }.map(::openEntry)
-        val suggested = all.filter { it.linkable && it.id !in linked && it.id in top }.sortedBy { it.name.lowercase() }.map(::linkEntry)
+        val linked = linkedIds()
         val rest = DidlObject(id = ServiceIds.MORE, parentId = ServiceIds.OVERVIEW, isContainer = true,
             title = context.getString(de.linuxundich.hausmusik.R.string.services_more), upnpClass = "object.container")
-        return ready + suggested + rest
+        if (linked.isNotEmpty()) {
+            return all.filter { it.id in linked }.sortedBy { it.name.lowercase() }.map(::openEntry) + rest
+        }
+        val top = topIds()
+        return all.filter { it.id in top && (it.anonymous || it.linkable) }.sortedBy { it.name.lowercase() }
+            .map { if (it.anonymous) openEntry(it) else linkEntry(it) } + rest
     }
 
-    /** Every other service, A to Z: those without sign-in open, the rest to link. */
+    /** Every service not shown in the overview, A to Z: those without sign-in open, the rest to link. */
     suspend fun more(): List<DidlObject> {
-        val (household, _) = identity()
-        val linked = accounts.forHousehold(household).first().map { it.serviceId }.toSet()
-        val top = POPULAR + usedServiceIds()
+        val linked = linkedIds()
+        val top = if (linked.isEmpty()) topIds() else emptySet()
         return available()
-            .filter { it.id !in linked && !(it.anonymous && it.id in top) && (it.linkable || it.anonymous) }
+            .filter { it.id !in linked && it.id !in top && (it.linkable || it.anonymous) }
             .sortedBy { it.name.lowercase() }
             .map { if (it.anonymous) openEntry(it) else linkEntry(it) }
     }
+
+    private suspend fun linkedIds(): Set<Int> {
+        val (household, _) = identity()
+        return accounts.forHousehold(household).first().map { it.serviceId }.toSet()
+    }
+
+    private suspend fun topIds(): Set<Int> = POPULAR + usedServiceIds()
 
     private fun openEntry(s: MusicService) = DidlObject(id = ServiceIds.of(s.id, "root"), parentId = ServiceIds.OVERVIEW,
         isContainer = true, title = s.displayName, upnpClass = "object.container")

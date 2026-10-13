@@ -35,7 +35,9 @@ All notable changes to Hausmusik are documented here. The format follows
   Apple Music, YouTube Music, Qobuz, Audible, Storytel, Plex, Bandcamp,
   IDAGIO, TuneIn) plus those the household already uses (found in its
   favorites, e.g. bonob); every other service is under *More services* (the
-  S1 household offers 96). Services without sign-in, such as TuneIn and many
+  S1 household offers 96). Once a service is linked, the tab shows only the
+  linked services and everything else moves to *More services*. Services
+  without sign-in, such as TuneIn and many
   radio stations, open directly; their stations play without the queue. Linking opens the
   service's sign-in page in the browser and waits for the confirmation; the
   token is stored per household and renewed when the service hands out a new

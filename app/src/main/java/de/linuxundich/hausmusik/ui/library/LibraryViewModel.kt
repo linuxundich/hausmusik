@@ -104,6 +104,7 @@ class LibraryViewModel @Inject constructor(
         val (sid, _) = ServiceIds.parse(container.id) ?: return@launch
         services.unlink(sid)
         load(ServiceIds.OVERVIEW, force = true)
+        if (_lists.value.containsKey(ServiceIds.MORE)) load(ServiceIds.MORE, force = true)
     }
 
     val artistImagesEnabled: StateFlow<Boolean> = settings.artistImagesEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
