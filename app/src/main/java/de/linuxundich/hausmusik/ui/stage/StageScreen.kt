@@ -223,6 +223,7 @@ private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifie
         placeholderColor = colors.subtle,
         iconColor = colors.content.copy(alpha = 0.5f),
         icon = if (group.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker,
+        keepPrevious = true,
     )
 }
 

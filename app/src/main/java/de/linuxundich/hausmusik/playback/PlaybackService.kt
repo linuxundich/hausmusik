@@ -50,7 +50,9 @@ class PlaybackService : MediaSessionService() {
             Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        session = MediaSession.Builder(this, player).setSessionActivity(open).build()
+        session = MediaSession.Builder(this, player).setSessionActivity(open)
+            .setBitmapLoader(de.linuxundich.hausmusik.data.covers.CoilBitmapLoader(this, scope))
+            .build()
         // Android binds route providers only while someone discovers routes. By
         // asking for remote playback routes ourselves, SonosRouteProvider gets
         // bound and the output chip can show the room.

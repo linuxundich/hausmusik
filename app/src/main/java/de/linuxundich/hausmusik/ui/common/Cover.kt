@@ -18,6 +18,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
 import de.linuxundich.hausmusik.ui.theme.AppIcons
 
@@ -30,12 +35,21 @@ fun Cover(
     placeholderColor: Color,
     iconColor: Color,
     icon: ImageVector = AppIcons.Album,
+    keepPrevious: Boolean = false,
 ) {
     val shape = RoundedCornerShape(corner)
+    // With keepPrevious, the last cover that loaded stays until the next one is
+    // there: within an album nothing flickers, and a slow speaker shows no gap.
+    var shown by remember { mutableStateOf<String?>(null) }
     Box(modifier.clip(shape).background(placeholderColor), contentAlignment = Alignment.Center) {
         val placeholder = @Composable {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(32.dp))
+            val previous = shown.takeIf { keepPrevious && it != url }
+            if (previous != null) {
+                AsyncImage(previous, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(32.dp))
+                }
             }
         }
         if (url == null) placeholder() else SubcomposeAsyncImage(
@@ -45,6 +59,7 @@ fun Cover(
             modifier = Modifier.fillMaxSize(),
             loading = { placeholder() },
             error = { placeholder() },
+            onSuccess = { shown = url },
         )
     }
 }

@@ -8,6 +8,15 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Covers appear much faster when skipping. The next three tracks' covers are
+  loaded in the background; requests for the same cover from stage, palette,
+  widget and media notification share one fetch (the notification now loads
+  through the app's image loader too); the stage keeps the previous cover
+  until the new one is there, so nothing flickers within an album. For a
+  linked service (bonob) the cover comes from the service itself
+  (getMediaMetadata) instead of the speaker: on the S1 the speaker needed
+  about 1.7 s per cover and served a 5 KB thumbnail.
+
 - Waiting indicator while the speakers have not answered yet (design A + B
   from https://claude.ai/artifact/VHMYvndVYtRUQ7g35h3E7f): play/pause shows
   the morphing Material 3 Expressive loading indicator in the button, every

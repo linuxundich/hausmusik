@@ -82,6 +82,19 @@ class HouseholdRepository @Inject constructor(
     // Set by events, consumed by the loop.
     private val pendingGroups = ConcurrentHashMap.newKeySet<String>()
 
+    /**
+     * Set by the music services: the service's own cover for an item the
+     * speaker only offers as a slow, small `/getaa` copy (bonob: ~1.7 s and
+     * 5 KB on an S1, the original comes from the music server at once).
+     */
+    @Volatile var coverResolver: (suspend (String) -> String?)? = null
+
+    /** The best cover URL: the service's own if it answers within a moment, else the speaker's. */
+    suspend fun coverFor(c: SonosPlayerClient, albumArtUri: String?): String? {
+        val better = albumArtUri?.let { uri -> coverResolver?.let { r -> withTimeoutOrNull(1500) { runCatching { r(uri) }.getOrNull() } } }
+        return better ?: c.absoluteArtUrl(albumArtUri)
+    }
+
     // Waiting for the speakers: a command counts as busy from the moment it is
     // sent until a read of its group (or of the topology) started after the
     // command had finished, so the UI shows the change, not just the request.
@@ -475,7 +488,7 @@ class HouseholdRepository @Inject constructor(
         var next = gs.copy(
             transport = transport.await(),
             nowPlaying = now,
-            artUrl = c.absoluteArtUrl(now?.albumArtUri),
+            artUrl = coverFor(c, now?.albumArtUri),
             queueLength = media.await().numberOfTracks,
             positionReadAt = System.currentTimeMillis(),
         )

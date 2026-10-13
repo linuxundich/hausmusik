@@ -99,4 +99,14 @@ class SmapiTest {
             assertEquals(null, c.finishLink(SmapiLink("https://x", "code", false, null)))
         }
     }
+
+    @Test
+    fun `a speaker cover path leads back to the service item`() {
+        val cover = "/getaa?s=1&u=x-sonos-http%3atrack%253a1WYwAsuWKRKKrw9AV6w9KY.mp3%3fsid%3d246%26flags%3d8224%26sn%3d7"
+        val uri = SmapiClient.uriOfCover(cover)
+        assertEquals("x-sonos-http:track%3a1WYwAsuWKRKKrw9AV6w9KY.mp3?sid=246&flags=8224&sn=7", uri)
+        assertEquals(246 to "track:1WYwAsuWKRKKrw9AV6w9KY", SmapiClient.itemOf(uri))
+        assertEquals(null, SmapiClient.itemOf("x-file-cifs://nas/music/a.mp3"))
+        assertEquals(null, SmapiClient.uriOfCover("http://cdn.example/a.jpg"))
+    }
 }

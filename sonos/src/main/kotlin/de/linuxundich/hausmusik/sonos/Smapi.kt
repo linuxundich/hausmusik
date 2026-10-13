@@ -200,6 +200,10 @@ class SmapiClient(
     suspend fun metadata(id: String, index: Int = 0, count: Int = 100): SmapiPage =
         parsePage(call("getMetadata", listOf("id" to id, "index" to index, "count" to count, "recursive" to false)))
 
+    /** The cover the service itself gives for one item, often larger and faster than the speaker's copy. */
+    suspend fun artFor(id: String): String? =
+        call("getMediaMetadata", listOf("id" to id)).find("albumArtURI")?.textContent?.trim()?.ifBlank { null }
+
     /** Searches one category, e.g. `artists`, `albums` or `tracks`. */
     suspend fun search(categoryId: String, term: String, index: Int = 0, count: Int = 30): SmapiPage =
         parsePage(call("search", listOf("id" to categoryId, "term" to term, "index" to index, "count" to count)))
@@ -334,6 +338,26 @@ class SmapiClient(
                 description = if (playable) service.name else null,
                 durationMs = item.durationMs,
             )
+        }
+
+        /**
+         * The service and item behind a speaker URI such as
+         * `x-sonos-http:track%3a1WYw….mp3?sid=246&flags=8224&sn=7`: (246, "track:1WYw…").
+         * The extension Sonos appends for the format is dropped.
+         */
+        fun itemOf(uri: String?): Pair<Int, String>? {
+            if (uri == null) return null
+            val m = Regex("^[a-z-]+:([^?]+)\\?(?:.*&)?sid=(\\d+)").find(uri) ?: return null
+            val raw = java.net.URLDecoder.decode(m.groupValues[1].replace("+", "%2B"), "UTF-8")
+            val id = raw.replace(Regex("\\.(mp3|flac|mp4|m4a|ogg|aac)$"), "")
+            return m.groupValues[2].toInt() to id
+        }
+
+        /** The speaker URI inside a cover path like `/getaa?s=1&u=<uri>`. */
+        fun uriOfCover(albumArtUri: String?): String? {
+            if (albumArtUri == null || !albumArtUri.startsWith("/getaa")) return null
+            val u = albumArtUri.substringAfter("u=", "").substringBefore('&').ifEmpty { return null }
+            return java.net.URLDecoder.decode(u, "UTF-8")
         }
 
         /** The account serial (`sn=`) of [serviceId] in URIs the household already uses, e.g. favorites. */

@@ -60,6 +60,29 @@ class MusicServices @Inject constructor(
     private var deviceId: String? = null
     private var catalogue: List<MusicService>? = null
     private val clients = mutableMapOf<Int, SmapiClient>()
+    private val covers = java.util.Collections.synchronizedMap(object : LinkedHashMap<String, String>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>) = size > 1000
+    })
+
+    init {
+        repo.coverResolver = ::serviceCover
+    }
+
+    /**
+     * The cover a linked service gives for the item behind a speaker cover
+     * path (`/getaa?…&u=x-sonos-http:…?sid=…`), or null. Remembered per item;
+     * "none" is remembered too, as an empty string.
+     */
+    suspend fun serviceCover(albumArtUri: String): String? {
+        val (sid, itemId) = SmapiClient.itemOf(SmapiClient.uriOfCover(albumArtUri)) ?: return null
+        val key = "$sid/$itemId"
+        covers[key]?.let { return it.ifEmpty { null } }
+        val (household, _) = identity()
+        if (accounts.get(household, sid) == null) return null
+        val url = runCatching { client(sid).artFor(itemId) }.getOrNull()
+        covers[key] = url.orEmpty()
+        return url
+    }
 
     private fun coordinator() = repo.selectedCoordinator() ?: throw IOException("not connected")
 
