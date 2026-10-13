@@ -61,6 +61,22 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
     suspend fun setDetailsEnabled(on: Boolean) = store.edit { it[detailsKey] = on }
     suspend fun setDetailsWikipediaEnabled(on: Boolean) = store.edit { it[detailsWikipediaKey] = on }
 
+    private val everywhereKey = androidx.datastore.preferences.core.stringSetPreferencesKey("everywhere_excluded")
+
+    /** Rooms (player UUIDs) that "Everywhere" in the rooms sheet leaves out. */
+    val everywhereExcluded: Flow<Set<String>> = store.data.map { it[everywhereKey] ?: emptySet() }
+
+    suspend fun setEverywhereExcluded(uuids: Set<String>) = store.edit { it[everywhereKey] = uuids }
+
+    private val debugDetailsKey = stringPreferencesKey("debug_details_base")
+
+    /** Debug builds only: "host:port" serving fake MusicBrainz, Wikidata and Wikipedia answers (the fake household). */
+    suspend fun debugDetailsBase(): String? = store.data.first()[debugDetailsKey]
+
+    suspend fun setDebugDetailsBase(value: String?) = store.edit {
+        if (value.isNullOrBlank()) it.remove(debugDetailsKey) else it[debugDetailsKey] = value.trim()
+    }
+
     private val debugCallbackKey = stringPreferencesKey("debug_callback")
 
     /**

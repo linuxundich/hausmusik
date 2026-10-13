@@ -78,6 +78,10 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra("volcap")?.let { cap ->
             lifecycleScope.launch { settings.setDebugVolumeCap(cap.toIntOrNull()) }
         }
+        // Details from the fake household instead of MusicBrainz and Wikipedia: -e details 10.0.2.2:1401 (or '' to undo).
+        intent.getStringExtra("details")?.let { base ->
+            lifecycleScope.launch { settings.setDebugDetailsBase(base.ifBlank { null }) }
+        }
         val callback = intent.getStringExtra("callback")
         val host = intent.getStringExtra("host")
         if (callback == null && host == null) return

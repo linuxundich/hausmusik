@@ -3,7 +3,10 @@
 
 package de.linuxundich.hausmusik.data
 
+import android.content.Context
 import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
 import de.linuxundich.hausmusik.BuildConfig
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -24,7 +27,11 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-/** What is known about an artist. [summary] is a Wikipedia extract and needs the attribution in [summaryUrl]. */
+/**
+ * What is known about an artist. [summary] is a Wikipedia extract and needs the
+ * attribution in [summaryUrl]; [imageUrl] is the page's picture on Wikimedia.
+ */
+@Serializable
 data class ArtistDetails(
     val name: String,
     val type: String?,
@@ -36,9 +43,11 @@ data class ArtistDetails(
     val summary: String?,
     val summaryUrl: String?,
     val musicBrainzUrl: String,
+    val imageUrl: String? = null,
 )
 
-/** What is known about an album (a MusicBrainz release group). */
+/** What is known about an album (a MusicBrainz release group); [imageUrl] is its front cover on the Cover Art Archive. */
+@Serializable
 data class AlbumDetails(
     val title: String,
     val artist: String?,
@@ -48,7 +57,12 @@ data class AlbumDetails(
     val summary: String?,
     val summaryUrl: String?,
     val musicBrainzUrl: String,
+    val imageUrl: String? = null,
 )
+
+/** One answer on disk; [artist] and [album] both null means "nothing found". */
+@Serializable
+private data class CachedDetails(val savedAt: Long, val artist: ArtistDetails? = null, val album: AlbumDetails? = null)
 
 @Serializable
 private data class MbLifeSpan(val begin: String? = null, val end: String? = null, val ended: Boolean? = null)
@@ -116,7 +130,13 @@ private data class WikiSummary(
     val type: String? = null,
     val extract: String? = null,
     @SerialName("content_urls") val urls: WikiUrls? = null,
+    val thumbnail: WikiImage? = null,
 )
+
+@Serializable
+private data class WikiImage(val source: String? = null)
+
+private data class WikiText(val text: String?, val url: String?, val image: String?)
 
 @Serializable
 private data class WikiUrls(val desktop: WikiPage? = null)
@@ -143,14 +163,18 @@ class DetailsRepository(
     private val language: () -> String,
     private val minGapMs: Long,
     private val retryMs: Long = 2_500,
+    /** Answers are kept here between runs; null keeps them in memory only. */
+    private val cacheDir: File? = null,
+    private val coverArt: (String) -> String = { "https://coverartarchive.org/release-group/$it/front-250" },
 ) {
-    @Inject constructor(http: OkHttpClient, settings: Settings) : this(
+    @Inject constructor(http: OkHttpClient, settings: Settings, @ApplicationContext context: Context) : this(
         http, settings,
         "https://musicbrainz.org/ws/2/".toHttpUrl(),
         "https://www.wikidata.org/w/api.php".toHttpUrl(),
         { lang -> "https://$lang.wikipedia.org/api/rest_v1/page/summary/".toHttpUrl() },
         { Locale.getDefault().language },
         1_100,
+        cacheDir = File(context.cacheDir, "details"),
     )
 
     // These services are on the internet: unlike the speakers, they take the default route.
@@ -165,21 +189,65 @@ class DetailsRepository(
     /** Null: nothing found. Failure: the network or a service failed (worth another try). */
     suspend fun artist(name: String): Result<ArtistDetails?> {
         if (name.isBlank() || ArtistImages.normalize(name) in ArtistImages.COLLECTIONS) return Result.success(null)
-        val key = ArtistImages.normalize(name) + "|" + wikiOn()
+        val key = "artist|" + ArtistImages.normalize(name) + "|" + wikiOn()
         artists[key]?.let { return it }
+        fromDisk(key)?.let { return Result.success(it.artist).also { r -> artists[key] = r } }
         val result = runCatching { withContext(Dispatchers.IO) { lookupArtist(name.trim()) } }
-        if (result.isSuccess) artists[key] = result else Log.w(TAG, "artist lookup failed", result.exceptionOrNull())
+        if (result.isSuccess) {
+            artists[key] = result
+            toDisk(key, CachedDetails(System.currentTimeMillis(), artist = result.getOrNull()))
+        } else {
+            Log.w(TAG, "artist lookup failed", result.exceptionOrNull())
+        }
         return result
     }
 
     suspend fun album(title: String, artist: String?): Result<AlbumDetails?> {
         if (title.isBlank()) return Result.success(null)
-        val key = ArtistImages.normalize(title) + "|" + ArtistImages.normalize(artist.orEmpty()) + "|" + wikiOn()
+        val key = "album|" + ArtistImages.normalize(title) + "|" + ArtistImages.normalize(artist.orEmpty()) + "|" + wikiOn()
         albums[key]?.let { return it }
+        fromDisk(key)?.let { return Result.success(it.album).also { r -> albums[key] = r } }
         val result = runCatching { withContext(Dispatchers.IO) { lookupAlbum(title.trim(), artist?.trim()) } }
-        if (result.isSuccess) albums[key] = result else Log.w(TAG, "album lookup failed", result.exceptionOrNull())
+        if (result.isSuccess) {
+            albums[key] = result
+            toDisk(key, CachedDetails(System.currentTimeMillis(), album = result.getOrNull()))
+        } else {
+            Log.w(TAG, "album lookup failed", result.exceptionOrNull())
+        }
         return result
     }
+
+    /** A stored answer that is still fresh: a month for facts, a week for "nothing found". */
+    private suspend fun fromDisk(key: String): CachedDetails? = withContext(Dispatchers.IO) {
+        val f = cacheFile(key) ?: return@withContext null
+        val c = runCatching { json.decodeFromString<CachedDetails>(f.readText()) }.getOrNull() ?: return@withContext null
+        val age = System.currentTimeMillis() - c.savedAt
+        c.takeIf { age < if (c.artist == null && c.album == null) NONE_MS else FOUND_MS }
+    }
+
+    private suspend fun toDisk(key: String, c: CachedDetails) = withContext(Dispatchers.IO) {
+        val f = cacheFile(key) ?: return@withContext
+        runCatching { f.parentFile?.mkdirs(); f.writeText(json.encodeToString(CachedDetails.serializer(), c)) }
+    }
+
+    private fun cacheFile(key: String): File? = cacheDir?.let { dir ->
+        val hash = java.security.MessageDigest.getInstance("SHA-1").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }
+        File(dir, "$hash.json")
+    }
+
+    /** Forgets every stored answer, e.g. when the user clears the cache. */
+    suspend fun clear() = withContext(Dispatchers.IO) {
+        artists.clear()
+        albums.clear()
+        cacheDir?.deleteRecursively()
+    }
+
+    // Debug builds can point all three services at the fake household (`-e details host:port`).
+    private suspend fun debugBase(): String? = if (BuildConfig.DEBUG) settings.debugDetailsBase() else null
+    private suspend fun mbBase() = debugBase()?.let { "http://$it/ws/2/".toHttpUrl() } ?: musicBrainz
+    private suspend fun wdBase() = debugBase()?.let { "http://$it/w/api.php".toHttpUrl() } ?: wikidata
+    private suspend fun wpBase(lang: String) = debugBase()?.let { "http://$it/wiki/$lang/".toHttpUrl() } ?: wikipedia(lang)
+    private suspend fun coverFor(id: String) = debugBase()?.let { "http://$it/coverart/$id" } ?: coverArt(id)
 
     private suspend fun wikiOn() = settings.detailsWikipediaEnabled.first()
 
@@ -195,14 +263,15 @@ class DetailsRepository(
         val wanted = ArtistImages.normalize(name)
         val hit = found.filter { ArtistImages.normalize(it.name) == wanted && it.score >= 80 }.maxByOrNull { it.score } ?: return null
         val full = json.decodeFromString<MbArtist>(mb("artist/${hit.id}", "inc" to "genres+url-rels"))
-        val (summary, url) = if (wikiOn()) wikipediaSummary(full.relations) else null to null
+        val wiki = if (wikiOn()) wikipediaSummary(full.relations) else WikiText(null, null, null)
         return ArtistDetails(
             name = hit.name, type = hit.type, country = hit.country,
             begin = full.lifeSpan?.begin, end = if (full.lifeSpan?.ended == true) full.lifeSpan.end else null,
             disambiguation = hit.disambiguation?.ifBlank { null },
             genres = topNames(full.genres.ifEmpty { full.tags }),
-            summary = summary, summaryUrl = url,
+            summary = wiki.text, summaryUrl = wiki.url,
             musicBrainzUrl = "https://musicbrainz.org/artist/${hit.id}",
+            imageUrl = wiki.image,
         )
     }
 
@@ -216,15 +285,16 @@ class DetailsRepository(
         val wanted = ArtistImages.normalize(title)
         val hit = found.filter { ArtistImages.normalize(it.title) == wanted && it.score >= 80 }.maxByOrNull { it.score } ?: return null
         val full = json.decodeFromString<MbGroup>(mb("release-group/${hit.id}", "inc" to "genres+url-rels+artist-credits"))
-        val (summary, url) = if (wikiOn()) wikipediaSummary(full.relations) else null to null
+        val wiki = if (wikiOn()) wikipediaSummary(full.relations) else WikiText(null, null, null)
         val type = (listOfNotNull(hit.primaryType) + hit.secondaryTypes).joinToString(" + ").ifBlank { null }
         return AlbumDetails(
             title = hit.title,
             artist = full.credits.ifEmpty { hit.credits }.joinToString("") { it.name + it.joinphrase }.ifBlank { null },
             type = type, firstRelease = hit.firstRelease?.ifBlank { null },
             genres = topNames(full.genres.ifEmpty { full.tags }),
-            summary = summary, summaryUrl = url,
+            summary = wiki.text, summaryUrl = wiki.url,
             musicBrainzUrl = "https://musicbrainz.org/release-group/${hit.id}",
+            imageUrl = coverFor(hit.id),
         )
     }
 
@@ -234,7 +304,7 @@ class DetailsRepository(
      * after [retryMs], which is what its rules suggest.
      */
     private suspend fun mb(path: String, vararg params: Pair<String, String>): String = gate.withLock {
-        val url = musicBrainz.newBuilder().addPathSegments(path).addQueryParameter("fmt", "json")
+        val url = mbBase().newBuilder().addPathSegments(path).addQueryParameter("fmt", "json")
             .apply { params.forEach { (k, v) -> addQueryParameter(k, v) } }.build()
         try {
             repeat(2) { attempt ->
@@ -269,30 +339,33 @@ class DetailsRepository(
      * in the phone's language if that wiki has a page, otherwise in English.
      * A missing page is not an error: the facts are still shown.
      */
-    private fun wikipediaSummary(relations: List<MbRelation>): Pair<String?, String?> = runCatching {
+    private suspend fun wikipediaSummary(relations: List<MbRelation>): WikiText = runCatching {
         val id = relations.firstOrNull { it.type == "wikidata" }?.url?.resource?.substringAfterLast('/')?.takeIf { Regex("Q\\d+").matches(it) }
-            ?: return@runCatching null to null
+            ?: return@runCatching WikiText(null, null, null)
         val lang = language().lowercase().takeIf { it.matches(Regex("[a-z]{2,3}")) } ?: "en"
         val wikis = listOf(lang, "en").distinct()
         val links = json.decodeFromString<WdResponse>(
             get(
-                wikidata.newBuilder().addQueryParameter("action", "wbgetentities").addQueryParameter("ids", id)
+                wdBase().newBuilder().addQueryParameter("action", "wbgetentities").addQueryParameter("ids", id)
                     .addQueryParameter("props", "sitelinks").addQueryParameter("sitefilter", wikis.joinToString("|") { "${it}wiki" })
                     .addQueryParameter("format", "json").build(),
             ),
         ).entities[id]?.sitelinks.orEmpty()
         for (w in wikis) {
             val title = links["${w}wiki"]?.title ?: continue
-            val s = json.decodeFromString<WikiSummary>(get(wikipedia(w).newBuilder().addPathSegment(title).build()))
+            val s = json.decodeFromString<WikiSummary>(get(wpBase(w).newBuilder().addPathSegment(title).build()))
             val text = tidy(s.extract.orEmpty())
             if (s.type == "disambiguation" || text.isEmpty()) continue
-            return@runCatching text to (s.urls?.desktop?.page ?: "https://$w.wikipedia.org/wiki/${java.net.URLEncoder.encode(title, "UTF-8")}")
+            val page = s.urls?.desktop?.page ?: "https://$w.wikipedia.org/wiki/${java.net.URLEncoder.encode(title, "UTF-8")}"
+            return@runCatching WikiText(text, page, s.thumbnail?.source)
         }
-        null to null
-    }.getOrDefault(null to null)
+        WikiText(null, null, null)
+    }.getOrDefault(WikiText(null, null, null))
 
     companion object {
         private const val TAG = "Details"
+        private const val FOUND_MS = 30L * 24 * 3600 * 1000
+        private const val NONE_MS = 7L * 24 * 3600 * 1000
 
         /** The three most voted genres (or tags), first letter upper case. */
         private fun topNames(tags: List<MbTag>): List<String> =

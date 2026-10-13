@@ -32,6 +32,8 @@ data class GroupState(
     val memberVolumes: Map<String, Int> = emptyMap(),
     /** Muted speakers of the group, by player UUID. */
     val memberMutes: Map<String, Boolean> = emptyMap(),
+    /** Crossfade between tracks (a group setting); read for the selected group only. */
+    val crossfade: Boolean = false,
     val actions: TransportActions = TransportActions(emptySet()),
     val playMode: PlayMode = PlayMode.Normal,
     val queueLength: Int = 0,

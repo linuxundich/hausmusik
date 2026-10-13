@@ -5,6 +5,7 @@ package de.linuxundich.hausmusik.ui.queue
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.mutableFloatStateOf
@@ -57,6 +58,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -151,8 +156,52 @@ fun QueueSheet(
         var order by remember(loaded) { mutableStateOf(loaded.mapIndexed { i, t -> (i + 1) to t }) }
         var dragKey by remember { mutableStateOf<Int?>(null) }
         var dragOffset by remember { mutableFloatStateOf(0f) }
+        // The dragged row swaps places with the row under its center.
+        fun reorderUnderFinger(nr: Int) {
+            val items = list.layoutInfo.visibleItemsInfo
+            val from = order.indexOfFirst { it.first == nr }
+            val me = items.firstOrNull { it.index == from } ?: return
+            val center = me.offset + dragOffset + me.size / 2
+            val target = items.firstOrNull { it.index != from && center.toInt() in it.offset..(it.offset + it.size) } ?: return
+            order = order.toMutableList().apply { add(target.index, removeAt(from)) }
+            dragOffset += me.offset - target.offset
+        }
+        // Near the top or bottom edge the list scrolls by itself, faster the closer
+        // the row gets, so a track can travel further than one screen.
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        // The list runs on below the screen edge (under the gesture bar): measure its
+        // visible bottom from the window instead of trusting the viewport.
+        var listTop by remember { mutableFloatStateOf(0f) }
+        val windowHeight = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.height
+        val navBar = WindowInsets.navigationBars.getBottom(density)
+        LaunchedEffect(dragKey) {
+            val nr = dragKey ?: return@LaunchedEffect
+            val edge = with(density) { 64.dp.toPx() }
+            val maxStep = with(density) { 12.dp.toPx() }
+            while (true) {
+                androidx.compose.runtime.withFrameNanos { }
+                val info = list.layoutInfo
+                val me = info.visibleItemsInfo.firstOrNull { it.index == order.indexOfFirst { o -> o.first == nr } } ?: continue
+                val top = me.offset + dragOffset
+                val bottom = top + me.size
+                val visibleEnd = minOf(info.viewportEndOffset.toFloat(), windowHeight - navBar - listTop)
+                val step = when {
+                    top < info.viewportStartOffset + edge -> -maxStep * ((info.viewportStartOffset + edge - top) / edge).coerceIn(0f, 1f)
+                    bottom > visibleEnd - edge -> maxStep * ((bottom - visibleEnd + edge) / edge).coerceIn(0f, 1f)
+                    else -> 0f
+                }
+                if (step == 0f) continue
+                val used = list.scrollBy(step)
+                // The row moved with the list; keep it under the finger.
+                dragOffset += used
+                reorderUnderFinger(nr)
+            }
+        }
         Box {
-        LazyColumn(state = list, modifier = Modifier.fillMaxWidth()) {
+        LazyColumn(
+            state = list,
+            modifier = Modifier.fillMaxWidth().onGloballyPositioned { listTop = it.positionInWindow().y },
+        ) {
             itemsIndexed(order, key = { _, (nr, t) -> "$version/$nr/${t.id}" }) { index, (nr, t) ->
                 val dragging = dragKey == nr
                 QueueRow(
@@ -169,15 +218,7 @@ fun QueueSheet(
                             onDrag = { change, amount ->
                                 change.consume()
                                 dragOffset += amount.y
-                                val items = list.layoutInfo.visibleItemsInfo
-                                val from = order.indexOfFirst { it.first == nr }
-                                val me = items.firstOrNull { it.index == from } ?: return@detectDragGestures
-                                val center = me.offset + dragOffset + me.size / 2
-                                val target = items.firstOrNull { it.index != from && center.toInt() in it.offset..(it.offset + it.size) }
-                                if (target != null) {
-                                    order = order.toMutableList().apply { add(target.index, removeAt(from)) }
-                                    dragOffset += me.offset - target.offset
-                                }
+                                reorderUnderFinger(nr)
                             },
                             onDragEnd = {
                                 val from = nr
@@ -286,6 +327,9 @@ private fun QueueRow(
             }
             AppMenu(menu, { menu = false }, menuColors(colors)) {
                 Item(AppIcons.PlayNext, stringResource(R.string.queue_play_next), enabled = !playing) { menu = false; onPlayNext() }
+                val details = de.linuxundich.hausmusik.ui.details.LocalItemDetails.current
+                val target = remember(t) { de.linuxundich.hausmusik.ui.details.DetailsTarget.of(t) }
+                if (details != null && target != null) Item(AppIcons.Info, stringResource(R.string.details)) { menu = false; details(target) }
                 Item(Icons.Filled.Delete, stringResource(R.string.queue_remove)) { menu = false; onRemove() }
             }
         }

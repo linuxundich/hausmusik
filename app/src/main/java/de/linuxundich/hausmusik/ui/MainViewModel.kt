@@ -28,6 +28,7 @@ import de.linuxundich.hausmusik.sonos.SonosPlayer
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -36,7 +37,16 @@ class MainViewModel @Inject constructor(
     private val settings: Settings,
     private val lyricsRepo: LyricsRepository,
     private val detailsRepo: DetailsRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
+
+    init {
+        // Launcher shortcuts with the favorites, once the household is there.
+        viewModelScope.launch {
+            repo.state.first { it.selected != null }
+            repo.browseAll("FV:2").onSuccess { de.linuxundich.hausmusik.system.CommandActivity.publishShortcuts(context, it) }
+        }
+    }
 
     val lyricsEnabled: StateFlow<Boolean> = settings.lyricsEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val lastRoomName: StateFlow<String?> = settings.lastRoomName.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -50,6 +60,18 @@ class MainViewModel @Inject constructor(
     val detailsWikipedia: StateFlow<Boolean> = settings.detailsWikipediaEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     fun setDetailsEnabled(on: Boolean) = viewModelScope.launch { settings.setDetailsEnabled(on) }
     fun setDetailsWikipedia(on: Boolean) = viewModelScope.launch { settings.setDetailsWikipediaEnabled(on) }
+    fun setCrossfade(on: Boolean) = viewModelScope.launch { repo.setCrossfade(on) }
+
+    fun joinEverywhere() = viewModelScope.launch {
+        repo.joinEverywhere().fold(
+            { n -> _messages.send(if (n == 0) R.string.everywhere_none else R.string.everywhere_done) },
+            { _messages.send(R.string.item_failed) },
+        )
+    }
+
+    val everywhereExcluded: StateFlow<Set<String>> = settings.everywhereExcluded.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+    fun setEverywhereExcluded(uuids: Set<String>) = viewModelScope.launch { settings.setEverywhereExcluded(uuids) }
+
     suspend fun artistDetails(name: String) = detailsRepo.artist(name)
     suspend fun albumDetails(title: String, artist: String?) = detailsRepo.album(title, artist)
 
@@ -61,6 +83,7 @@ class MainViewModel @Inject constructor(
 
     fun clearListCache() = viewModelScope.launch {
         repo.clearListCache()
+        detailsRepo.clear()
         _messages.send(R.string.cache_cleared)
     }
 

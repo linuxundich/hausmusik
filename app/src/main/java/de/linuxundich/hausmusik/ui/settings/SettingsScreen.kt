@@ -41,7 +41,10 @@ import androidx.compose.ui.unit.dp
 import de.linuxundich.hausmusik.BuildConfig
 import de.linuxundich.hausmusik.R
 
-data class SettingsState(val manualHost: String?, val connectedTo: String?, val lyricsEnabled: Boolean, val artistImagesEnabled: Boolean = false, val detailsEnabled: Boolean = false, val detailsWikipedia: Boolean = true)
+data class SettingsState(val manualHost: String?, val connectedTo: String?, val lyricsEnabled: Boolean, val artistImagesEnabled: Boolean = false, val detailsEnabled: Boolean = false, val detailsWikipedia: Boolean = true,
+    /** Visible rooms (UUID to name) and those "Everywhere" leaves out. */
+    val rooms: List<Pair<String, String>> = emptyList(), val everywhereExcluded: Set<String> = emptySet(),
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +55,7 @@ fun SettingsScreen(
     onArtistImages: (Boolean) -> Unit,
     onDetails: (Boolean) -> Unit = {},
     onDetailsWikipedia: (Boolean) -> Unit = {},
+    onEverywhereExcluded: (Set<String>) -> Unit = {},
     onLicenses: () -> Unit,
     onClearCache: () -> Unit,
     onBack: () -> Unit,
@@ -86,6 +90,21 @@ fun SettingsScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { onConnect(host) }, enabled = host.isNotBlank()) { Text(stringResource(R.string.setup_connect)) }
                 OutlinedButton(onClick = { host = ""; onConnect(null) }) { Text(stringResource(R.string.settings_search_auto)) }
+            }
+            if (state.rooms.size > 1) {
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                Text(stringResource(R.string.settings_everywhere), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.settings_everywhere_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.rooms.forEach { (uuid, name) ->
+                        val out = uuid in state.everywhereExcluded
+                        androidx.compose.material3.FilterChip(
+                            selected = out,
+                            onClick = { onEverywhereExcluded(if (out) state.everywhereExcluded - uuid else state.everywhereExcluded + uuid) },
+                            label = { Text(name) },
+                        )
+                    }
+                }
             }
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.cache), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)

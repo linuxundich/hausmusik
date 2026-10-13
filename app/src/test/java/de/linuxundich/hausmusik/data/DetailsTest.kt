@@ -47,7 +47,8 @@ class DetailsTest {
         "relations":[{"type":"official homepage","url":{"resource":"https://e/"}},
                      {"type":"wikidata","url":{"resource":"https://www.wikidata.org/wiki/Q42"}}]}"""
     private val sitelinks = """{"entities":{"Q42":{"sitelinks":{"dewiki":{"title":"Tina Tux"},"enwiki":{"title":"Tina Tux (band)"}}}}}"""
-    private val wikiSummary = """{"type":"standard","extract":"Tina Tux ist eine Pinguin-Band.","content_urls":{"desktop":{"page":"https://de.wikipedia.org/wiki/Tina_Tux"}}}"""
+    private val wikiSummary = """{"type":"standard","extract":"Tina Tux ist eine Pinguin-Band.","content_urls":{"desktop":{"page":"https://de.wikipedia.org/wiki/Tina_Tux"}},
+        "thumbnail":{"source":"https://upload.wikimedia.org/tina.jpg"}}"""
 
     @Test
     fun `nothing is asked while switched off`() = runTest {
@@ -70,6 +71,7 @@ class DetailsTest {
         assertEquals("Tina Tux ist eine Pinguin-Band.", a.summary)
         assertEquals("https://de.wikipedia.org/wiki/Tina_Tux", a.summaryUrl)
         assertEquals("https://musicbrainz.org/artist/abc-2", a.musicBrainzUrl)
+        assertEquals("https://upload.wikimedia.org/tina.jpg", a.imageUrl)
 
         val search = server.takeRequest()
         assertTrue(search.target.startsWith("/ws/2/artist?fmt=json&query=artist%3A%22tina%20tux%22"))
@@ -168,6 +170,7 @@ class DetailsTest {
         assertEquals("2021-03-12", a.firstRelease)
         assertEquals("Penny Guin", a.artist)
         assertEquals(listOf("Folk"), a.genres)
+        assertEquals("https://coverartarchive.org/release-group/rg-1/front-250", a.imageUrl)
         assertNull(a.summary)
         assertEquals(2, server.requestCount)
         assertTrue(server.takeRequest().target.contains("query=releasegroup%3A%22Kernel%20Panic%20Ballads%22%20AND%20artist%3A%22Penny%20Guin%22"))
@@ -177,6 +180,29 @@ class DetailsTest {
     fun `line breaks inside a paragraph become spaces`() {
         assertEquals("Eins zwei. Drei vier.\n\nNeuer Absatz.", DetailsRepository.tidy("Eins\nzwei.\r\n Drei  vier.\n\n\n  \nNeuer Absatz.\n"))
         assertEquals("", DetailsRepository.tidy(" \n \n "))
+    }
+
+    @Test
+    fun `answers survive on disk, also "nothing found"`() = runTest {
+        settings.setDetailsEnabled(true)
+        settings.setDetailsWikipediaEnabled(false)
+        val dir = java.nio.file.Files.createTempDirectory("details").toFile()
+        fun repo() = DetailsRepository(
+            OkHttpClient(), settings, server.url("/ws/2/"), server.url("/w/api.php"), { lang -> server.url("/wiki/$lang/") },
+            language = { "de" }, minGapMs = 0, retryMs = 0, cacheDir = dir,
+        )
+        reply(artistSearch); reply(artistFull)
+        reply("""{"artists":[]}""")
+        assertEquals("Group", repo().artist("Tina Tux").getOrThrow()!!.type)
+        assertNull(repo().artist("Nobody Known").getOrThrow())
+        assertEquals(3, server.requestCount)
+        // A new instance (a new app start) answers from the files.
+        val again = repo()
+        assertEquals("Group", again.artist("Tina Tux").getOrThrow()!!.type)
+        assertNull(again.artist("Nobody Known").getOrThrow())
+        assertEquals(3, server.requestCount)
+        again.clear()
+        assertTrue(dir.listFiles().isNullOrEmpty())
     }
 
     @Test

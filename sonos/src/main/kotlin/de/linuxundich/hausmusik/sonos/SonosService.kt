@@ -14,6 +14,7 @@ enum class SonosService(val controlPath: String, val eventPath: String) {
     AlarmClock("/AlarmClock/Control", "/AlarmClock/Event"),
     DeviceProperties("/DeviceProperties/Control", "/DeviceProperties/Event"),
     MusicServices("/MusicServices/Control", "/MusicServices/Event"),
+    AudioIn("/AudioIn/Control", "/AudioIn/Event"),
     ;
 
     val urn: String = "urn:schemas-upnp-org:service:$name:1"

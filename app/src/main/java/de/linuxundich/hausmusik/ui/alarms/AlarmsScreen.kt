@@ -77,6 +77,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.linuxundich.hausmusik.R
+import androidx.compose.runtime.produceState
+import androidx.compose.material3.OutlinedTextField
+import de.linuxundich.hausmusik.sonos.Didl
 import de.linuxundich.hausmusik.sonos.Alarm
 import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.sonos.Recurrence
@@ -179,7 +182,7 @@ fun AlarmsScreen(vm: AlarmsViewModel, onBack: () -> Unit) {
 
     editing?.let { alarm ->
         AlarmEditor(
-            alarm, rooms, sources,
+            alarm, rooms, sources, vm::findAlbums,
             onSave = { vm.save(it); editing = null },
             onDelete = if (alarm.id != null) ({ vm.delete(alarm); editing = null }) else null,
             onDismiss = { editing = null },
@@ -188,9 +191,12 @@ fun AlarmsScreen(vm: AlarmsViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun sourceName(alarm: Alarm, sources: List<DidlObject>): String =
+private fun sourceName(alarm: Alarm, sources: List<AlarmSource>): String =
     if (alarm.usesChime) stringResource(R.string.alarm_chime)
-    else sources.firstOrNull { it.uri == alarm.programUri }?.title ?: stringResource(R.string.alarm_other_source)
+    else sources.firstOrNull { it.item.uri == alarm.programUri }?.item?.title
+        // An album picked by search is not in the lists: its name is in the alarm's metadata.
+        ?: Didl.parse(alarm.programMetadata).firstOrNull()?.title?.ifBlank { null }
+        ?: stringResource(R.string.alarm_other_source)
 
 @Composable
 private fun AlarmCard(
@@ -232,7 +238,8 @@ private val durations = listOf(15, 30, 60, 120)
 private fun AlarmEditor(
     initial: Alarm,
     rooms: List<SonosPlayer>,
-    sources: List<DidlObject>,
+    sources: List<AlarmSource>,
+    findAlbums: suspend (String) -> List<DidlObject>,
     onSave: (Alarm) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
@@ -309,10 +316,34 @@ private fun AlarmEditor(
                 SourceRow(stringResource(R.string.alarm_chime), alarm.usesChime) {
                     alarm = alarm.copy(programUri = Alarm.BUZZER, programMetadata = "")
                 }
-                sources.forEach { src ->
-                    SourceRow(src.title, alarm.programUri == src.uri) {
-                        alarm = alarm.copy(programUri = src.uri!!, programMetadata = src.resMd.orEmpty())
-                    }
+                fun pick(item: DidlObject) {
+                    alarm = alarm.copy(programUri = item.uri!!, programMetadata = alarmMetadata(item))
+                }
+                for (kind in AlarmSource.Kind.entries) {
+                    val list = sources.filter { it.kind == kind }
+                    if (list.isEmpty()) continue
+                    if (kind != AlarmSource.Kind.Radio) SubSection(stringResource(if (kind == AlarmSource.Kind.Album) R.string.alarm_source_albums else R.string.alarm_source_playlists))
+                    list.forEach { src -> SourceRow(src.item.title, alarm.programUri == src.item.uri) { pick(src.item) } }
+                }
+                // Any album of the music share: too many for a list, so it is searched.
+                SubSection(stringResource(R.string.alarm_source_search))
+                var query by remember { mutableStateOf("") }
+                OutlinedTextField(
+                    value = query, onValueChange = { query = it }, singleLine = true,
+                    placeholder = { Text(stringResource(R.string.alarm_source_search_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                val found by produceState(emptyList<DidlObject>(), query) {
+                    kotlinx.coroutines.delay(250)
+                    value = findAlbums(query)
+                }
+                found.forEach { a ->
+                    SourceRow(listOfNotNull(a.title, a.creator).joinToString(" · "), alarm.programUri == a.uri) { pick(a) }
+                }
+                // The chosen album may be in none of the lists above: still show it as chosen.
+                val listed = sources.any { it.item.uri == alarm.programUri } || found.any { it.uri == alarm.programUri }
+                if (!alarm.usesChime && !listed) {
+                    SourceRow(Didl.parse(alarm.programMetadata).firstOrNull()?.title ?: stringResource(R.string.alarm_other_source), true) {}
                 }
 
                 Section(stringResource(R.string.alarm_volume, alarm.volume))
@@ -369,6 +400,11 @@ private fun AlarmEditor(
 @Composable
 private fun Section(text: String) {
     Text(text, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
+}
+
+@Composable
+private fun SubSection(text: String) {
+    Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
 }
 
 @Composable

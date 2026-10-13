@@ -21,7 +21,7 @@ Completed items stay checked.
 - [x] **P0** Check which foreground service type Android 17 accepts for a remote player (`mediaPlayback` works)
 - [x] **P1** Output switcher shows the room (MediaRoute2ProviderService), rooms selectable there
 - [x] **P1** Re-subscribe after a Wi-Fi change (tested in the emulator)
-- [ ] **P1** Check subscriptions after Doze on the real phone
+- [x] **P1** Check subscriptions after Doze on the real phone (42 min deep idle while playing: all events, renewals fine)
 - [x] **P1** Test lock screen controls on a device with a lock screen (Pixel 10: works, volume buttons also with the screen off)
 - [ ] **P2** Remember the last room per Wi-Fi network (only matters with several households)
 
@@ -30,7 +30,7 @@ Completed items stay checked.
 - [x] **P0** Favorites, albums, radio, playlists, album tracks
 - [x] **P0** Queue: remove (swipe), play next (long press), clear, save as Sonos playlist
 - [x] **P1** Queue: reorder by dragging (handle)
-- [ ] **P2** Queue: scroll automatically while dragging near the edge
+- [x] **P2** Queue: scroll automatically while dragging near the edge
 - [x] **P1** Show messages above open sheets: one pill at the top for the whole app
 - [x] **P1** Search in the music share
 - [x] **P1** Artists and genres
@@ -52,9 +52,17 @@ Completed items stay checked.
 - [ ] **P2** Services with UserId sign-in (user name and password form)
 
 - [x] **P1** Artist and album details (MusicBrainz + Wikipedia, opt-in) in a sheet on the stage
-- [ ] **P2** Details from the library too (long press on an artist or album) and from the queue
-- [ ] **P2** Keep details on disk (now until the app ends) and show an artist picture in the sheet
-- [ ] **P2** Test the details sheet with the fake household (fake MusicBrainz in `fake_sonos.py`)
+- [x] **P2** Details from the library too (long press on an artist or album) and from the queue
+- [x] **P2** Keep details on disk and show a picture in the sheet (Wikimedia for artists, Cover Art Archive for albums)
+- [x] **P2** Test the details sheet with the fake household (fake MusicBrainz in `fake_sonos.py`)
+
+- [x] **P2** Sonos favorites: add and remove from the library
+- [x] **P2** Sonos playlists: add to, create, rename, delete, remove tracks
+- [x] **P2** Line-in as a source (Radio tab)
+- [ ] **P2** Check adding a Sonos favorite on the real S1 (only the fake was tested)
+- [ ] **P2** Sleep timer that fades out over the last minutes
+- [ ] **P3** Play files from the phone (own HTTP server)
+- [ ] **P3** Announcements: a sound in chosen rooms, then back to what played
 
 ## Phase 3: Rooms and everyday use
 
@@ -64,15 +72,20 @@ Completed items stay checked.
 - [x] **P1** Alarms: list, create, edit, duplicate
 - [x] **P1** Sound: bass, treble, loudness
 - [ ] **P2** Sound: night mode and speech enhancement for home theatre speakers (no test device)
-- [ ] **P2** Tone sliders centered at 0 (the centered track has a different API in material3 1.5 beta)
-- [ ] **P2** Alarms with Sonos playlists and albums as source (only chime and radio favorites so far)
+- [x] **P2** Tone sliders centered at 0 (the centered track has a different API in material3 1.5 beta)
+- [x] **P2** Alarms with Sonos playlists and albums as source (favorite albums, Sonos playlists, album search)
+- [ ] **P2** Check that an alarm with an album really rings on the S1 (only storing it was tested)
+- [ ] **P3** Alarms with service content (Spotify, bonob playlists): needs the account in the metadata
+
+- [x] **P2** Crossfade switch
+- [x] **P2** "Everywhere": all rooms play along, with rooms left out in the settings
 
 ## Phase 4: Part of the system
 
 - [x] **P1** Glance widget: player for the selected room, cover colors, three sizes, scrollable queue
-- [ ] **P2** Widgets for a single room or a favorite
+- [x] **P2** Widgets for a single room or a favorite ("Room or favorite", set up when placed)
 - [x] **P1** Quick Settings tile
-- [ ] **P2** App shortcuts and intents for Tasker
+- [x] **P2** App shortcuts and intents for Tasker (CommandActivity, docs/development.md)
 - [ ] **P2** Check Wear OS through the media session
 - [ ] **P3** Voice commands, parked (Christoph, 2026-10-13). Finding on the
   Pixel 10: Gemini does not reach Hausmusik's media session, not even for

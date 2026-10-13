@@ -23,6 +23,76 @@ class SonosPlayerClient(val baseUrl: HttpUrl, private val soap: SoapClient) {
     private suspend fun grc(action: String, vararg args: Pair<String, Any>) =
         soap.call(baseUrl, SonosService.GroupRenderingControl, action, listOf("InstanceID" to 0) + args)
 
+    private suspend fun cd(action: String, vararg args: Pair<String, Any>) =
+        soap.call(baseUrl, SonosService.ContentDirectory, action, args.toList())
+
+    // Crossfade (group setting, ask the coordinator)
+
+    suspend fun crossfade(): Boolean = av("GetCrossfadeMode")["CrossfadeMode"] == "1"
+    suspend fun setCrossfade(on: Boolean) { av("SetCrossfadeMode", "CrossfadeMode" to if (on) 1 else 0) }
+
+    // Line-in
+
+    /**
+     * The name of this player's analog input ("Heimkino"), or null if it has
+     * none: only players with an AudioIn service (Connect, Connect:Amp, Play:5, ...)
+     * answer. Any player of the household plays it as `x-rincon-stream:<uuid>`.
+     */
+    suspend fun audioInputName(): String? = runCatching {
+        soap.call(baseUrl, SonosService.AudioIn, "GetAudioInputAttributes")["CurrentName"]?.ifBlank { null }
+    }.getOrNull()
+
+    // Sonos favorites (FV:2)
+
+    /**
+     * Adds a Sonos favorite in the form the speakers store themselves: the item's
+     * URI as `res`, its DIDL as `r:resMD`, played at once ("instantPlay").
+     */
+    suspend fun addFavorite(item: DidlObject, resMd: String) {
+        val didl = buildString {
+            append("""<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" """)
+            append("""xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">""")
+            append("""<item id="" parentID="FV:2" restricted="false">""")
+            append("<dc:title>${item.title.xmlEscape()}</dc:title>")
+            append("<upnp:class>object.itemobject.item.sonos-favorite</upnp:class>")
+            append("""<res protocolInfo="${(item.protocolInfo ?: "x-rincon-playlist:*:*:*").xmlEscape()}">${item.uri.orEmpty().xmlEscape()}</res>""")
+            item.albumArtUri?.let { append("<upnp:albumArtURI>${it.xmlEscape()}</upnp:albumArtURI>") }
+            append("<r:type>instantPlay</r:type>")
+            item.description?.let { append("<r:description>${it.xmlEscape()}</r:description>") }
+            append("<r:resMD>${resMd.xmlEscape()}</r:resMD>")
+            append("</item></DIDL-Lite>")
+        }
+        cd("CreateObject", "ContainerID" to "FV:2", "Elements" to didl)
+    }
+
+    suspend fun removeFavorite(objectId: String) { cd("DestroyObject", "ObjectID" to objectId) }
+
+    // Sonos playlists (SQ:n)
+
+    suspend fun createPlaylist(title: String): String =
+        av("CreateSavedQueue", "Title" to title, "EnqueuedURI" to "", "EnqueuedURIMetaData" to "")["AssignedObjectID"].orEmpty()
+
+    suspend fun deletePlaylist(objectId: String) { cd("DestroyObject", "ObjectID" to objectId) }
+
+    suspend fun renamePlaylist(objectId: String, oldTitle: String, newTitle: String) {
+        cd("UpdateObject", "ObjectID" to objectId,
+            "CurrentTagValue" to "<dc:title>${oldTitle.xmlEscape()}</dc:title>",
+            "NewTagValue" to "<dc:title>${newTitle.xmlEscape()}</dc:title>")
+    }
+
+    /** Appends a track, album or playlist to a Sonos playlist. */
+    suspend fun addToPlaylist(objectId: String, uri: String, metadata: String) {
+        val update = browse(objectId, 0, 1).updateId ?: 0
+        av("AddURIToSavedQueue", "ObjectID" to objectId, "UpdateID" to update,
+            "EnqueuedURI" to uri, "EnqueuedURIMetaData" to metadata, "AddAtIndex" to 4294967295L)
+    }
+
+    /** Removes the track at [index] (0-based) from a Sonos playlist: an empty new position removes it. */
+    suspend fun removeFromPlaylist(objectId: String, index: Int) {
+        val update = browse(objectId, 0, 1).updateId ?: 0
+        av("ReorderTracksInSavedQueue", "ObjectID" to objectId, "UpdateID" to update, "TrackList" to index, "NewPositionList" to "")
+    }
+
     // Topology
 
     suspend fun zoneGroups(): List<ZoneGroup> =

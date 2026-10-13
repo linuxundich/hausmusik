@@ -11,7 +11,7 @@ generated album covers. Nothing here talks to real speakers.
 
 Then point the app at 10.0.2.2:1401 (debug settings).
 """
-import argparse, html, io, re, threading, time, urllib.parse, uuid
+import argparse, html, io, json, re, threading, time, urllib.parse, uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 try:
@@ -53,7 +53,9 @@ ALARMS = {"1": {"StartTime": "06:45:00", "Duration": "01:00:00", "Recurrence": "
           "2": {"StartTime": "09:30:00", "Duration": "00:30:00", "Recurrence": "WEEKENDS", "Enabled": "0",
                "RoomUUID": "RINCON_FAKE000000101400", "ProgramURI": "x-rincon-buzzer:0",
                "ProgramMetaData": "", "PlayMode": "NORMAL", "Volume": "20", "IncludeLinkedZones": "1"}}
-SAVED = [("Morgens", [])]  # Sonos playlists: (title, tracks)
+SAVED = [("Morgens", [])]  # Sonos playlists: (title, tracks); a deleted one becomes None so the IDs stay
+FAVS_EXTRA, FAVS_REMOVED = [], set()  # favorites added and removed through CreateObject/DestroyObject
+LINE_IN = {"Wohnzimmer": "Plattenspieler"}  # rooms with an analog input and its name
 TRACKS = []
 for ai, (album, artist, colors, titles) in enumerate(ALBUMS):
     for ti, t in enumerate(titles):
@@ -184,6 +186,8 @@ def browse(p, oid, start, count):
         items.append(f'<item id="FV:2/20" parentID="FV:2" restricted="false"><dc:title>{html.escape(TRACKS[1]["title"])}</dc:title>'
                      f'<upnp:class>object.itemobject.item.sonos-favorite</upnp:class><res protocolInfo="sonos.com-http:*:audio/mpeg:*">x-sonos-http:track%3a1.mp3?sid=246&amp;flags=8224&amp;sn=7</res>'
                      f'<upnp:albumArtURI>/getaa?u={TRACKS[1]["art"]}</upnp:albumArtURI><r:type>instantPlay</r:type><r:description>bonob</r:description></item>')
+        items += FAVS_EXTRA
+        items = [it for it in items if re.search(r'id="([^"]+)"', it).group(1) not in FAVS_REMOVED]
     elif oid == "R:0/0":
         for i, (name, uri, _) in enumerate(RADIO):
             items.append(f'<item id="R:0/0/{i}" parentID="R:0/0" restricted="false"><dc:title>{name}</dc:title>'
@@ -224,13 +228,44 @@ def browse(p, oid, start, count):
     elif oid == "SQ:":
         items = [f'<container id="SQ:{i + 1}" parentID="SQ:" restricted="true"><dc:title>{html.escape(t)}</dc:title>'
                  f'<upnp:class>object.container.playlistContainer</upnp:class><res protocolInfo="file:*:audio/mpegurl:*">file:///jffs/settings/savedqueues.rsq#{i + 1}</res></container>'
-                 for i, (t, _) in enumerate(SAVED)]
+                 for i, (t, _) in ((i, sv) for i, sv in enumerate(SAVED) if sv)]
     elif oid.startswith("SQ:"):
-        _, tracks = SAVED[int(oid[3:]) - 1]
+        _, tracks = SAVED[int(oid[3:]) - 1] or ("", [])
         items = [track_item(t, f"{oid}/{i}", oid) for i, t in enumerate(tracks)]
     total = len(items)
     page = items[start:start + count] if count else items[start:]
     return {"Result": didl("".join(page)), "NumberReturned": len(page), "TotalMatches": total, "UpdateID": 1}
+
+
+def line_in_didl(uri):
+    """What a Sonos reports for an analog input: the input's name as title."""
+    src = players.get(uri.split(":", 1)[1])
+    name = LINE_IN.get(src.room, "Line-In") if src else "Line-In"
+    return didl(f'<item id="-1" parentID="-1" restricted="true"><dc:title>{html.escape(name)}</dc:title>'
+                '<upnp:class>object.item.audioItem</upnp:class></item>')
+
+
+def tracks_for(uri):
+    """The fake tracks a queue or Sonos playlist gets for an album, artist, track or playlist URI."""
+    m = re.search(r"#A:ALBUM/(\d+)", uri)
+    new = [t for t in TRACKS if m and t["album"] == ALBUMS[int(m.group(1))][0]] or [t for t in TRACKS if t["uri"] == uri]
+    art = re.search(r"#A:ALBUMARTIST/(.+)$", uri)
+    if art:
+        name = urllib.parse.unquote(art.group(1))
+        new = [t for t in TRACKS if t["artist"] == name]
+    sm = re.match(r"x-rincon-cpcontainer:1004206calbum%3a(\d+)", uri)
+    if sm:
+        new = [t for t in TRACKS if t["album"] == ALBUMS[int(sm.group(1))][0]]
+    sm = re.match(r"x-rincon-cpcontainer:10052064artist%3a(\d+)", uri)
+    if sm:
+        new = [t for t in TRACKS if t["artist"] == ALBUMS[int(sm.group(1))][1]]
+    sm = re.match(r"x-sonos-http:track%3a(\d+)", uri)
+    if sm:
+        new = [TRACKS[int(sm.group(1))]]
+    q = re.search(r"savedqueues.rsq#(\d+)", uri)
+    if q:
+        new = SAVED[int(q.group(1)) - 1][1][:]
+    return new
 
 
 def act(p, service, action, a):
@@ -262,6 +297,9 @@ def act(p, service, action, a):
     if action == "GetPositionInfo":
         if p is not c:
             return {"Track": 0, "TrackDuration": "0:00:00", "TrackMetaData": "", "TrackURI": f"x-rincon:{c.uuid}", "RelTime": "0:00:00"}
+        if c.media_uri.startswith("x-rincon-stream:"):
+            md = line_in_didl(c.media_uri)
+            return {"Track": 1, "TrackDuration": "0:00:00", "TrackMetaData": md, "TrackURI": c.media_uri, "RelTime": "0:00:00"}
         if c.radio:
             md = didl(f'<item id="-1" parentID="-1" restricted="true"><res protocolInfo="x-rincon-mp3radio:*:*:*">{html.escape(c.radio[1])}</res>'
                       f'<r:streamContent>Penny Guin - Uptime</r:streamContent><upnp:albumArtURI>/getaa?u=radio{RADIO.index(c.radio)}</upnp:albumArtURI>'
@@ -275,11 +313,11 @@ def act(p, service, action, a):
     if action == "GetMediaInfo":
         if p is not c:
             return {"NrTracks": 0, "CurrentURI": f"x-rincon:{c.uuid}", "CurrentURIMetaData": ""}
-        md = ""
+        md = line_in_didl(c.media_uri) if c.media_uri.startswith("x-rincon-stream:") else ""
         if c.radio:
             md = didl(f'<item id="R:0/0/0" parentID="R:0/0" restricted="true"><dc:title>{c.radio[0]}</dc:title>'
                       '<upnp:class>object.item.audioItem.audioBroadcast</upnp:class></item>')
-        return {"NrTracks": 1 if c.radio else len(c.queue), "CurrentURI": c.media_uri, "CurrentURIMetaData": md}
+        return {"NrTracks": 1 if c.radio or md else len(c.queue), "CurrentURI": c.media_uri, "CurrentURIMetaData": md}
     if action == "GetTransportSettings":
         return {"PlayMode": c.playmode, "RecQualityMode": "NOT_IMPLEMENTED"}
     if action == "SetPlayMode":
@@ -334,30 +372,50 @@ def act(p, service, action, a):
         p.coordinator, p.state, p.started = p.uuid, "STOPPED", None
         return {}
     if action == "AddURIToQueue":
-        uri = a["EnqueuedURI"]
-        m = re.search(r"#A:ALBUM/(\d+)", uri)
-        new = [t for t in TRACKS if m and t["album"] == ALBUMS[int(m.group(1))][0]] or [t for t in TRACKS if t["uri"] == uri]
-        art = re.search(r"#A:ALBUMARTIST/(.+)$", uri)
-        if art:
-            name = urllib.parse.unquote(art.group(1))
-            new = [t for t in TRACKS if t["artist"] == name]
-        sm = re.match(r"x-rincon-cpcontainer:1004206calbum%3a(\d+)", uri)
-        if sm:
-            new = [t for t in TRACKS if t["album"] == ALBUMS[int(sm.group(1))][0]]
-        sm = re.match(r"x-rincon-cpcontainer:10052064artist%3a(\d+)", uri)
-        if sm:
-            new = [t for t in TRACKS if t["artist"] == ALBUMS[int(sm.group(1))][1]]
-        sm = re.match(r"x-sonos-http:track%3a(\d+)", uri)
-        if sm:
-            new = [TRACKS[int(sm.group(1))]]
-        q = re.search(r"savedqueues.rsq#(\d+)", uri)
-        if q:
-            new = SAVED[int(q.group(1)) - 1][1][:]
+        new = tracks_for(a["EnqueuedURI"])
         first = len(c.queue) + 1
         if a.get("EnqueueAsNext") == "1" and c.queue:
             first = c.track + 1
         c.queue[first - 1:first - 1] = new
         return {"FirstTrackNumberEnqueued": first, "NumTracksAdded": len(new), "NewQueueLength": len(c.queue)}
+    if action == "GetCrossfadeMode": return {"CrossfadeMode": int(getattr(c, "crossfade", False))}
+    if action == "SetCrossfadeMode": c.crossfade = a["CrossfadeMode"] == "1"; return {}
+    if action == "GetAudioInputAttributes":
+        if p.room not in LINE_IN: raise Fault(401)
+        return {"CurrentName": LINE_IN[p.room], "CurrentIcon": "AudioComponent"}
+    if action == "CreateObject" and a["ContainerID"] == "FV:2":
+        oid = f"FV:2/{100 + len(FAVS_EXTRA)}"
+        FAVS_EXTRA.append(re.sub(r'<item id="[^"]*" parentID="[^"]*"', f'<item id="{oid}" parentID="FV:2"', re.search(r"<item .*</item>", a["Elements"], re.S).group(0)))
+        VERSIONS["FavoritesUpdateID"] += 1
+        return {"ObjectID": oid, "Result": ""}
+    if action == "DestroyObject":
+        oid = a["ObjectID"]
+        if oid.startswith("FV:2/"):
+            FAVS_REMOVED.add(oid); VERSIONS["FavoritesUpdateID"] += 1
+        elif oid.startswith("SQ:"):
+            SAVED[int(oid[3:]) - 1] = None; VERSIONS["SavedQueuesUpdateID"] += 1
+        else:
+            raise Fault(701)
+        return {}
+    if action == "UpdateObject" and a["ObjectID"].startswith("SQ:"):
+        i = int(a["ObjectID"][3:]) - 1
+        title = html.unescape(re.search(r"<dc:title>(.*)</dc:title>", a["NewTagValue"]).group(1))
+        SAVED[i] = (title, SAVED[i][1]); VERSIONS["SavedQueuesUpdateID"] += 1
+        return {}
+    if action == "CreateSavedQueue":
+        SAVED.append((a["Title"], [])); VERSIONS["SavedQueuesUpdateID"] += 1
+        return {"AssignedObjectID": f"SQ:{len(SAVED)}", "NumTracksAdded": 0, "NewQueueLength": 0, "NewUpdateID": 1}
+    if action == "AddURIToSavedQueue":
+        i = int(a["ObjectID"][3:]) - 1
+        SAVED[i][1].extend(tracks_for(a["EnqueuedURI"])); VERSIONS["SavedQueuesUpdateID"] += 1
+        return {"NumTracksAdded": 1, "NewQueueLength": len(SAVED[i][1]), "NewUpdateID": 1}
+    if action == "ReorderTracksInSavedQueue":
+        i = int(a["ObjectID"][3:]) - 1
+        if a["NewPositionList"] == "":
+            for k in sorted((int(x) for x in a["TrackList"].split(",")), reverse=True):
+                del SAVED[i][1][k]
+        VERSIONS["SavedQueuesUpdateID"] += 1
+        return {"QueueLengthChange": 0, "NewQueueLength": len(SAVED[i][1]), "NewUpdateID": 1}
     if action == "RemoveAllTracksFromQueue":
         c.queue, c.track = [], 1; return {}
     if action == "RemoveTrackFromQueue":
@@ -604,9 +662,74 @@ class Handler(BaseHTTPRequestHandler):
                 LINKS[code] = True
                 return self.send(200, "<html><body><h1>Linked</h1><p>Fake bonob: you can go back to the app.</p></body></html>", "text/html")
             return self.send(404, "unknown link code", "text/plain")
+        if self.path.startswith(("/ws/2/", "/w/api.php", "/wiki/", "/coverart/")):
+            return self.details()
         if self.path.startswith("/getaa"):
             m = re.search(r"u=([a-z]+\d+)", self.path)
             data = cover(m.group(1)) if m else None
+            return self.send(200, data, "image/png") if data else self.send(404, "")
+        self.send(404, "")
+
+    def details(self):
+        """Fake MusicBrainz, Wikidata and Wikipedia for the details sheet (app extra `-e details host:port`)."""
+        url = urllib.parse.urlparse(self.path)
+        q = urllib.parse.parse_qs(url.query)
+        js = lambda o: self.send(200, json.dumps(o), "application/json")
+        # Josh Woodward is a real artist (his CC BY track is here for LRCLIB): no invented biography for him.
+        artists = sorted({a for _, a, _, _ in ALBUMS if a != "Josh Woodward"})
+        def quoted(field):
+            m = re.search(field + r':"((?:[^"\\]|\\.)*)"', q.get("query", [""])[0])
+            return m.group(1).replace('\\"', '"').lower() if m else None
+        def first_album(artist):
+            return next(i for i, al in enumerate(ALBUMS) if al[1] == artist)
+        path = url.path
+        if path == "/ws/2/artist":
+            name = quoted("artist")
+            hits = [dict(id=f"fake-artist-{artists.index(a)}", name=a, type="Person" if a in ("Penny Guin", "Tina Tux", "Pac Mann") else "Group",
+                         country="DE", score=100, disambiguation="invented for Hausmusik tests") for a in artists if a.lower() == name]
+            return js({"artists": hits})
+        if path.startswith("/ws/2/artist/"):
+            a = artists[int(path.rsplit("-", 1)[1])]
+            i = first_album(a)
+            return js({"life-span": {"begin": f"{2008 + i}-03-01", "ended": False},
+                       "genres": [{"name": GENRES[i].lower(), "count": 3}],
+                       "relations": [{"type": "wikidata", "url": {"resource": f"https://www.wikidata.org/wiki/Q900{artists.index(a)}"}}]})
+        if path == "/ws/2/release-group":
+            title, artist = quoted("releasegroup"), quoted("artist")
+            hits = [dict(id=f"fake-album-{i}", title=al[0], score=100, **{"primary-type": "Album", "first-release-date": f"{2012 + i}-05-01",
+                         "artist-credit": [{"name": al[1], "joinphrase": ""}]})
+                    for i, al in enumerate(ALBUMS) if al[1] in artists and al[0].lower() == title and (artist is None or al[1].lower() == artist)]
+            return js({"release-groups": hits})
+        if path.startswith("/ws/2/release-group/"):
+            i = int(path.rsplit("-", 1)[1])
+            return js({"genres": [{"name": GENRES[i].lower(), "count": 2}], "artist-credit": [{"name": ALBUMS[i][1], "joinphrase": ""}],
+                       "relations": [{"type": "wikidata", "url": {"resource": f"https://www.wikidata.org/wiki/Q800{i}"}}]})
+        if path == "/w/api.php":
+            qid = q.get("ids", [""])[0]
+            n = int(qid[4:]) if qid[:4] in ("Q900", "Q800") else -1
+            title = (artists[n] if qid.startswith("Q900") else ALBUMS[n][0]) if n >= 0 else None
+            return js({"entities": {qid: {"sitelinks": {"dewiki": {"title": title}, "enwiki": {"title": title}} if title else {}}}})
+        if path.startswith("/wiki/"):
+            _, _, lang, title = path.split("/", 3)
+            title = urllib.parse.unquote(title)
+            base = f"http://{ADVERTISE}:{self.server.server_address[1]}"
+            if title in artists:
+                i = first_album(title)
+                text = (f"{title} ist ein erfundener Interpret aus dem Testhaushalt von Hausmusik. Das erste Album „{ALBUMS[i][0]}“ "
+                        f"mischt {GENRES[i]} mit dem Rauschen eines Serverschranks.\nAuftritte gibt es nur im Terminal."
+                        if lang == "de" else
+                        f"{title} is an invented artist from the Hausmusik test household. Its first album, {ALBUMS[i][0]}, "
+                        f"mixes {GENRES[i].lower()} with the hum of a server rack.\nConcerts only ever happen in a terminal.")
+                image = f"{base}/getaa?u=album{i}"
+            else:
+                i = next((k for k, al in enumerate(ALBUMS) if al[0] == title), 0)
+                text = (f"„{title}“ ist ein erfundenes Album von {ALBUMS[i][1]}, aufgenommen für die Tests von Hausmusik."
+                        if lang == "de" else f"{title} is an invented album by {ALBUMS[i][1]}, recorded for the tests of Hausmusik.")
+                image = None
+            return js({"type": "standard", "extract": text, "content_urls": {"desktop": {"page": f"https://example.invalid/wiki/{urllib.parse.quote(title)}"}},
+                       **({"thumbnail": {"source": image}} if image else {})})
+        if path.startswith("/coverart/fake-album-"):
+            data = cover(f"album{int(path.rsplit('-', 1)[1])}")
             return self.send(200, data, "image/png") if data else self.send(404, "")
         self.send(404, "")
 

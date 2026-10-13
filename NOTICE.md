@@ -78,7 +78,10 @@ core data is in the public domain (CC0), and optionally from
 Wikipedia texts are licensed under
 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); Hausmusik shows
 the text unchanged with a link to its page. Both are used only after the user
-switches them on. Hausmusik is not affiliated with these projects.
+switches them on. Artist pictures come with the Wikipedia page from
+[Wikimedia Commons](https://commons.wikimedia.org), album covers from the
+[Cover Art Archive](https://coverartarchive.org); they belong to their
+respective rights holders. Hausmusik is not affiliated with these projects.
 
 ## Test data
 

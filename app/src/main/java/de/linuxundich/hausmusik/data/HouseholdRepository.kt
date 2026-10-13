@@ -31,6 +31,7 @@ import de.linuxundich.hausmusik.sonos.SsdpDiscovery
 import de.linuxundich.hausmusik.sonos.playsDirectly
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -512,8 +513,9 @@ class HouseholdRepository @Inject constructor(
             val actions = async { c.transportActions() }
             val mode = async { runCatching { c.playMode() }.getOrDefault(PlayMode.Normal) }
             val sleep = async { runCatching { c.remainingSleepTimerMs() }.getOrNull()?.takeIf { it > 0 } }
+            val crossfade = async { runCatching { c.crossfade() }.getOrDefault(false) }
             next = next.copy(
-                actions = actions.await(), playMode = mode.await(),
+                actions = actions.await(), playMode = mode.await(), crossfade = crossfade.await(),
                 sleepRemainingMs = sleep.await(),
             )
         }
@@ -795,6 +797,75 @@ class HouseholdRepository @Inject constructor(
             }
             QueueMode.PlayNext -> c.addToQueue(item.uri!!, metadata, asNext = true)
             QueueMode.Append -> c.addToQueue(item.uri!!, metadata)
+        }
+    }
+
+    suspend fun setCrossfade(on: Boolean): Result<Unit> {
+        val id = _state.value.selected?.id
+        _state.update { s -> s.copy(groups = s.groups.map { if (it.id == id) it.copy(crossfade = on) else it }) }
+        return command { it.setCrossfade(on) }
+    }
+
+    // Line-in: asked once per player, the answer does not change while the app runs ("" = none).
+    private val inputs = ConcurrentHashMap<String, String>()
+
+    /**
+     * The analog inputs of the household as playable entries ("Plattenspieler ·
+     * Wohnzimmer"). Any group can play any input: `x-rincon-stream:<uuid>`.
+     */
+    suspend fun lineIns(): List<DidlObject> = coroutineScope {
+        _state.value.allPlayers.filter { !it.isInvisible }.map { p ->
+            async {
+                val name = inputs[p.uuid] ?: client(p).audioInputName().orEmpty().also { inputs[p.uuid] = it }
+                name.ifEmpty { null }?.let {
+                    DidlObject(
+                        id = "linein:${p.uuid}", parentId = "linein", isContainer = false,
+                        title = it, upnpClass = "object.item.audioItem.linein", creator = p.roomName,
+                        uri = "x-rincon-stream:${p.uuid}", protocolInfo = "x-rincon-stream:*:*:*",
+                    )
+                }
+            }
+        }.awaitAll().filterNotNull()
+    }
+
+    // Sonos favorites and playlists: any player of the household answers.
+
+    suspend fun addFavorite(item: DidlObject): Result<Unit> = command { c ->
+        c.addFavorite(item, item.resMd ?: Didl.minimal(item.id, item.parentId, item.title, item.upnpClass))
+    }
+
+    suspend fun removeFavorite(favoriteId: String): Result<Unit> = command { it.removeFavorite(favoriteId) }
+
+    suspend fun playlists(): Result<List<DidlObject>> = browseAll("SQ:")
+
+    /** Adds [item] to the Sonos playlist [playlistId], or to a new one called [newTitle]. */
+    suspend fun addToPlaylist(item: DidlObject, playlistId: String?, newTitle: String?): Result<Unit> = command { c ->
+        val id = playlistId ?: c.createPlaylist(newTitle!!)
+        c.addToPlaylist(id, item.uri!!, item.resMd ?: Didl.minimal(item.id, item.parentId, item.title, item.upnpClass))
+    }
+
+    suspend fun renamePlaylist(playlist: DidlObject, title: String): Result<Unit> = command { it.renamePlaylist(playlist.id, playlist.title, title) }
+
+    suspend fun deletePlaylist(playlist: DidlObject): Result<Unit> = command { it.deletePlaylist(playlist.id) }
+
+    /** [index] is 0-based within the playlist. */
+    suspend fun removeFromPlaylist(playlistId: String, index: Int): Result<Unit> = command { it.removeFromPlaylist(playlistId, index) }
+
+    /**
+     * Lets every room play along with the selected group, except those the user
+     * keeps out (settings): one tap instead of ticking each room.
+     */
+    suspend fun joinEverywhere(): Result<Int> {
+        val selected = _state.value.selected ?: return Result.failure(IllegalStateException("no room"))
+        val keepOut = settings.everywhereExcluded.first()
+        val joining = _state.value.allPlayers.filter { p ->
+            !p.isInvisible && p.uuid !in keepOut && selected.group.members.none { it.uuid == p.uuid }
+        }
+        return runCatching {
+            joining.forEach { client(it).joinGroup(selected.group.coordinator.uuid) }
+            pendingGroups += selected.id
+            refreshNow()
+            joining.size
         }
     }
 

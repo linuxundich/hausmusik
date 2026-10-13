@@ -64,6 +64,8 @@ import de.linuxundich.hausmusik.ui.setup.ConnectScreen
 import de.linuxundich.hausmusik.ui.setup.OfflineScreen
 import de.linuxundich.hausmusik.ui.setup.ReconnectingBanner
 import androidx.compose.foundation.layout.statusBarsPadding
+import de.linuxundich.hausmusik.ui.details.DetailsTarget
+import de.linuxundich.hausmusik.ui.details.LocalItemDetails
 import de.linuxundich.hausmusik.ui.stage.StageActions
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -85,6 +87,12 @@ private sealed interface Screen {
 private val stackSaver = Saver<SnapshotStateList<Screen>, String>(
     save = { Json.encodeToString(ListSerializer(Screen.serializer()), it.toList()) },
     restore = { saved -> mutableStateListOf<Screen>().apply { addAll(Json.decodeFromString(ListSerializer(Screen.serializer()), saved)) } },
+)
+
+/** The artist or album whose details are open, kept across a rotation. */
+private val detailsSaver = Saver<MutableState<DetailsTarget?>, String>(
+    save = { state -> state.value?.let { Json.encodeToString(DetailsTarget.serializer(), it) } },
+    restore = { mutableStateOf(Json.decodeFromString(DetailsTarget.serializer(), it)) },
 )
 
 /** The item waiting for "play now, next or add", kept across a rotation like the dialog. */
@@ -121,11 +129,12 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var soundOpen by rememberSaveable { mutableStateOf(false) }
     var volumeOpen by rememberSaveable { mutableStateOf(false) }
     var showLyrics by rememberSaveable { mutableStateOf(false) }
-    var detailsOpen by rememberSaveable { mutableStateOf(false) }
+    var details by rememberSaveable(saver = detailsSaver) { mutableStateOf<DetailsTarget?>(null) }
     var lyricsConsent by rememberSaveable { mutableStateOf(false) }
     val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
     val detailsOn by vm.detailsEnabled.collectAsStateWithLifecycle()
     val detailsWikipedia by vm.detailsWikipedia.collectAsStateWithLifecycle()
+    val everywhereExcluded by vm.everywhereExcluded.collectAsStateWithLifecycle()
     val stageBusy by vm.stageBusy.collectAsStateWithLifecycle()
     val artistImagesOn by vm.artistImagesEnabled.collectAsStateWithLifecycle()
     val now = selected.nowPlaying
@@ -147,6 +156,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         else vm.play(item, QueueMode.ReplaceAndPlay)
     }
 
+    androidx.compose.runtime.CompositionLocalProvider(LocalItemDetails provides { details = it }) {
     Box(Modifier.fillMaxSize()) {
     AnimatedContent(
         targetState = stack.last(),
@@ -175,7 +185,9 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                     onSound = { soundOpen = true },
                     onRoomVolumes = { volumeOpen = true },
                     onSettings = { stack.add(Screen.Settings) },
-                    onDetails = { detailsOpen = true },
+                    onDetails = { now?.let { details = DetailsTarget.of(it) } },
+                    crossfadeOn = selected.crossfade,
+                    onCrossfade = { vm.setCrossfade(!selected.crossfade) },
                     onLyrics = { if (lyricsEnabled) showLyrics = !showLyrics else lyricsConsent = true },
                     timerLabel = selected.sleepRemainingMs?.let { ms ->
                         stringResource(R.string.sleep_minutes, ((ms + 59_999) / 60_000).toInt())
@@ -194,12 +206,16 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             )
             Screen.Alarms -> AlarmsScreen(hiltViewModel(), onBack = { stack.removeAt(stack.lastIndex) })
             Screen.Settings -> SettingsScreen(
-                SettingsState(manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn, detailsOn, detailsWikipedia),
+                SettingsState(
+                    manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn, detailsOn, detailsWikipedia,
+                    rooms = household.allPlayers.filter { !it.isInvisible }.map { it.uuid to it.roomName }, everywhereExcluded = everywhereExcluded,
+                ),
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
                 onArtistImages = vm::setArtistImagesEnabled,
                 onDetails = vm::setDetailsEnabled,
                 onDetailsWikipedia = vm::setDetailsWikipedia,
+                onEverywhereExcluded = vm::setEverywhereExcluded,
                 onLicenses = { stack.add(Screen.Licenses) },
                 onClearCache = vm::clearListCache,
                 onBack = { stack.removeAt(stack.lastIndex) },
@@ -233,6 +249,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onGroupVolume = vm::setGroupVolume,
                 onMemberVolume = vm::setMemberVolume,
                 onMembership = vm::setMembership,
+                onEverywhere = vm::joinEverywhere,
                 onPauseAll = vm::pauseAll,
             ),
             snackbar = snackbar,
@@ -256,19 +273,16 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             onDismiss = { queueOpen = false },
         )
     }
-    if (detailsOpen) {
-        val playing = selected.nowPlaying
-        if (playing == null) {
-            detailsOpen = false
-        } else {
+    details?.let { target ->
+        run {
             de.linuxundich.hausmusik.ui.details.DetailsSheet(
-                playing, detailsOn, colors,
+                target, detailsOn, colors,
                 de.linuxundich.hausmusik.ui.details.DetailsActions(
                     loadArtist = { vm.artistDetails(it) },
                     loadAlbum = { title, artist -> vm.albumDetails(title, artist) },
                     onEnable = { vm.setDetailsEnabled(true) },
                 ),
-                onDismiss = { detailsOpen = false },
+                onDismiss = { details = null },
             )
         }
     }
@@ -319,4 +333,5 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         // Lost the household while running: fall back to the connect screen.
         ConnectScreen(household.connection, vm::connect, vm::searchAgain)
     }
+    } // LocalItemDetails: sheets and dialogs open details too
 }

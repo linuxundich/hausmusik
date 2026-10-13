@@ -30,6 +30,41 @@ adb shell am start -n de.linuxundich.hausmusik.debug/de.linuxundich.hausmusik.Ma
 An empty `callback` extra switches back to the phone's own address.
 Hardware buttons in the emulator: `adb shell input keyevent KEYCODE_VOLUME_UP`.
 
+## Details without the internet
+
+The fake household also answers like MusicBrainz, Wikidata, Wikipedia and the
+Cover Art Archive for its invented artists and albums (not for Josh Woodward,
+who is real). Point a debug build at it, and switch details on in the app:
+
+```sh
+adb shell am start -n de.linuxundich.hausmusik.debug/de.linuxundich.hausmusik.MainActivity -e details 10.0.2.2:1401
+```
+
+`--es details ''` goes back to the real services.
+
+## Commands from outside
+
+`CommandActivity` takes intents from launcher shortcuts, Tasker or Home
+Assistant (Android companion app, `command_activity`). It shows nothing and
+acts on the room in the extra `room` (any member of a group; without it, the
+selected room).
+
+| Action (`de.linuxundich.hausmusik.action.…`) | Extras |
+|---|---|
+| `PLAY_PAUSE`, `PLAY`, `PAUSE`, `NEXT` | `room` |
+| `VOLUME_UP`, `VOLUME_DOWN` (3 steps) | `room` |
+| `PAUSE_ALL` | – |
+| `EVERYWHERE` | `room` (the group the others join) |
+| `PLAY_FAVORITE` | `favorite` (title of a Sonos favorite), `room` |
+
+```sh
+adb shell "am start -a de.linuxundich.hausmusik.action.PLAY_FAVORITE --es favorite 'Radio Tuxfunk' --es room Bad"
+```
+
+A favorite that is not a stream replaces the queue without asking, as a
+shortcut should. Starting a favorite or "Everywhere" also selects that room in
+the app.
+
 ## Release build
 
 The release key lives in `~/.android/hausmusik-release.p12`; store file, alias

@@ -38,6 +38,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.sonos.DidlObject
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import de.linuxundich.hausmusik.data.AlbumDetails
 import de.linuxundich.hausmusik.data.ArtistDetails
 import de.linuxundich.hausmusik.sonos.NowPlaying
@@ -56,6 +59,30 @@ sealed interface DetailsUi {
     data class Album(val details: AlbumDetails) : DetailsUi
 }
 
+/** Whose details to show: the artist, the album or both, and which one first. */
+@kotlinx.serialization.Serializable
+data class DetailsTarget(val artist: String?, val album: String?, val albumFirst: Boolean = false) {
+    companion object {
+        fun of(now: NowPlaying) = DetailsTarget(now.artist?.ifBlank { null }, now.album?.ifBlank { null })
+
+        /**
+         * An entry of the library or queue: an artist, an album or a track. Null for
+         * what has no artist or album, such as a radio station or a playlist.
+         */
+        fun of(item: DidlObject): DetailsTarget? = when {
+            item.isRadio -> null
+            item.upnpClass.contains("person") -> DetailsTarget(item.title, null)
+            item.upnpClass.contains("musicAlbum") -> DetailsTarget((item.albumArtist ?: item.creator)?.ifBlank { null }, item.title, albumFirst = true)
+            item.upnpClass.contains("musicTrack") && (item.creator != null || item.album != null) ->
+                DetailsTarget(item.creator?.ifBlank { null }, item.album?.ifBlank { null })
+            else -> null
+        }
+    }
+}
+
+/** Long press in the library opens details where an entry has any; provided by the library screens. */
+val LocalItemDetails = androidx.compose.runtime.staticCompositionLocalOf<((DetailsTarget) -> Unit)?> { null }
+
 data class DetailsActions(
     val loadArtist: suspend (String) -> Result<ArtistDetails?>,
     val loadAlbum: suspend (String, String?) -> Result<AlbumDetails?>,
@@ -70,12 +97,12 @@ data class DetailsActions(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailsSheet(now: NowPlaying, enabled: Boolean, colors: CoverColors, actions: DetailsActions, onDismiss: () -> Unit) {
+fun DetailsSheet(target: DetailsTarget, enabled: Boolean, colors: CoverColors, actions: DetailsActions, onDismiss: () -> Unit) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val artist = now.artist?.takeIf { it.isNotBlank() }
-    val album = now.album?.takeIf { it.isNotBlank() }
+    val artist = target.artist?.takeIf { it.isNotBlank() }
+    val album = target.album?.takeIf { it.isNotBlank() }
     // 0 = artist, 1 = album; survives a rotation.
-    var tab by rememberSaveable { mutableIntStateOf(if (artist != null) 0 else 1) }
+    var tab by rememberSaveable(target) { mutableIntStateOf(if (artist != null && !(target.albumFirst && album != null)) 0 else 1) }
     var attempt by rememberSaveable { mutableIntStateOf(0) }
     ModalBottomSheet(
         onDismissRequest = onDismiss, sheetState = sheet,
@@ -149,7 +176,7 @@ private fun Consent(colors: CoverColors, onEnable: () -> Unit) {
 
 @Composable
 private fun ArtistBody(d: ArtistDetails, colors: CoverColors) {
-    Text(d.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+    Header(d.imageUrl, round = true, colors) { Text(d.name, fontSize = 24.sp, fontWeight = FontWeight.Bold) }
     val type = when (d.type) {
         "Person" -> stringResource(R.string.details_type_person)
         "Group" -> stringResource(R.string.details_type_group)
@@ -163,10 +190,28 @@ private fun ArtistBody(d: ArtistDetails, colors: CoverColors) {
 
 @Composable
 private fun AlbumBody(d: AlbumDetails, colors: CoverColors) {
-    Text(d.title, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-    d.artist?.let { Text(it, color = colors.content.copy(alpha = 0.72f), fontSize = 15.sp) }
+    Header(d.imageUrl, round = false, colors) {
+        Text(d.title, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        d.artist?.let { Text(it, color = colors.content.copy(alpha = 0.72f), fontSize = 15.sp) }
+    }
     Facts(listOfNotNull(d.type, d.firstRelease?.take(4)), d.genres, colors)
     Summary(d.summary, d.summaryUrl, d.musicBrainzUrl, colors)
+}
+
+/** Name (and artist) beside a picture: a round one for an artist, a cover for an album. */
+@Composable
+private fun Header(imageUrl: String?, round: Boolean, colors: CoverColors, text: @Composable () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (imageUrl != null) {
+            de.linuxundich.hausmusik.ui.common.Cover(
+                imageUrl, Modifier.size(72.dp), corner = if (round) 36.dp else 10.dp,
+                placeholderColor = colors.subtle, iconColor = colors.content.copy(alpha = 0.5f),
+                icon = if (round) de.linuxundich.hausmusik.ui.theme.AppIcons.Speaker else de.linuxundich.hausmusik.ui.theme.AppIcons.Album,
+            )
+            Spacer(Modifier.width(16.dp))
+        }
+        Column { text() }
+    }
 }
 
 @Composable

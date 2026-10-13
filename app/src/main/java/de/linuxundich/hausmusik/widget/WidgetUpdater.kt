@@ -38,5 +38,13 @@ class WidgetUpdater @Inject constructor(
                 .debounce(500)
                 .collect { runCatching { PlayerWidget.refresh(context) } }
         }
+        // The room widgets show every group, not only the selected one.
+        scope.launch {
+            household.state
+                .map { h -> h.connection::class to h.groups.map { listOf(it.group.displayName, it.nowPlaying?.title, it.isPlaying) } }
+                .distinctUntilChanged()
+                .debounce(500)
+                .collect { runCatching { RoomWidget.refresh(context) } }
+        }
     }
 }

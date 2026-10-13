@@ -350,4 +350,45 @@ class FakeHouseholdTest {
         assertTrue(d.playsDirectly)
         assertTrue(d.resMd!!.contains("F10092020s1000"))
     }
+
+    @Test
+    fun `crossfade is a switch on the coordinator`() = runBlocking {
+        assertFalse(wohnzimmer.crossfade())
+        wohnzimmer.setCrossfade(true)
+        assertTrue(wohnzimmer.crossfade())
+        wohnzimmer.setCrossfade(false)
+        assertFalse(wohnzimmer.crossfade())
+    }
+
+    @Test
+    fun `only a player with an input has a line-in`() = runBlocking {
+        assertEquals("Plattenspieler", wohnzimmer.audioInputName())
+        assertEquals(null, kueche.audioInputName())
+    }
+
+    @Test
+    fun `favorites can be added and removed`() = runBlocking {
+        val before = wohnzimmer.browseAll("FV:2")
+        val album = wohnzimmer.browseAll("A:ALBUM").first { it.title == "Pinguinzoo" }
+        wohnzimmer.addFavorite(album, Didl.minimal(album.id, album.parentId, album.title, album.upnpClass))
+        val added = wohnzimmer.browseAll("FV:2").first { it.title == "Pinguinzoo" }
+        assertEquals(album.uri, added.uri)
+        assertEquals(before.size + 1, wohnzimmer.browseAll("FV:2").size)
+        wohnzimmer.removeFavorite(added.id)
+        assertEquals(before.map { it.id }, wohnzimmer.browseAll("FV:2").map { it.id })
+    }
+
+    @Test
+    fun `sonos playlists can be made, filled, trimmed, renamed and deleted`() = runBlocking {
+        val id = wohnzimmer.createPlaylist("Abends")
+        val album = wohnzimmer.browseAll("A:ALBUM").first { it.title == "Hutmacher" }
+        wohnzimmer.addToPlaylist(id, album.uri!!, Didl.minimal(album.id, album.parentId, album.title, album.upnpClass))
+        assertEquals(4, wohnzimmer.browseAll(id).size)
+        wohnzimmer.removeFromPlaylist(id, 0)
+        assertEquals(listOf("Rawhide", "Silverblue", "Spin"), wohnzimmer.browseAll(id).map { it.title })
+        wohnzimmer.renamePlaylist(id, "Abends", "Spätabends")
+        assertTrue(wohnzimmer.browseAll("SQ:").any { it.id == id && it.title == "Spätabends" })
+        wohnzimmer.deletePlaylist(id)
+        assertFalse(wohnzimmer.browseAll("SQ:").any { it.id == id })
+    }
 }

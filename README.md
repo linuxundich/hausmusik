@@ -19,7 +19,11 @@
 - **The Stage.** The app opens with what is playing, large and in the colors of the cover.
 - **Every room at a glance.** Each group with its own volume and play button. Tick a room to let it play along.
 - **Your library.** Sonos favorites, albums on your music share, radio stations and Sonos playlists.
-- **Details.** Facts about the playing artist and album from MusicBrainz and a short Wikipedia text, both free sources. Off until you switch them on.
+- **Details.** Facts, a short Wikipedia text and a picture for the playing artist and album, from MusicBrainz, Wikipedia and the Cover Art Archive, all free sources. Also from the library (long press, or the info button on an album page) and the queue. Off until you switch them on.
+- **Your Sonos, kept tidy.** Add albums, tracks and stations to the Sonos favorites or remove them, add anything to a Sonos playlist, rename and delete playlists, remove tracks from them: a long press in the library.
+- **Line-in.** A speaker's analog input (a record player on a Connect:Amp) shows under Radio and plays in any room.
+- **Everywhere.** One tap lets every room play along, except those you keep out in the settings. Crossfade is a switch in the stage menu.
+- **Shortcuts, widgets, automation.** Long press the app icon for "pause everywhere" and favorites; a small widget plays or pauses one room or starts a favorite there; Tasker and Home Assistant can send the same commands as intents (see [docs/development.md](docs/development.md#commands-from-outside)).
 - **Lyrics.** Time-synced lyrics from LRCLIB fill the cover area; tap a line to jump there. Off until you switch them on.
 - **Alarms and sound.** Create and edit Sonos alarms, set bass, treble and loudness for every speaker, and a sleep timer that shows how long is left.
 - **No surprises.** Before anything replaces a queue that is not empty, Hausmusik asks: play now, play next or add to the queue.

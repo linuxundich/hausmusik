@@ -8,6 +8,42 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Library menu: a long press on an entry offers details, adding it to the
+  Sonos favorites or removing it, and adding it to a Sonos playlist (an
+  existing one or a new one). Sonos playlists can be renamed and deleted, and
+  tracks removed from them. Tested on the fake household; the favorite format
+  copies what the S1 stores itself.
+- Line-in: a speaker's analog input appears at the top of *Radio* (on the
+  real household the Connect:Amp's input "Heimkino") and plays in the selected
+  room.
+- Crossfade: a switch in the stage menu.
+- *Everywhere* in the rooms sheet lets every room play along with the
+  selected one; rooms chosen in the settings stay out.
+- Commands from outside: launcher shortcuts (pause everywhere, play/pause,
+  favorites) and intents for Tasker and Home Assistant (`CommandActivity`,
+  see docs/development.md).
+- Widget "Room or favorite": set up with a room and, if wanted, a favorite;
+  a tap plays or pauses that room, or starts the favorite there.
+- Checked on the Pixel: with the phone in deep Doze for 42 minutes and music
+  playing, every track change arrived as an event and the subscriptions were
+  renewed past their 30 minutes.
+- Details from more places: a long press on an artist, album or track in the
+  library, the info button on an album or artist page, and *Details* in a
+  queue entry's menu. The sheet shows a picture: the Wikipedia page's image
+  for an artist, the cover from the Cover Art Archive for an album.
+- Details are kept on the phone: a month for what was found, a week for
+  "nothing found"; *Clear cache* in the settings removes them too.
+- The fake household answers like MusicBrainz, Wikidata, Wikipedia and the
+  Cover Art Archive for its invented artists (debug extra `-e details`).
+- Queue: while dragging a track to the top or bottom edge, the list scrolls
+  by itself, faster the closer the finger gets, so a track can move further
+  than one screen.
+- Sound: bass and treble sliders start in the middle at 0; the active part of
+  the track runs from 0 to the value, and the step dots use the cover colors.
+- Alarms can play albums among the favorites, Sonos playlists and any album
+  of the music share (search by title or artist), not only the chime and radio
+  favorites. The real S1 household stored such an alarm (created disabled and
+  deleted again); a ringing alarm with an album was not tested.
 - Group volume with a muted speaker: the slider shows the mean of the audible
   speakers and moves only them, each scaled like Sonos does; the muted one
   keeps its volume. Before, Sonos' group volume counted the muted speaker in

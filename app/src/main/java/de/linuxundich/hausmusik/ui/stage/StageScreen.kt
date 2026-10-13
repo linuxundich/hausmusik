@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import de.linuxundich.hausmusik.ui.common.AppMenu
 import de.linuxundich.hausmusik.ui.common.menuColors
@@ -93,6 +94,9 @@ data class StageActions(
     val onLyrics: () -> Unit,
     /** Background on the playing artist and album. */
     val onDetails: () -> Unit = {},
+    /** Crossfade between tracks, a switch in the menu. */
+    val crossfadeOn: Boolean = false,
+    val onCrossfade: () -> Unit = {},
     /** "23 min" while a sleep timer runs. */
     val timerLabel: String? = null,
     /** The speaker icon left of the slider: volume of each room. */
@@ -274,6 +278,10 @@ private fun StageMenu(colors: CoverColors, actions: StageActions) {
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.queue_more), tint = colors.content.copy(alpha = 0.85f)) }
         AppMenu(open, { open = false }, menuColors(colors)) {
+            Item(
+                if (actions.crossfadeOn) Icons.Filled.Check else AppIcons.Crossfade,
+                stringResource(if (actions.crossfadeOn) R.string.crossfade_on else R.string.crossfade),
+            ) { open = false; actions.onCrossfade() }
             Item(AppIcons.Info, stringResource(R.string.details)) { open = false; actions.onDetails() }
             Item(AppIcons.Alarm, stringResource(R.string.alarms)) { open = false; actions.onAlarms() }
             Item(AppIcons.Tune, stringResource(R.string.sound)) { open = false; actions.onSound() }

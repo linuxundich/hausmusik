@@ -4,6 +4,7 @@
 package de.linuxundich.hausmusik.ui.library
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.activity.compose.BackHandler
@@ -101,11 +102,11 @@ private fun LibraryTab.label() = when (this) {
 val LocalArtistImage = androidx.compose.runtime.staticCompositionLocalOf<suspend (String) -> String?> { { null } }
 
 @Composable
-private fun ProvideArtistImages(vm: LibraryViewModel, content: @Composable () -> Unit) {
+private fun ProvideArtistImages(vm: LibraryViewModel, snackbar: SnackbarHostState, content: @Composable () -> Unit) {
     // A new lambda when the switch flips, so rows already on screen ask again.
     val on by vm.artistImagesEnabled.collectAsStateWithLifecycle()
     val fetch: suspend (String) -> String? = androidx.compose.runtime.remember(on) { { name -> vm.artistImage(name) } }
-    androidx.compose.runtime.CompositionLocalProvider(LocalArtistImage provides fetch, content = content)
+    androidx.compose.runtime.CompositionLocalProvider(LocalArtistImage provides fetch) { ProvideItemActions(vm, snackbar, content) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -182,7 +183,7 @@ fun LibraryScreen(
         bottomBar = { if (group != null && !wide) MiniPlayer(group, onMiniPlayer, onPlayPause) },
         // Messages show as the app-wide pill at the top (MessageHost in the root).
     ) { padding ->
-        ProvideArtistImages(vm) {
+        ProvideArtistImages(vm, snackbar) {
             Column(Modifier.padding(padding)) {
                 if (searching) {
                     SearchResults(search, vm::artUrl, onOpenContainer, onPlay)
@@ -398,7 +399,7 @@ fun ContainerScreen(
     val linkState by vm.link.collectAsStateWithLifecycle()
     linkState?.let { LinkDialog(it, onRestart = vm::restartLink, onDismiss = vm::dismissLink) }
     LaunchedEffect(container.id) { vm.load(container.id) }
-    ProvideArtistImages(vm) {
+    ProvideArtistImages(vm, snackbar) {
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -410,6 +411,9 @@ fun ContainerScreen(
                     if (container.upnpClass == ServiceIds.LINKED_CLASS) {
                         androidx.compose.material3.TextButton(onClick = { vm.unlink(container); onBack() }) { Text(stringResource(R.string.service_unlink)) }
                     }
+                    val details = de.linuxundich.hausmusik.ui.details.LocalItemDetails.current
+                    val target = remember(container) { de.linuxundich.hausmusik.ui.details.DetailsTarget.of(container) }
+                    if (details != null && target != null) IconButton(onClick = { details(target) }) { Icon(AppIcons.Info, stringResource(R.string.details)) }
                     if (wideBar && group != null) CompactMiniPlayer(group, onMiniPlayer, onPlayPause)
                     if (wideBar && playable) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(end = 8.dp)) {
                             Icon(AppIcons.Play, null, Modifier.size(18.dp))
@@ -513,7 +517,7 @@ private fun ItemList(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(state.items, key = { it.id }) { item ->
-                    Column(Modifier.clickable { onClick(item) }) {
+                    ItemMenuBox(item, null, { onClick(item) }) { menuModifier -> Column(menuModifier) {
                         Cover(
                             artUrl(item.albumArtUri), Modifier.fillMaxWidth().aspectRatio(1f), corner = 12.dp,
                             placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -524,7 +528,7 @@ private fun ItemList(
                         (item.creator ?: item.description)?.let {
                             Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                    }
+                    } }
                 }
             }
             else -> LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
@@ -540,8 +544,8 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
     val person = item.upnpClass.contains("person")
     val artistImage = LocalArtistImage.current
     val picture by produceState<String?>(null, item.title, person, artistImage) { if (person) value = artistImage(item.title) }
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
+    ItemMenuBox(item, position, onClick) { menuModifier -> Row(
+        Modifier.fillMaxWidth().then(menuModifier).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val number = item.originalTrackNumber ?: position.takeIf { !item.isContainer }
@@ -553,6 +557,7 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
                 placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 icon = when {
                     item.upnpClass == ServiceIds.LINK_CLASS -> Icons.Filled.Add
+                    item.id.startsWith("linein:") -> AppIcons.Input
                     item.isRadio -> AppIcons.Radio
                     item.upnpClass.contains("person") -> Icons.Filled.Person
                     item.isContainer -> AppIcons.Album
@@ -568,7 +573,7 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
             }
         }
         if (item.durationMs != null) Text(formatTime(item.durationMs), style = MaterialTheme.typography.bodySmall)
-    }
+    } }
 }
 
 @Composable

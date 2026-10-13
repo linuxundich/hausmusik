@@ -41,6 +41,28 @@
             </intent-filter>
         </activity>
 
+        <!-- Commands for shortcuts, Tasker and Home Assistant; shows nothing (see CommandActivity). -->
+        <activity
+            android:name=".system.CommandActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="de.linuxundich.hausmusik.action.PLAY_PAUSE" />
+                <action android:name="de.linuxundich.hausmusik.action.PLAY" />
+                <action android:name="de.linuxundich.hausmusik.action.PAUSE" />
+                <action android:name="de.linuxundich.hausmusik.action.NEXT" />
+                <action android:name="de.linuxundich.hausmusik.action.PAUSE_ALL" />
+                <action android:name="de.linuxundich.hausmusik.action.VOLUME_UP" />
+                <action android:name="de.linuxundich.hausmusik.action.VOLUME_DOWN" />
+                <action android:name="de.linuxundich.hausmusik.action.EVERYWHERE" />
+                <action android:name="de.linuxundich.hausmusik.action.PLAY_FAVORITE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".playback.PlaybackService"
             android:exported="true"
@@ -88,5 +110,26 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/player_widget_info" />
         </receiver>
+
+        <receiver
+            android:name=".widget.RoomWidgetReceiver"
+            android:exported="true"
+            android:label="@string/room_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/room_widget_info" />
+        </receiver>
+
+        <activity
+            android:name=".widget.RoomWidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

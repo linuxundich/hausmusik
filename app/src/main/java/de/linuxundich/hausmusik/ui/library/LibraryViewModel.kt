@@ -6,6 +6,7 @@ package de.linuxundich.hausmusik.ui.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import de.linuxundich.hausmusik.R
 import de.linuxundich.hausmusik.data.ArtistImages
 import de.linuxundich.hausmusik.data.HouseholdRepository
 import de.linuxundich.hausmusik.data.Settings
@@ -17,6 +18,7 @@ import de.linuxundich.hausmusik.sonos.DidlObject
 import javax.inject.Inject
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -220,16 +222,81 @@ class LibraryViewModel @Inject constructor(
      * shows at once; Sonos is only asked again when the list's version (music
      * share, favorites, playlists, radio) differs from the stored one.
      */
+    // Messages for the library's snackbar (string resources).
+    private val _messages = kotlinx.coroutines.channels.Channel<Int>(kotlinx.coroutines.channels.Channel.BUFFERED)
+    val messages: kotlinx.coroutines.flow.Flow<Int> = _messages.receiveAsFlow()
+
+    /** The Sonos favorites as last loaded, to know whether an item already is one. */
+    private fun favorites(): List<DidlObject> = (_lists.value[LibraryTab.Favorites.objectId] as? ListState.Loaded)?.items.orEmpty()
+
+    /** The favorite that plays [item], or [item] itself when it is a favorite. */
+    fun favoriteFor(item: DidlObject): DidlObject? =
+        if (item.id.startsWith("FV:2/")) item else item.uri?.let { uri -> favorites().firstOrNull { it.uri == uri } }
+
+    fun toggleFavorite(item: DidlObject) = viewModelScope.launch {
+        val fav = favoriteFor(item)
+        val result = if (fav != null) repo.removeFavorite(fav.id) else repo.addFavorite(item)
+        _messages.send(
+            when {
+                result.isFailure -> R.string.item_failed
+                fav != null -> R.string.favorite_removed
+                else -> R.string.favorite_added
+            },
+        )
+        load(LibraryTab.Favorites.objectId, force = true)
+    }
+
+    private val _playlists = MutableStateFlow<List<DidlObject>?>(null)
+    /** Sonos playlists for "add to playlist"; null while loading. */
+    val playlists: StateFlow<List<DidlObject>?> = _playlists.asStateFlow()
+
+    fun loadPlaylists() = viewModelScope.launch {
+        _playlists.value = null
+        _playlists.value = repo.playlists().getOrDefault(emptyList())
+    }
+
+    fun addToPlaylist(item: DidlObject, playlistId: String?, newTitle: String?) = viewModelScope.launch {
+        val ok = repo.addToPlaylist(item, playlistId, newTitle?.trim()).isSuccess
+        _messages.send(if (ok) R.string.playlist_added else R.string.item_failed)
+        load(LibraryTab.Playlists.objectId, force = true)
+        playlistId?.let { if (_lists.value.containsKey(it)) load(it, force = true) }
+    }
+
+    fun renamePlaylist(playlist: DidlObject, title: String) = viewModelScope.launch {
+        if (repo.renamePlaylist(playlist, title.trim()).isFailure) _messages.send(R.string.item_failed)
+        load(LibraryTab.Playlists.objectId, force = true)
+    }
+
+    fun deletePlaylist(playlist: DidlObject) = viewModelScope.launch {
+        _messages.send(if (repo.deletePlaylist(playlist).isSuccess) R.string.playlist_deleted else R.string.item_failed)
+        load(LibraryTab.Playlists.objectId, force = true)
+    }
+
+    /** [position] is 1-based, as shown. */
+    fun removeFromPlaylist(playlistId: String, position: Int) = viewModelScope.launch {
+        if (repo.removeFromPlaylist(playlistId, position - 1).isFailure) _messages.send(R.string.item_failed)
+        load(playlistId, force = true)
+        load(LibraryTab.Playlists.objectId, force = true)
+    }
+
+    // Analog inputs show at the top of the radio tab; they are asked live, not cached.
+    private var lineIns: List<DidlObject>? = null
+    private suspend fun withInputs(objectId: String, items: List<DidlObject>): List<DidlObject> {
+        if (objectId != LibraryTab.Radio.objectId) return items
+        val inputs = lineIns ?: repo.lineIns().also { lineIns = it }
+        return inputs + items
+    }
+
     fun load(objectId: String, force: Boolean = false) {
         if (!force && _lists.value[objectId] is ListState.Loaded) return
         if (objectId.startsWith(ServiceIds.OVERVIEW)) { loadService(objectId); return }
         viewModelScope.launch {
             val cached = if (force) null else repo.cachedList(objectId)
-            if (cached != null) _lists.update { it + (objectId to ListState.Loaded(cached.items)) }
+            if (cached != null) _lists.update { it + (objectId to ListState.Loaded(withInputs(objectId, cached.items))) }
             if (cached?.current == true) return@launch
             if (cached == null) _lists.update { it + (objectId to ListState.Loading) }
             val result = repo.loadAndCache(objectId).onFailure { android.util.Log.w("Library", "browse $objectId failed", it) }
-            result.onSuccess { items -> _lists.update { it + (objectId to ListState.Loaded(items)) } }
+            result.onSuccess { items -> val all = withInputs(objectId, items); _lists.update { it + (objectId to ListState.Loaded(all)) } }
                 .onFailure { if (cached == null) _lists.update { it + (objectId to ListState.Error) } }
         }
     }

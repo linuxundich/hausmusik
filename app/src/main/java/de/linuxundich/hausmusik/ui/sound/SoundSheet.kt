@@ -17,6 +17,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -83,7 +84,11 @@ private fun PlayerSound(player: SonosPlayer, colors: CoverColors, actions: Sound
     LaunchedEffect(player.uuid) { sound = actions.load(player).getOrNull() }
     Text(player.roomName, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, modifier = Modifier.padding(top = 20.dp, bottom = 4.dp))
     val s = sound ?: return
-    val sliderColors = SliderDefaults.colors(thumbColor = colors.accent, activeTrackColor = colors.accent, inactiveTrackColor = colors.subtle)
+    val sliderColors = SliderDefaults.colors(
+        thumbColor = colors.accent, activeTrackColor = colors.accent, inactiveTrackColor = colors.subtle,
+        // The step dots in the cover colors too, not Material's default blue.
+        activeTickColor = colors.onAccent.copy(alpha = 0.6f), inactiveTickColor = colors.content.copy(alpha = 0.35f),
+    )
     ToneSlider(stringResource(R.string.sound_bass), s.bass, sliderColors) { v ->
         sound = s.copy(bass = v)
         actions.setBass(player, v)
@@ -102,21 +107,24 @@ private fun PlayerSound(player: SonosPlayer, colors: CoverColors, actions: Sound
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ToneSlider(label: String, value: Int, colors: androidx.compose.material3.SliderColors, onChange: (Int) -> Unit) {
+    // Tone runs from -10 to +10: the active part of the track starts at 0 in the middle.
+    val state = remember { SliderState(value.toFloat(), 19, -10f..10f) }
+    // Follow the speaker (another app, a reset); while dragging nothing else changes it.
+    LaunchedEffect(value) { state.value = value.toFloat() }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.width(72.dp))
-        // Sends only when the finger lets go: tone changes are rare and every step is audible.
-        var dragging by remember { mutableStateOf<Float?>(null) }
         Slider(
-            value = dragging ?: value.toFloat(),
-            onValueChange = { dragging = it },
-            onValueChangeFinished = { dragging?.let { onChange(Math.round(it)) }; dragging = null },
-            valueRange = -10f..10f,
-            steps = 19,
+            state = state,
+            onValueChange = { state.value = it },
+            // Sends only when the finger lets go: tone changes are rare and every step is audible.
+            onValueChangeFinished = { onChange(Math.round(state.value)) },
             colors = colors,
+            track = { SliderDefaults.CenteredTrack(it, colors = colors) },
             modifier = Modifier.weight(1f),
         )
-        Text("%+d".format(dragging?.let { Math.round(it) } ?: value), Modifier.width(36.dp), fontSize = 13.sp)
+        Text("%+d".format(Math.round(state.value)), Modifier.width(36.dp), fontSize = 13.sp)
     }
 }

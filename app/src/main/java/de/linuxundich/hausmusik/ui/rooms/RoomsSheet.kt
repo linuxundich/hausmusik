@@ -84,6 +84,8 @@ data class RoomActions(
     val onMemberVolume: (String, SonosPlayer, Int) -> Unit,
     val onMembership: (SonosPlayer, Boolean) -> Unit,
     val onPauseAll: () -> Unit,
+    /** Every room plays along with the selected one (except those left out in the settings). */
+    val onEverywhere: () -> Unit = {},
 )
 
 /**
@@ -104,6 +106,9 @@ fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, 
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(top = if (isWide()) 12.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.rooms), fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (household.groups.size > 1) {
+                    TextButton(onClick = actions.onEverywhere) { Text(stringResource(R.string.everywhere), color = colors.accent) }
+                }
                 if (household.groups.any { it.isPlaying }) {
                     TextButton(onClick = actions.onPauseAll) { Text(stringResource(R.string.rooms_pause_all), color = colors.accent) }
                 }
