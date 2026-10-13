@@ -77,18 +77,20 @@ class MusicServices @Inject constructor(
     /**
      * The overview. Before anything is linked: the well-known services and
      * those the household already uses, the rest under "More services".
-     * Once one service is linked, only the linked ones; everything else moves
-     * to "More services" (Christoph's choice, 2026-10-13).
+     * Once one service is linked, only the linked ones and the well-known ones
+     * without sign-in (TuneIn); everything to link moves to "More services"
+     * (Christoph's choice, 2026-10-13).
      */
     suspend fun overview(): List<DidlObject> {
         val all = available()
         val linked = linkedIds()
         val rest = DidlObject(id = ServiceIds.MORE, parentId = ServiceIds.OVERVIEW, isContainer = true,
             title = context.getString(de.linuxundich.hausmusik.R.string.services_more), upnpClass = "object.container")
-        if (linked.isNotEmpty()) {
-            return all.filter { it.id in linked }.sortedBy { it.name.lowercase() }.map(::openEntry) + rest
-        }
         val top = topIds()
+        if (linked.isNotEmpty()) {
+            // Ready to use: linked services and the well-known ones without sign-in (TuneIn).
+            return all.filter { it.id in linked || it.anonymous && it.id in top }.sortedBy { it.name.lowercase() }.map(::openEntry) + rest
+        }
         return all.filter { it.id in top && (it.anonymous || it.linkable) }.sortedBy { it.name.lowercase() }
             .map { if (it.anonymous) openEntry(it) else linkEntry(it) } + rest
     }
@@ -96,9 +98,11 @@ class MusicServices @Inject constructor(
     /** Every service not shown in the overview, A to Z: those without sign-in open, the rest to link. */
     suspend fun more(): List<DidlObject> {
         val linked = linkedIds()
-        val top = if (linked.isEmpty()) topIds() else emptySet()
+        val top = topIds()
+        // Before anything is linked, the well-known ones stand in the overview; afterwards only those without sign-in do.
+        val shown = if (linked.isEmpty()) top else available().filter { it.anonymous && it.id in top }.map { it.id }.toSet()
         return available()
-            .filter { it.id !in linked && it.id !in top && (it.linkable || it.anonymous) }
+            .filter { it.id !in linked && it.id !in shown && (it.linkable || it.anonymous) }
             .sortedBy { it.name.lowercase() }
             .map { if (it.anonymous) openEntry(it) else linkEntry(it) }
     }

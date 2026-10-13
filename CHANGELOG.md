@@ -36,7 +36,8 @@ All notable changes to Hausmusik are documented here. The format follows
   IDAGIO, TuneIn) plus those the household already uses (found in its
   favorites, e.g. bonob); every other service is under *More services* (the
   S1 household offers 96). Once a service is linked, the tab shows only the
-  linked services and everything else moves to *More services*. Services
+  linked services and TuneIn (no sign-in needed); every service still to
+  link moves to *More services*. Services
   without sign-in, such as TuneIn and many
   radio stations, open directly; their stations play without the queue. Linking opens the
   service's sign-in page in the browser and waits for the confirmation; the
