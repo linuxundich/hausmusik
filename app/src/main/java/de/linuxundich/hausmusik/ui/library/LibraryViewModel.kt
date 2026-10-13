@@ -18,6 +18,8 @@ import de.linuxundich.hausmusik.sonos.DidlObject
 import javax.inject.Inject
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -312,7 +314,23 @@ class LibraryViewModel @Inject constructor(
             }
     }
 
+    /** False while the speakers cannot be reached (lost Wi-Fi, reconnecting). */
+    val speakersReachable: StateFlow<Boolean> = repo.state
+        .map { it.connection == de.linuxundich.hausmusik.data.Connection.Connected }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
     init {
+        // Back in reach: lists that were still loading or had failed load again by themselves.
+        viewModelScope.launch {
+            var was = true
+            speakersReachable.collect { now ->
+                if (now && !was) {
+                    _lists.value.filter { (id, s) -> s !is ListState.Loaded && !id.startsWith(ServiceIds.OVERVIEW) }.keys.forEach { load(it, force = true) }
+                }
+                was = now
+            }
+        }
         // A list changed elsewhere (new favorite, re-indexed share): reload what is loaded.
         viewModelScope.launch {
             var last = repo.libraryVersions.value

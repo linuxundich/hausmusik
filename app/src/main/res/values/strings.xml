@@ -263,4 +263,6 @@
     <string name="music_video_mode_pause">Pause Sonos</string>
     <string name="music_video_mode_ask">Ask every time</string>
     <string name="music_video_no_app">No app opens YouTube links.</string>
+    <string name="library_offline">No connection to the speakers</string>
+    <string name="library_offline_hint">The list loads by itself as soon as they can be reached again.</string>
 </resources>

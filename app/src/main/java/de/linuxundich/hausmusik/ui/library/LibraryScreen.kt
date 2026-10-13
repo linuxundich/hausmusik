@@ -208,7 +208,12 @@ fun LibraryScreen(
                     return@Column
                 }
                 if (tab == LibraryTab.Services) ServicesHint()
-                ItemList(lists[tab.objectId], grid = tab.grid, artUrl = vm::artUrl, onRetry = { vm.load(tab.objectId, force = true) }) { item ->
+                val reachable by vm.speakersReachable.collectAsStateWithLifecycle()
+                ItemList(
+                    lists[tab.objectId], grid = tab.grid, artUrl = vm::artUrl,
+                    offline = !reachable && !tab.objectId.startsWith(ServiceIds.OVERVIEW),
+                    onRetry = { vm.load(tab.objectId, force = true) },
+                ) { item ->
                     when {
                         item.upnpClass == ServiceIds.LINK_CLASS -> vm.startLink(item)
                         item.isContainer && tab != LibraryTab.Favorites -> onOpenContainer(item)
@@ -446,7 +451,12 @@ fun ContainerScreen(
             // Inside an album, track numbers say more than the same cover over and over.
             val isAlbum = container.upnpClass.contains("album")
             val list: @Composable () -> Unit = {
-                ItemList(state, grid = allContainers, artUrl = vm::artUrl, numbered = isAlbum, onRetry = { vm.load(container.id, force = true) }) { item ->
+                val reachable by vm.speakersReachable.collectAsStateWithLifecycle()
+                ItemList(
+                    state, grid = allContainers, artUrl = vm::artUrl, numbered = isAlbum,
+                    offline = !reachable && !container.id.startsWith(ServiceIds.OVERVIEW),
+                    onRetry = { vm.load(container.id, force = true) },
+                ) { item ->
                     when {
                         item.upnpClass == ServiceIds.LINK_CLASS -> vm.startLink(item)
                         item.isContainer -> onOpenContainer(item)
@@ -486,9 +496,22 @@ private fun ItemList(
     grid: Boolean,
     artUrl: (String?) -> String?,
     numbered: Boolean = false,
+    /** The speakers are out of reach: a list that is not there yet waits for them, and says so. */
+    offline: Boolean = false,
     onRetry: () -> Unit,
     onClick: (DidlObject) -> Unit,
 ) {
+    if (offline && state !is ListState.Loaded) {
+        Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(AppIcons.WifiOff, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
+            Text(stringResource(R.string.library_offline), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
+            Text(
+                stringResource(R.string.library_offline_hint), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+        return
+    }
     when (state) {
         null, ListState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

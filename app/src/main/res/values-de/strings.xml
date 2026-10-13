@@ -261,4 +261,6 @@
     <string name="music_video_mode_pause">Sonos pausieren</string>
     <string name="music_video_mode_ask">Jedes Mal fragen</string>
     <string name="music_video_no_app">Keine App öffnet YouTube-Links.</string>
+    <string name="library_offline">Keine Verbindung zu den Lautsprechern</string>
+    <string name="library_offline_hint">Die Liste lädt von selbst, sobald sie wieder erreichbar sind.</string>
 </resources>

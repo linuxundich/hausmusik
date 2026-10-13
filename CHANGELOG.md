@@ -8,6 +8,11 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Fixed: without a connection to the speakers (Wi-Fi lost, reconnecting), a
+  list that was still loading kept saying "Sonos is putting the list
+  together". It now says "No connection to the speakers" and loads by itself
+  as soon as they can be reached again. Lists of music services, which come
+  over the internet, are left out.
 - Music video: *Music video* in the stage menu looks up the song's official
   YouTube video on Wikidata and opens it in the YouTube app at the point the
   speakers play (two seconds ahead while they keep playing). The speakers can
