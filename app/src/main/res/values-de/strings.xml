@@ -96,4 +96,7 @@
     <string name="sound_bass">Bass</string>
     <string name="sound_treble">Höhen</string>
     <string name="sound_loudness">Loudness</string>
+    <string name="tile_label">Sonos-Raum</string>
+    <string name="widget_label">Hausmusik-Player</string>
+    <string name="widget_description">Was in deinem Raum läuft, mit Pause und Springen</string>
 </resources>

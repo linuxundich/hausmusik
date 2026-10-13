@@ -21,10 +21,10 @@
 - **Your library.** Sonos favorites, albums on your music share, radio stations and Sonos playlists.
 - **Alarms and sound.** Create and edit Sonos alarms, set bass, treble and loudness for every speaker, and a sleep timer that shows how long is left.
 - **No surprises.** Before anything replaces a queue that is not empty, Hausmusik asks: play now, play next or add to the queue.
-- **Part of Android.** Media notification and lock screen controls, and the volume buttons change the volume of your room, even outside the app.
+- **Part of Android.** Media notification and lock screen controls, a home screen widget and a Quick Settings tile. The volume buttons change the volume of your room, even outside the app.
 - **Built for Android 17.** Jetpack Compose with Material 3 Expressive, English and German.
 
-Planned: home screen widgets and a Quick Settings tile. See [BACKLOG.md](BACKLOG.md).
+What is planned next is in [BACKLOG.md](BACKLOG.md).
 
 ## How it works
 

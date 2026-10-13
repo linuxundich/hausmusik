@@ -42,6 +42,13 @@ All notable changes to Hausmusik are documented here. The format follows
 - Sound: bass, treble and loudness for every speaker of the selected group.
 - The timer button shows the remaining sleep time.
 - Landscape layout for the Stage: cover on the left, controls on the right.
+- Quick Settings tile: shows the selected room and what plays, a tap pauses or
+  resumes it, also while the app is closed.
+- Home screen widget (Glance): cover, title, room, previous, play/pause, next.
+  It follows the state live while the household is connected and connects
+  briefly on its own when shown.
+- Every command reads its group again right away instead of waiting for the
+  speaker's event.
 - Tested on a Pixel 10 (Android 17): SSDP search and UPnP events with the real
   S1 household, lock screen controls, volume buttons also with the screen off.
 - The fake household accepts subscriptions and sends NOTIFY on every change.

@@ -312,13 +312,15 @@ class HouseholdRepository @Inject constructor(
 
     /** Runs [block] against the selected coordinator and polls right after. */
     suspend fun command(block: suspend (SonosPlayerClient) -> Unit): Result<Unit> {
+        val id = _state.value.selected?.id ?: return Result.failure(IOException("no room"))
         val c = selectedCoordinator() ?: return Result.failure(IOException("no room"))
-        return runCatching { block(c) }.also { refreshNow() }
+        // Read the group again right away instead of waiting for its event.
+        return runCatching { block(c) }.also { pendingGroups += id; refreshNow() }
     }
 
     suspend fun commandFor(groupId: String, block: suspend (SonosPlayerClient) -> Unit): Result<Unit> {
         val g = _state.value.groups.firstOrNull { it.id == groupId } ?: return Result.failure(IOException("no room"))
-        return runCatching { block(client(g.group.coordinator)) }.also { refreshNow() }
+        return runCatching { block(client(g.group.coordinator)) }.also { pendingGroups += groupId; refreshNow() }
     }
 
     /** Lets [player] play along with the group [groupId], or leave it. */

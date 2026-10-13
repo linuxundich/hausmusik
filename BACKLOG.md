@@ -46,8 +46,9 @@ Completed items stay checked.
 
 ## Phase 4: Part of the system
 
-- [ ] **P1** Glance widgets: player and single rooms or favorites
-- [ ] **P1** Quick Settings tile
+- [x] **P1** Glance widget: player for the selected room
+- [ ] **P2** Widgets for a single room or a favorite
+- [x] **P1** Quick Settings tile
 - [ ] **P2** App shortcuts and intents for Tasker
 - [ ] **P2** Check Wear OS through the media session
 

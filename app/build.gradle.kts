@@ -144,6 +144,8 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     implementation(libs.media3.session)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
     implementation(libs.palette.ktx)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)

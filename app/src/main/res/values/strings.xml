@@ -98,4 +98,7 @@
     <string name="sound_bass">Bass</string>
     <string name="sound_treble">Treble</string>
     <string name="sound_loudness">Loudness</string>
+    <string name="tile_label">Sonos room</string>
+    <string name="widget_label">Hausmusik player</string>
+    <string name="widget_description">What plays in your room, with play/pause and skip</string>
 </resources>
