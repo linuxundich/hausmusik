@@ -30,8 +30,10 @@ All notable changes to Hausmusik are documented here. The format follows
   Artists" get no picture. Shown in the artist list, in search results and on
   the artist page.
 - Music services through SMAPI, the API Sonos defines for them. A new
-  *Services* tab lists the linked services and those Hausmusik can link
-  (AppLink and DeviceLink, e.g. bonob and Spotify). Linking opens the
+  *Services* tab lists the linked services, then the linkable ones the
+  household already uses (found in its favorites), and every other AppLink
+  or DeviceLink service under *More services* (the S1 household offers more
+  than 90). Linking opens the
   service's sign-in page in the browser and waits for the confirmation; the
   token is stored per household and renewed when the service hands out a new
   one. Folders, albums and tracks open like the local library; albums,

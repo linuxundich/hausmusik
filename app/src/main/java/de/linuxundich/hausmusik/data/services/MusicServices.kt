@@ -25,6 +25,8 @@ import okhttp3.OkHttpClient
 /** IDs in the library: `svc:<service>:<item>` for a service's catalogue. */
 object ServiceIds {
     const val OVERVIEW = "svc:"
+    /** The long list of every other service Sonos offers. */
+    const val MORE = "svc:more"
     const val LINK_CLASS = "object.hausmusik.link"
     fun of(serviceId: Int, itemId: String) = "svc:$serviceId:$itemId"
     fun parse(navId: String): Pair<Int, String>? {
@@ -72,21 +74,44 @@ class MusicServices @Inject constructor(
     suspend fun available(): List<MusicService> =
         catalogue ?: coordinator().musicServices().also { catalogue = it }
 
-    /** The overview: linked services first, then those Hausmusik can link. */
+    /**
+     * The overview: linked services, then those the household already uses
+     * (seen in its favorites) and Hausmusik can link, then one entry for the
+     * long rest.
+     */
     suspend fun overview(): List<DidlObject> {
         val (household, _) = identity()
         val all = available()
         val linked = accounts.forHousehold(household).first().map { it.serviceId }.toSet()
+        val used = usedServiceIds()
         val mine = all.filter { it.id in linked }.map { s ->
             DidlObject(id = ServiceIds.of(s.id, "root"), parentId = ServiceIds.OVERVIEW, isContainer = true,
-                title = s.displayName, upnpClass = "object.container", description = s.displayName)
+                title = s.displayName, upnpClass = "object.container")
         }
-        val more = all.filter { it.linkable && it.id !in linked }.sortedBy { it.name.lowercase() }.map { s ->
-            DidlObject(id = "link:${s.id}", parentId = ServiceIds.OVERVIEW, isContainer = false,
-                title = s.displayName, upnpClass = ServiceIds.LINK_CLASS,
-                description = context.getString(de.linuxundich.hausmusik.R.string.service_tap_to_link))
-        }
-        return mine + more
+        val suggested = all.filter { it.linkable && it.id !in linked && it.id in used }.sortedBy { it.name.lowercase() }.map(::linkEntry)
+        val rest = DidlObject(id = ServiceIds.MORE, parentId = ServiceIds.OVERVIEW, isContainer = true,
+            title = context.getString(de.linuxundich.hausmusik.R.string.services_more), upnpClass = "object.container")
+        return mine + suggested + rest
+    }
+
+    /** Every linkable service not linked yet, A to Z. */
+    suspend fun more(): List<DidlObject> {
+        val (household, _) = identity()
+        val linked = accounts.forHousehold(household).first().map { it.serviceId }.toSet()
+        return available().filter { it.linkable && it.id !in linked }.sortedBy { it.name.lowercase() }.map(::linkEntry)
+    }
+
+    private fun linkEntry(s: MusicService) = DidlObject(id = "link:${s.id}", parentId = ServiceIds.OVERVIEW, isContainer = false,
+        title = s.displayName, upnpClass = ServiceIds.LINK_CLASS,
+        description = context.getString(de.linuxundich.hausmusik.R.string.service_tap_to_link))
+
+    /** Service IDs in the household's favorites: `sid=` in URIs, `SA_RINCON<type>_` in metadata. */
+    private suspend fun usedServiceIds(): Set<Int> {
+        val favorites = repo.cachedList("FV:2")?.items ?: repo.loadAndCache("FV:2").getOrDefault(emptyList())
+        return favorites.flatMap { f ->
+            Regex("[?&]sid=(\\d+)").findAll(f.uri.orEmpty()).map { it.groupValues[1].toInt() } +
+                Regex("SA_RINCON(\\d+)_").findAll(f.resMd.orEmpty()).map { it.groupValues[1].toInt() / 256 }
+        }.toSet()
     }
 
     private suspend fun client(serviceId: Int): SmapiClient {
@@ -101,6 +126,7 @@ class MusicServices @Inject constructor(
 
     /** One container of a linked service as library entries. */
     suspend fun browse(navId: String): List<DidlObject> {
+        if (navId == ServiceIds.MORE) return more()
         val (sid, itemId) = ServiceIds.parse(navId) ?: throw IOException("not a service id: $navId")
         val c = client(sid)
         val page = try {

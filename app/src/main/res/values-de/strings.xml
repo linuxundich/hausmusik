@@ -165,4 +165,5 @@
     <string name="service_unlink">Trennen</string>
     <string name="ok">OK</string>
     <string name="service_tap_to_link">Zum Verknüpfen antippen</string>
+    <string name="services_more">Weitere Dienste</string>
 </resources>

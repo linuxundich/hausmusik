@@ -335,6 +335,8 @@ fun ContainerScreen(
     val wideBar = isWide()
     // Local containers play by their ID; a service's own folders (its root, "Albums") cannot be played.
     val playable = container.uri != null || !container.id.startsWith(ServiceIds.OVERVIEW)
+    val linkState by vm.link.collectAsStateWithLifecycle()
+    linkState?.let { LinkDialog(it, onDismiss = vm::dismissLink) }
     LaunchedEffect(container.id) { vm.load(container.id) }
     ProvideArtistImages(vm) {
         Scaffold(
@@ -379,7 +381,11 @@ fun ContainerScreen(
             val isAlbum = container.upnpClass.contains("album")
             val list: @Composable () -> Unit = {
                 ItemList(state, grid = allContainers, artUrl = vm::artUrl, numbered = isAlbum, onRetry = { vm.load(container.id, force = true) }) { item ->
-                    if (item.isContainer) onOpenContainer(item) else onPlay(item)
+                    when {
+                        item.upnpClass == ServiceIds.LINK_CLASS -> vm.startLink(item)
+                        item.isContainer -> onOpenContainer(item)
+                        else -> onPlay(item)
+                    }
                 }
             }
             if (isWide()) {

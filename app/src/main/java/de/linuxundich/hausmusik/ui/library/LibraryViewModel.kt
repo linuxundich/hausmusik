@@ -88,7 +88,10 @@ class LibraryViewModel @Inject constructor(
                 services.awaitLink(pending)
             }.onFailure { android.util.Log.w("Library", "linking ${item.title} failed", it) }.getOrDefault(false)
             _link.value = if (ok) LinkState.Done(item.title) else LinkState.Failed(item.title)
-            if (ok) load(ServiceIds.OVERVIEW, force = true)
+            if (ok) {
+                load(ServiceIds.OVERVIEW, force = true)
+                if (_lists.value.containsKey(ServiceIds.MORE)) load(ServiceIds.MORE, force = true)
+            }
         }
     }
 
