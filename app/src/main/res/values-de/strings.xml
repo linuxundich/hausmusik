@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setup_searching">Suche Lautsprecher …</string>
+    <string name="setup_not_found_title">Keine Lautsprecher gefunden</string>
+    <string name="setup_not_found_body">Hausmusik sucht Sonos-Lautsprecher in deinem WLAN. Prüfe, ob das Handy im selben Netz ist wie die Lautsprecher, oder gib die Adresse eines Lautsprechers ein.</string>
+    <string name="setup_tried_host">Versucht: %1$s</string>
+    <string name="setup_host_label">Adresse eines Lautsprechers</string>
+    <string name="setup_host_hint">z. B. 192.168.0.59</string>
+    <string name="setup_connect">Verbinden</string>
+    <string name="setup_search_again">Erneut suchen</string>
+    <string name="permission_title">Zugriff auf dein Heimnetz</string>
+    <string name="permission_body">Hausmusik spricht direkt mit deinen Lautsprechern, ohne Sonos-Konto und ohne Cloud. Dafür fragt Android nach dem Zugriff auf Geräte in deinem Heimnetz; der Dialog nennt sie „Geräte in der Nähe“. Nichts verlässt dein Heimnetz.</string>
+    <string name="permission_allow">Zugriff erlauben</string>
+    <string name="permission_denied">Ohne diesen Zugriff erreicht Hausmusik deine Lautsprecher nicht. Du kannst ihn in den App-Einstellungen erlauben.</string>
+    <string name="permission_open_settings">App-Einstellungen öffnen</string>
+
+    <string name="nothing_playing">Es läuft nichts</string>
+    <string name="queue_empty_hint">Wähle etwas aus der Bibliothek</string>
+    <string name="play">Abspielen</string>
+    <string name="pause">Pause</string>
+    <string name="next">Weiter</string>
+    <string name="previous">Zurück</string>
+    <string name="shuffle">Zufall</string>
+    <string name="repeat">Wiederholen</string>
+    <string name="volume">Lautstärke</string>
+    <string name="queue">Warteschlange</string>
+    <string name="library">Bibliothek</string>
+    <string name="sleep_timer">Timer</string>
+    <string name="rooms">Räume</string>
+    <string name="rooms_pause_all">Alle pausieren</string>
+    <string name="rooms_together_hint">Häkchen setzen = mitspielen lassen</string>
+    <string name="rooms_paused">pausiert</string>
+    <string name="rooms_idle">ruht</string>
+    <string name="room_plays_with">Spielt mit %1$s</string>
+
+    <string name="library_favorites">Favoriten</string>
+    <string name="library_albums">Alben</string>
+    <string name="library_radio">Radio</string>
+    <string name="library_playlists">Playlists</string>
+    <string name="library_empty">Hier ist noch nichts</string>
+    <string name="library_error">Die Liste ließ sich nicht laden.</string>
+    <string name="retry">Erneut versuchen</string>
+    <string name="back">Zurück</string>
+
+    <string name="play_dialog_title">„%1$s“ abspielen</string>
+    <plurals name="play_dialog_body">
+        <item quantity="one">In der Warteschlange von %1$s liegt %2$d Titel. „Jetzt abspielen“ ersetzt ihn.</item>
+        <item quantity="other">In der Warteschlange von %1$s liegen %2$d Titel. „Jetzt abspielen“ ersetzt sie.</item>
+    </plurals>
+    <string name="play_now_replace">Jetzt abspielen</string>
+    <string name="play_next">Als Nächstes</string>
+    <string name="play_append">Anhängen</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="added_next">Läuft als Nächstes</string>
+    <string name="added_to_queue">An die Warteschlange angehängt</string>
+    <string name="error_command">Der Lautsprecher hat nicht geantwortet.</string>
+
+    <string name="queue_title">Warteschlange</string>
+    <plurals name="queue_count">
+        <item quantity="one">%1$d Titel</item>
+        <item quantity="other">%1$d Titel</item>
+    </plurals>
+    <string name="queue_not_active">Gerade läuft Radio. Tippe auf einen Titel, um zur Warteschlange zu wechseln.</string>
+
+    <string name="sleep_off">Aus</string>
+    <string name="sleep_minutes">%1$d min</string>
+    <string name="sleep_title">Wiedergabe beenden nach</string>
+</resources>

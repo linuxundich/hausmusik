@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sonos players only speak plain HTTP on port 1400, and they live at addresses
+  that change. Cleartext is therefore allowed; the app talks to nothing but the
+  speakers in the home network.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

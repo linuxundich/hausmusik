@@ -1,0 +1,9 @@
+tools/fixtures-local/
+.gradle/
+build/
+*/build/
+local.properties
+.kotlin/
+*.iml
+.idea/
+captures/

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Hausmusik</string>
+
+    <string name="setup_searching">Looking for speakers…</string>
+    <string name="setup_not_found_title">No speakers found</string>
+    <string name="setup_not_found_body">Hausmusik looks for Sonos speakers in your Wi-Fi network. Make sure your phone is in the same network as the speakers, or enter the address of one speaker.</string>
+    <string name="setup_tried_host">Tried: %1$s</string>
+    <string name="setup_host_label">Address of a speaker</string>
+    <string name="setup_host_hint">e.g. 192.168.0.59</string>
+    <string name="setup_connect">Connect</string>
+    <string name="setup_search_again">Search again</string>
+    <string name="permission_title">Access to your home network</string>
+    <string name="permission_body">Hausmusik talks to your speakers directly, without a Sonos account or cloud. For that, Android asks for access to devices in your home network; the dialog calls them nearby devices. Nothing leaves your home network.</string>
+    <string name="permission_allow">Allow access</string>
+    <string name="permission_denied">Without this access, Hausmusik cannot reach your speakers. You can allow it in the app settings.</string>
+    <string name="permission_open_settings">Open app settings</string>
+
+    <string name="nothing_playing">Nothing playing</string>
+    <string name="queue_empty_hint">Pick something from the library</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="repeat">Repeat</string>
+    <string name="volume">Volume</string>
+    <string name="queue">Queue</string>
+    <string name="library">Library</string>
+    <string name="sleep_timer">Timer</string>
+    <string name="rooms">Rooms</string>
+    <string name="rooms_pause_all">Pause all</string>
+    <string name="rooms_together_hint">Tick a room to let it play along</string>
+    <string name="rooms_paused">paused</string>
+    <string name="rooms_idle">idle</string>
+    <string name="room_plays_with">Plays with %1$s</string>
+
+    <string name="library_favorites">Favorites</string>
+    <string name="library_albums">Albums</string>
+    <string name="library_radio">Radio</string>
+    <string name="library_playlists">Playlists</string>
+    <string name="library_empty">Nothing here yet</string>
+    <string name="library_error">Could not load this list.</string>
+    <string name="retry">Try again</string>
+    <string name="back">Back</string>
+
+    <string name="play_dialog_title">Play \u201C%1$s\u201D</string>
+    <plurals name="play_dialog_body">
+        <item quantity="one">The queue in %1$s has %2$d track. Playing now replaces it.</item>
+        <item quantity="other">The queue in %1$s has %2$d tracks. Playing now replaces them.</item>
+    </plurals>
+    <string name="play_now_replace">Play now</string>
+    <string name="play_next">Play next</string>
+    <string name="play_append">Add to queue</string>
+    <string name="cancel">Cancel</string>
+    <string name="added_next">Plays next</string>
+    <string name="added_to_queue">Added to the queue</string>
+    <string name="error_command">The speaker did not respond.</string>
+
+    <string name="queue_title">Queue</string>
+    <plurals name="queue_count">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
+    <string name="queue_not_active">Radio is on. Tap a track to switch back to the queue.</string>
+
+    <string name="sleep_off">Off</string>
+    <string name="sleep_minutes">%1$d min</string>
+    <string name="sleep_title">Stop playing after</string>
+</resources>

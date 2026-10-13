@@ -1,0 +1,152 @@
+package de.linuxundich.hausmusik.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalResources
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.linuxundich.hausmusik.data.Connection
+import de.linuxundich.hausmusik.data.QueueMode
+import de.linuxundich.hausmusik.sonos.DidlObject
+import de.linuxundich.hausmusik.sonos.playsDirectly
+import de.linuxundich.hausmusik.ui.common.PlayDialog
+import de.linuxundich.hausmusik.ui.common.SleepTimerDialog
+import de.linuxundich.hausmusik.ui.library.ContainerScreen
+import de.linuxundich.hausmusik.ui.library.LibraryScreen
+import de.linuxundich.hausmusik.ui.library.LibraryViewModel
+import de.linuxundich.hausmusik.ui.queue.QueueSheet
+import de.linuxundich.hausmusik.ui.rooms.RoomActions
+import de.linuxundich.hausmusik.ui.rooms.RoomsSheet
+import de.linuxundich.hausmusik.ui.setup.ConnectScreen
+import de.linuxundich.hausmusik.ui.stage.StageActions
+import de.linuxundich.hausmusik.ui.stage.StageScreen
+import de.linuxundich.hausmusik.ui.theme.rememberCoverColors
+
+private sealed interface Screen {
+    data object Stage : Screen
+    data object Library : Screen
+    data class Container(val item: DidlObject) : Screen
+}
+
+@Composable
+fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
+    val household by vm.household.collectAsStateWithLifecycle()
+    val library: LibraryViewModel = hiltViewModel()
+    val resources = LocalResources.current
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) { vm.messages.collect { snackbar.showSnackbar(resources.getString(it)) } }
+
+    val selected = household.selected
+    if (selected == null) {
+        ConnectScreen(household.connection, vm::connect, vm::searchAgain)
+        return
+    }
+
+    val stack = remember { mutableStateListOf<Screen>(Screen.Stage) }
+    var roomsOpen by remember { mutableStateOf(false) }
+    var queueOpen by remember { mutableStateOf(false) }
+    var timerOpen by remember { mutableStateOf(false) }
+    var pendingPlay by remember { mutableStateOf<DidlObject?>(null) }
+    BackHandler(stack.size > 1) { stack.removeAt(stack.lastIndex) }
+
+    val colors = rememberCoverColors(selected.artUrl)
+
+    fun requestPlay(item: DidlObject) {
+        if (!item.playsDirectly && selected.queueLength > 0) pendingPlay = item
+        else vm.play(item, QueueMode.ReplaceAndPlay)
+    }
+
+    AnimatedContent(
+        targetState = stack.last(),
+        transitionSpec = {
+            if (targetState is Screen.Stage) fadeIn() togetherWith slideOutVertically { it / 3 } + fadeOut()
+            else slideInVertically { it / 3 } + fadeIn() togetherWith fadeOut()
+        },
+        label = "screen",
+    ) { screen ->
+        when (screen) {
+            Screen.Stage -> StageScreen(
+                selected, colors,
+                StageActions(
+                    onRooms = { roomsOpen = true },
+                    onLibrary = { stack.add(Screen.Library) },
+                    onQueue = { queueOpen = true },
+                    onTimer = { timerOpen = true },
+                    onPlayPause = vm::playPause,
+                    onNext = vm::next,
+                    onPrevious = vm::previous,
+                    onSeek = vm::seek,
+                    onVolume = { vm.setGroupVolume(selected.id, it) },
+                    onShuffle = vm::toggleShuffle,
+                    onRepeat = vm::cycleRepeat,
+                ),
+            )
+            Screen.Library -> LibraryScreen(
+                library, selected, snackbar,
+                onBack = { stack.removeAt(stack.lastIndex) },
+                onOpenContainer = { stack.add(Screen.Container(it)) },
+                onPlay = ::requestPlay,
+                onMiniPlayer = { stack.removeRange(1, stack.size) },
+                onPlayPause = vm::playPause,
+            )
+            is Screen.Container -> ContainerScreen(
+                library, screen.item, selected, snackbar,
+                onBack = { stack.removeAt(stack.lastIndex) },
+                onPlay = ::requestPlay,
+                onMiniPlayer = { stack.removeRange(1, stack.size) },
+                onPlayPause = vm::playPause,
+            )
+        }
+    }
+
+    if (roomsOpen) {
+        RoomsSheet(
+            household, colors,
+            RoomActions(
+                onSelect = { vm.select(it); roomsOpen = false },
+                onPlayPause = vm::playPause,
+                onGroupVolume = vm::setGroupVolume,
+                onMemberVolume = vm::setMemberVolume,
+                onMembership = vm::setMembership,
+                onPauseAll = vm::pauseAll,
+            ),
+            onDismiss = { roomsOpen = false },
+        )
+    }
+    if (queueOpen) {
+        QueueSheet(
+            selected, colors,
+            load = { vm.loadQueue() },
+            artUrl = library::artUrl,
+            onPlayTrack = vm::playQueueTrack,
+            onDismiss = { queueOpen = false },
+        )
+    }
+    if (timerOpen) {
+        SleepTimerDialog(onChoose = { vm.setSleepTimer(it); timerOpen = false }, onDismiss = { timerOpen = false })
+    }
+    pendingPlay?.let { item ->
+        PlayDialog(
+            item.title, selected.group.displayName, selected.queueLength,
+            onChoose = { vm.play(item, it); pendingPlay = null },
+            onDismiss = { pendingPlay = null },
+        )
+    }
+    if (household.connection is Connection.NotFound) {
+        // Lost the household while running: fall back to the connect screen.
+        ConnectScreen(household.connection, vm::connect, vm::searchAgain)
+    }
+}

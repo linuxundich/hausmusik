@@ -1,0 +1,108 @@
+package de.linuxundich.hausmusik.ui.setup
+
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.data.Connection
+import de.linuxundich.hausmusik.ui.theme.AppIcons
+
+@Composable
+private fun Centered(content: @Composable () -> Unit) {
+    Surface(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.fillMaxSize().safeDrawingPadding().padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Column(Modifier.widthIn(max = 420.dp), horizontalAlignment = Alignment.CenterHorizontally) { content() }
+        }
+    }
+}
+
+/** Shown before the local network permission is granted (Android 17+). */
+@Composable
+fun PermissionScreen(denied: Boolean, onRequest: () -> Unit) = Centered {
+    val context = LocalContext.current
+    Icon(AppIcons.Speaker, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
+    Spacer(Modifier.height(16.dp))
+    Text(stringResource(R.string.permission_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+    Spacer(Modifier.height(12.dp))
+    Text(stringResource(if (denied) R.string.permission_denied else R.string.permission_body), textAlign = TextAlign.Center)
+    Spacer(Modifier.height(24.dp))
+    Button(onClick = onRequest) { Text(stringResource(R.string.permission_allow)) }
+    if (denied) {
+        OutlinedButton(onClick = {
+            context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+        }) { Text(stringResource(R.string.permission_open_settings)) }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ConnectScreen(connection: Connection, onConnect: (String) -> Unit, onSearchAgain: () -> Unit) = Centered {
+    if (connection !is Connection.NotFound) {
+        LoadingIndicator(Modifier.size(72.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.setup_searching), style = MaterialTheme.typography.titleMedium)
+        return@Centered
+    }
+    var host by rememberSaveable { mutableStateOf(connection.manualHost.orEmpty()) }
+    Icon(AppIcons.Speaker, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
+    Spacer(Modifier.height(16.dp))
+    Text(stringResource(R.string.setup_not_found_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+    Spacer(Modifier.height(12.dp))
+    Text(stringResource(R.string.setup_not_found_body), textAlign = TextAlign.Center)
+    connection.manualHost?.let {
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.setup_tried_host, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    }
+    Spacer(Modifier.height(24.dp))
+    OutlinedTextField(
+        value = host,
+        onValueChange = { host = it },
+        label = { Text(stringResource(R.string.setup_host_label)) },
+        placeholder = { Text(stringResource(R.string.setup_host_hint)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+        keyboardActions = KeyboardActions(onGo = { onConnect(host) }),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.height(12.dp))
+    Button(onClick = { onConnect(host) }, enabled = host.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.setup_connect)) }
+    OutlinedButton(onClick = onSearchAgain, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.setup_search_again)) }
+}
