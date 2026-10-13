@@ -8,6 +8,13 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Music video: *Music video* in the stage menu looks up the song's official
+  YouTube video on Wikidata and opens it in the YouTube app at the point the
+  speakers play (two seconds ahead while they keep playing). The speakers can
+  keep playing or pause first; the settings say which, or ask each time.
+  Without a known video, a YouTube search. Off until switched on; nothing of
+  YouTube shows inside Hausmusik (YouTube's terms forbid separating sound
+  and picture or hiding ads, so there is no in-app player).
 - Library menu: a long press on an entry offers details, adding it to the
   Sonos favorites or removing it, and adding it to a Sonos playlist (an
   existing one or a new one). Sonos playlists can be renamed and deleted, and

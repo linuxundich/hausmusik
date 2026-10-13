@@ -662,7 +662,7 @@ class Handler(BaseHTTPRequestHandler):
                 LINKS[code] = True
                 return self.send(200, "<html><body><h1>Linked</h1><p>Fake bonob: you can go back to the app.</p></body></html>", "text/html")
             return self.send(404, "unknown link code", "text/plain")
-        if self.path.startswith(("/ws/2/", "/w/api.php", "/wiki/", "/coverart/")):
+        if self.path.startswith(("/ws/2/", "/w/api.php", "/wiki/", "/coverart/", "/sparql")):
             return self.details()
         if self.path.startswith("/getaa"):
             m = re.search(r"u=([a-z]+\d+)", self.path)
@@ -728,6 +728,12 @@ class Handler(BaseHTTPRequestHandler):
                 image = None
             return js({"type": "standard", "extract": text, "content_urls": {"desktop": {"page": f"https://example.invalid/wiki/{urllib.parse.quote(title)}"}},
                        **({"thumbnail": {"source": image}} if image else {})})
+        if path == "/sparql":
+            # Music videos: invented songs get a placeholder ID ("Me at the zoo", public), so opening can be
+            # tested; Tina Tux never has one ("not found"). Real artists get nothing.
+            qs = q.get("query", [""])[0]
+            hit = any(f'"{t["title"]}"@en' in qs and f'"{t["artist"]}"@en' in qs for t in TRACKS if t["artist"] in artists and t["artist"] != "Tina Tux")
+            return js({"results": {"bindings": [{"yt": {"type": "literal", "value": "jNQXAC9IVRw"}}] if hit else []}})
         if path.startswith("/coverart/fake-album-"):
             data = cover(f"album{int(path.rsplit('-', 1)[1])}")
             return self.send(200, data, "image/png") if data else self.send(404, "")

@@ -44,6 +44,7 @@ import de.linuxundich.hausmusik.R
 data class SettingsState(val manualHost: String?, val connectedTo: String?, val lyricsEnabled: Boolean, val artistImagesEnabled: Boolean = false, val detailsEnabled: Boolean = false, val detailsWikipedia: Boolean = true,
     /** Visible rooms (UUID to name) and those "Everywhere" leaves out. */
     val rooms: List<Pair<String, String>> = emptyList(), val everywhereExcluded: Set<String> = emptySet(),
+    val musicVideos: Boolean = false, val videoMode: de.linuxundich.hausmusik.data.VideoMode = de.linuxundich.hausmusik.data.VideoMode.Ask,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +57,8 @@ fun SettingsScreen(
     onDetails: (Boolean) -> Unit = {},
     onDetailsWikipedia: (Boolean) -> Unit = {},
     onEverywhereExcluded: (Set<String>) -> Unit = {},
+    onMusicVideos: (Boolean) -> Unit = {},
+    onVideoMode: (de.linuxundich.hausmusik.data.VideoMode) -> Unit = {},
     onLicenses: () -> Unit,
     onClearCache: () -> Unit,
     onBack: () -> Unit,
@@ -134,6 +137,23 @@ fun SettingsScreen(
                 Switch(checked = state.detailsWikipedia, onCheckedChange = onDetailsWikipedia, enabled = state.detailsEnabled)
             }
             Text(stringResource(R.string.details_consent_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.music_video_setting), Modifier.weight(1f))
+                Switch(checked = state.musicVideos, onCheckedChange = onMusicVideos)
+            }
+            Text(stringResource(R.string.music_video_setting_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (state.musicVideos) {
+                Text(stringResource(R.string.music_video_mode), style = MaterialTheme.typography.bodyMedium)
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        de.linuxundich.hausmusik.data.VideoMode.KeepPlaying to R.string.music_video_mode_keep,
+                        de.linuxundich.hausmusik.data.VideoMode.Pause to R.string.music_video_mode_pause,
+                        de.linuxundich.hausmusik.data.VideoMode.Ask to R.string.music_video_mode_ask,
+                    ).forEach { (m, label) ->
+                        androidx.compose.material3.FilterChip(selected = state.videoMode == m, onClick = { onVideoMode(m) }, label = { Text(stringResource(label)) })
+                    }
+                }
+            }
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.settings_about), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)

@@ -40,7 +40,9 @@ who is real). Point a debug build at it, and switch details on in the app:
 adb shell am start -n de.linuxundich.hausmusik.debug/de.linuxundich.hausmusik.MainActivity -e details 10.0.2.2:1401
 ```
 
-`--es details ''` goes back to the real services.
+`--es details ''` goes back to the real services. The same extra serves the
+music video lookup (`/sparql`): invented songs get a placeholder video ID
+("Me at the zoo"), Tina Tux never has one.
 
 ## Commands from outside
 

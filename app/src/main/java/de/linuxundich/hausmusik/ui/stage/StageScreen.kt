@@ -96,6 +96,8 @@ data class StageActions(
     val onDetails: () -> Unit = {},
     /** Crossfade between tracks, a switch in the menu. */
     val crossfadeOn: Boolean = false,
+    /** The song's music video in the YouTube app. */
+    val onMusicVideo: () -> Unit = {},
     val onCrossfade: () -> Unit = {},
     /** "23 min" while a sleep timer runs. */
     val timerLabel: String? = null,
@@ -282,6 +284,7 @@ private fun StageMenu(colors: CoverColors, actions: StageActions) {
                 if (actions.crossfadeOn) Icons.Filled.Check else AppIcons.Crossfade,
                 stringResource(if (actions.crossfadeOn) R.string.crossfade_on else R.string.crossfade),
             ) { open = false; actions.onCrossfade() }
+            Item(AppIcons.Video, stringResource(R.string.music_video)) { open = false; actions.onMusicVideo() }
             Item(AppIcons.Info, stringResource(R.string.details)) { open = false; actions.onDetails() }
             Item(AppIcons.Alarm, stringResource(R.string.alarms)) { open = false; actions.onAlarms() }
             Item(AppIcons.Tune, stringResource(R.string.sound)) { open = false; actions.onSound() }

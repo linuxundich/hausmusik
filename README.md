@@ -24,6 +24,7 @@
 - **Line-in.** A speaker's analog input (a record player on a Connect:Amp) shows under Radio and plays in any room.
 - **Everywhere.** One tap lets every room play along, except those you keep out in the settings. Crossfade is a switch in the stage menu.
 - **Shortcuts, widgets, automation.** Long press the app icon for "pause everywhere" and favorites; a small widget plays or pauses one room or starts a favorite there; Tasker and Home Assistant can send the same commands as intents (see [docs/development.md](docs/development.md#commands-from-outside)).
+- **Music video.** For many songs Wikidata knows the official YouTube video; Hausmusik opens it in the YouTube app at the point the speakers play (no ads with YouTube Premium). Otherwise a YouTube search. Off until you switch it on.
 - **Lyrics.** Time-synced lyrics from LRCLIB fill the cover area; tap a line to jump there. Off until you switch them on.
 - **Alarms and sound.** Create and edit Sonos alarms, set bass, treble and loudness for every speaker, and a sleep timer that shows how long is left.
 - **No surprises.** Before anything replaces a queue that is not empty, Hausmusik asks: play now, play next or add to the queue.
@@ -36,7 +37,7 @@ What is planned next is in [BACKLOG.md](BACKLOG.md).
 
 1. Hausmusik finds your speakers with an SSDP search in your Wi-Fi network, or you enter the address of one speaker.
 2. It controls them with the same local UPnP interface the original Sonos apps used, on port 1400.
-3. Nothing leaves your home network unless you ask for it: lyrics from LRCLIB, artist pictures from Deezer and artist and album details from MusicBrainz and Wikipedia are off until you switch them on, and a music service you link is asked for its catalogue.
+3. Nothing leaves your home network unless you ask for it: lyrics from LRCLIB, artist pictures from Deezer and artist and album details from MusicBrainz and Wikipedia and music videos through Wikidata are off until you switch them on, and a music service you link is asked for its catalogue.
 
 The Sonos implementation is based on [noson](https://github.com/janbar/noson) by Jean-Luc Barrière, the library behind [noson-app](https://github.com/janbar/noson-app) and behind [Gnomos](https://github.com/linuxundich/gnomos), Hausmusik's sibling for the GNOME desktop.
 

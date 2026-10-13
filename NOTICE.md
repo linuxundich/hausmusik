@@ -83,6 +83,11 @@ switches them on. Artist pictures come with the Wikipedia page from
 [Cover Art Archive](https://coverartarchive.org); they belong to their
 respective rights holders. Hausmusik is not affiliated with these projects.
 
+Music videos: Hausmusik looks up a song's official YouTube video ID on
+[Wikidata](https://www.wikidata.org) (CC0) and opens it in the YouTube app or
+the browser. It shows no YouTube content itself. YouTube is a trademark of
+Google LLC; Hausmusik is not affiliated with Google.
+
 ## Test data
 
 - `sonos/src/test/resources/fixtures/` holds responses recorded from the

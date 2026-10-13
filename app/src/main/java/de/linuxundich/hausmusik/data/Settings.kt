@@ -61,6 +61,16 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
     suspend fun setDetailsEnabled(on: Boolean) = store.edit { it[detailsKey] = on }
     suspend fun setDetailsWikipediaEnabled(on: Boolean) = store.edit { it[detailsWikipediaKey] = on }
 
+    private val videosKey = booleanPreferencesKey("music_videos_enabled")
+    private val videoModeKey = stringPreferencesKey("music_video_mode")
+
+    /** Music videos through Wikidata and the YouTube app; off until the user agrees (titles go to wikidata.org). */
+    val musicVideosEnabled: Flow<Boolean> = store.data.map { it[videosKey] ?: false }
+    val musicVideoMode: Flow<VideoMode> = store.data.map { p -> VideoMode.entries.firstOrNull { it.name == p[videoModeKey] } ?: VideoMode.Ask }
+
+    suspend fun setMusicVideosEnabled(on: Boolean) = store.edit { it[videosKey] = on }
+    suspend fun setMusicVideoMode(mode: VideoMode) = store.edit { it[videoModeKey] = mode.name }
+
     private val everywhereKey = androidx.datastore.preferences.core.stringSetPreferencesKey("everywhere_excluded")
 
     /** Rooms (player UUIDs) that "Everywhere" in the rooms sheet leaves out. */

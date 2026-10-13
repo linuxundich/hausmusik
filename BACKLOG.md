@@ -64,6 +64,9 @@ Completed items stay checked.
 - [ ] **P3** Play files from the phone (own HTTP server)
 - [ ] **P3** Announcements: a sound in chosen rooms, then back to what played
 
+- [x] **P2** Music video: open the official video in the YouTube app at the current point (Wikidata P1651)
+- [ ] **P3** Music video: check the start point on the real phone (the emulator's ad never finished)
+
 ## Phase 3: Rooms and everyday use
 
 - [x] **P0** Group by checkbox, sleep timer

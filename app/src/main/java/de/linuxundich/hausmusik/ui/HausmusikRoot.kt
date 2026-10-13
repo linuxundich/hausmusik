@@ -67,6 +67,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import de.linuxundich.hausmusik.ui.details.DetailsTarget
 import de.linuxundich.hausmusik.ui.details.LocalItemDetails
 import de.linuxundich.hausmusik.ui.stage.StageActions
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -107,6 +108,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     val library: LibraryViewModel = hiltViewModel()
     val resources = LocalResources.current
     val snackbar = remember { SnackbarHostState() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     LaunchedEffect(Unit) { vm.messages.collect { snackbar.showSnackbar(resources.getString(it)) } }
 
     val selected = household.selected
@@ -130,6 +132,9 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var volumeOpen by rememberSaveable { mutableStateOf(false) }
     var showLyrics by rememberSaveable { mutableStateOf(false) }
     var details by rememberSaveable(saver = detailsSaver) { mutableStateOf<DetailsTarget?>(null) }
+    var videoOpen by rememberSaveable { mutableStateOf(false) }
+    val videosOn by vm.musicVideosEnabled.collectAsStateWithLifecycle()
+    val videoMode by vm.musicVideoMode.collectAsStateWithLifecycle()
     var lyricsConsent by rememberSaveable { mutableStateOf(false) }
     val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
     val detailsOn by vm.detailsEnabled.collectAsStateWithLifecycle()
@@ -187,6 +192,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                     onSettings = { stack.add(Screen.Settings) },
                     onDetails = { now?.let { details = DetailsTarget.of(it) } },
                     crossfadeOn = selected.crossfade,
+                    onMusicVideo = { videoOpen = true },
                     onCrossfade = { vm.setCrossfade(!selected.crossfade) },
                     onLyrics = { if (lyricsEnabled) showLyrics = !showLyrics else lyricsConsent = true },
                     timerLabel = selected.sleepRemainingMs?.let { ms ->
@@ -209,6 +215,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 SettingsState(
                     manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn, detailsOn, detailsWikipedia,
                     rooms = household.allPlayers.filter { !it.isInvisible }.map { it.uuid to it.roomName }, everywhereExcluded = everywhereExcluded,
+                    musicVideos = videosOn, videoMode = videoMode,
                 ),
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
@@ -216,6 +223,8 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onDetails = vm::setDetailsEnabled,
                 onDetailsWikipedia = vm::setDetailsWikipedia,
                 onEverywhereExcluded = vm::setEverywhereExcluded,
+                onMusicVideos = vm::setMusicVideosEnabled,
+                onVideoMode = vm::setMusicVideoMode,
                 onLicenses = { stack.add(Screen.Licenses) },
                 onClearCache = vm::clearListCache,
                 onBack = { stack.removeAt(stack.lastIndex) },
@@ -283,6 +292,37 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                     onEnable = { vm.setDetailsEnabled(true) },
                 ),
                 onDismiss = { details = null },
+            )
+        }
+    }
+    if (videoOpen) {
+        val playing = selected.nowPlaying
+        if (playing == null) {
+            videoOpen = false
+        } else {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            fun open(url: String) {
+                runCatching {
+                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                }.onFailure { scope.launch { snackbar.showSnackbar(resources.getString(R.string.music_video_no_app)) } }
+            }
+            de.linuxundich.hausmusik.ui.stage.MusicVideoSheet(
+                playing, videosOn, videoMode, colors,
+                de.linuxundich.hausmusik.ui.stage.MusicVideoActions(
+                    find = { title, artist -> vm.findVideo(title, artist) },
+                    onEnable = { vm.setMusicVideosEnabled(true) },
+                    position = vm::livePositionMs,
+                    openVideo = { id, start, pause ->
+                        if (pause) vm.pauseSelected()
+                        open(de.linuxundich.hausmusik.data.MusicVideos.watchUrl(id, start))
+                        videoOpen = false
+                    },
+                    search = {
+                        open(de.linuxundich.hausmusik.data.MusicVideos.searchUrl(playing.title, playing.artist))
+                        videoOpen = false
+                    },
+                ),
+                onDismiss = { videoOpen = false },
             )
         }
     }

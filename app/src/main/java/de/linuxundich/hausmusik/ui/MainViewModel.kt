@@ -37,6 +37,7 @@ class MainViewModel @Inject constructor(
     private val settings: Settings,
     private val lyricsRepo: LyricsRepository,
     private val detailsRepo: DetailsRepository,
+    private val videos: de.linuxundich.hausmusik.data.MusicVideos,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
 
@@ -60,6 +61,23 @@ class MainViewModel @Inject constructor(
     val detailsWikipedia: StateFlow<Boolean> = settings.detailsWikipediaEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     fun setDetailsEnabled(on: Boolean) = viewModelScope.launch { settings.setDetailsEnabled(on) }
     fun setDetailsWikipedia(on: Boolean) = viewModelScope.launch { settings.setDetailsWikipediaEnabled(on) }
+    val musicVideosEnabled: StateFlow<Boolean> = settings.musicVideosEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val musicVideoMode: StateFlow<de.linuxundich.hausmusik.data.VideoMode> =
+        settings.musicVideoMode.stateIn(viewModelScope, SharingStarted.Eagerly, de.linuxundich.hausmusik.data.VideoMode.Ask)
+    fun setMusicVideosEnabled(on: Boolean) = viewModelScope.launch { settings.setMusicVideosEnabled(on) }
+    fun setMusicVideoMode(mode: de.linuxundich.hausmusik.data.VideoMode) = viewModelScope.launch { settings.setMusicVideoMode(mode) }
+    suspend fun findVideo(title: String, artist: String?) = videos.find(title, artist)
+
+    /** Where the selected room's track is right now, counting on since the speakers were last asked. */
+    fun livePositionMs(): Long {
+        val g = household.value.selected ?: return 0
+        val base = g.nowPlaying?.positionMs ?: 0
+        val elapsed = if (g.isPlaying && g.positionReadAt > 0) (System.currentTimeMillis() - g.positionReadAt).coerceAtLeast(0) else 0
+        return base + elapsed
+    }
+
+    fun pauseSelected() = run { repo.command(BusyKind.PlayPause) { it.pause() } }
+
     fun setCrossfade(on: Boolean) = viewModelScope.launch { repo.setCrossfade(on) }
 
     fun joinEverywhere() = viewModelScope.launch {
@@ -84,6 +102,7 @@ class MainViewModel @Inject constructor(
     fun clearListCache() = viewModelScope.launch {
         repo.clearListCache()
         detailsRepo.clear()
+        videos.clear()
         _messages.send(R.string.cache_cleared)
     }
 
