@@ -8,6 +8,13 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Tested on the real first-generation (S1) household, all speakers muted and
+  everything restored afterwards: play and pause, events from the speakers
+  (about 2 s), volume buttons in the app and with the screen off (S1 scales
+  the group proportionally), next and previous, leaving and joining the group
+  by checkbox and by dragging a tile, sleep timer, creating and deleting an
+  alarm, media output chip. No errors found.
+- The empty alarm list text is centered.
 - Landscape reviewed screen by screen and reworked:
   - Sheets get wider and lose the drag handle; the rooms sheet shows tiles and
     "plays with" side by side, the sound sheet two speakers per row.

@@ -57,6 +57,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalConfiguration
@@ -147,7 +149,10 @@ fun AlarmsScreen(vm: AlarmsViewModel, onBack: () -> Unit) {
                     Button(onClick = vm::load, modifier = Modifier.padding(top = 12.dp)) { Text(stringResource(R.string.retry)) }
                 }
                 is AlarmsState.Loaded -> if (s.alarms.isEmpty()) {
-                    Text(stringResource(R.string.alarms_empty), Modifier.align(Alignment.Center).padding(32.dp))
+                    Text(
+                        stringResource(R.string.alarms_empty), Modifier.align(Alignment.Center).widthIn(max = 480.dp).padding(32.dp),
+                        textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 } else LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 340.dp),
                     contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, if (wide) 16.dp else 96.dp),
