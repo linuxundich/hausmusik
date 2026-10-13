@@ -241,8 +241,12 @@ def act(p, service, action, a):
                 f'<Policy Auth="AppLink" PollInterval="2"/><Presentation><PresentationMap Version="1" Uri="{base}/presentationMap.xml"/></Presentation></Service>'
                 '<Service Id="9" Name="Spotify" Version="1.1" Uri="https://spotify.invalid/smapi" SecureUri="https://spotify.invalid/smapi" ContainerType="MService" Capabilities="1">'
                 '<Policy Auth="AppLink" PollInterval="60"/></Service>'
-                '<Service Id="254" Name="TuneIn" Version="1.1" Uri="https://tunein.invalid/smapi" ContainerType="MService" Capabilities="0">'
-                '<Policy Auth="Anonymous" PollInterval="0"/></Service>')
+                f'<Service Id="254" Name="TuneIn" Version="1.1" Uri="{base}/tunein" ContainerType="MService" Capabilities="0">'
+                '<Policy Auth="Anonymous" PollInterval="0"/></Service>'
+                '<Service Id="2" Name="Deezer" Version="1.1" Uri="https://deezer.invalid/smapi" SecureUri="https://deezer.invalid/smapi" ContainerType="MService" Capabilities="1">'
+                '<Policy Auth="DeviceLink" PollInterval="30"/></Service>'
+                '<Service Id="1559" Name="Tunebob" Version="1.1" Uri="https://tunebob.invalid/smapi" ContainerType="MService" Capabilities="1">'
+                '<Policy Auth="AppLink" PollInterval="30"/></Service>')
         return {"AvailableServiceDescriptorList": f"<Services>{rows}</Services>", "AvailableServiceTypeList": "62983,2311", "AvailableServiceListVersion": "RINCON_FAKE:1"}
     if action == "GetHouseholdID":
         return {"CurrentHouseholdID": "Sonos_FakeHouseholdForTests0001"}
@@ -510,6 +514,15 @@ def smapi_item(kind, i):
             f"<albumArtURI>http://{ADVERTISE}:{ARGS.port_base}/getaa?u={t['art']}</albumArtURI></trackMetadata></mediaMetadata>")
 
 
+def tunein(action, a):
+    """A tiny TuneIn without sign-in: two stations at the top level."""
+    if action != "getMetadata":
+        raise Fault("Client.UnsupportedOperation")
+    rows = [f"<mediaMetadata><id>s{1000 + i}</id><itemType>stream</itemType><title>{html.escape(name)}</title><mimeType>audio/mpeg</mimeType>"
+            "<streamMetadata><logo/></streamMetadata></mediaMetadata>" for i, (name, _, _) in enumerate(RADIO)]
+    return f"<getMetadataResult><index>0</index><count>{len(rows)}</count><total>{len(rows)}</total>{''.join(rows)}</getMetadataResult>"
+
+
 def smapi(action, a, token):
     """A tiny bonob: AppLink, getMetadata and search over the invented albums."""
     if action == "getAppLink":
@@ -627,7 +640,10 @@ class Handler(BaseHTTPRequestHandler):
             env = '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>{}</soap:Body></soap:Envelope>'
             try:
                 with lock:
-                    out = smapi(action, args, html.unescape(token.group(1)) if token else None)
+                    if self.path.startswith("/smapi/tunein"):
+                        out = tunein(action, args)
+                    else:
+                        out = smapi(action, args, html.unescape(token.group(1)) if token else None)
             except Fault as f:
                 return self.send(500, env.format(f"<soap:Fault><faultcode>soap:{f.code}</faultcode><faultstring>{f.code}</faultstring></soap:Fault>"))
             return self.send(200, env.format(f'<{action}Response xmlns="http://www.sonos.com/Services/1.1">{out}</{action}Response>'))

@@ -307,7 +307,7 @@ class FakeHouseholdTest {
     fun `bonob links, browses, searches and queues an album`() = runBlocking {
         val services = wohnzimmer.musicServices()
         val bonob = services.single { it.name == "bonob" }
-        assertEquals(listOf("bonob", "Spotify"), services.filter { it.linkable }.map { it.name })
+        assertEquals(listOf("bonob", "Spotify", "Deezer", "Tunebob"), services.filter { it.linkable }.map { it.name })
         val http = OkHttpClient()
         val smapi = SmapiClient(http, bonob, SmapiCredentials(wohnzimmer.serialNumber(), wohnzimmer.householdId()))
 
@@ -336,5 +336,18 @@ class FakeHouseholdTest {
         c.addToQueue(album.uri!!, album.resMd!!)
         c.addToQueue(track.uri!!, track.resMd!!)
         assertEquals(6, c.browseAll("Q:0").size)
+    }
+
+    @Test
+    fun `TuneIn browses without sign-in and its stations play directly`() = runBlocking {
+        val tunein = wohnzimmer.musicServices().single { it.name == "TuneIn" }
+        assertTrue(tunein.anonymous)
+        val smapi = SmapiClient(OkHttpClient(), tunein, SmapiCredentials(wohnzimmer.serialNumber(), wohnzimmer.householdId()))
+        val stations = smapi.metadata("root").items
+        assertEquals(listOf("Radio Tuxfunk", "Kernel FM"), stations.map { it.title })
+        val d = SmapiClient.toDidl(tunein, "0", stations[0], "svc")
+        assertEquals("x-sonosapi-stream:s1000?sid=254&flags=8224&sn=0", d.uri)
+        assertTrue(d.playsDirectly)
+        assertTrue(d.resMd!!.contains("F00092020s1000"))
     }
 }

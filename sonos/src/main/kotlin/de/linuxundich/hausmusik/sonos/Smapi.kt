@@ -31,6 +31,9 @@ data class MusicService(
     /** The account type Sonos uses in descriptors and favorites. */
     val type: Int get() = id * 256 + 7
 
+    /** Services that need no account at all, like TuneIn. */
+    val anonymous: Boolean get() = auth == "Anonymous"
+
     /** Services Hausmusik can link itself, through a page in the browser. */
     val linkable: Boolean get() = auth == "AppLink" || auth == "DeviceLink"
 
@@ -285,7 +288,11 @@ class SmapiClient(
          */
         fun toDidl(service: MusicService, sn: String, item: SmapiItem, navId: String): DidlObject {
             val enc = escapeId(item.id)
+            // TuneIn's items carry an F prefix, as libnoson writes them.
+            val tunein = service.id == 254
             val (didlId, uri, upnpClass) = when {
+                tunein && item.itemType == "stream" -> Triple("F00092020$enc", "x-sonosapi-stream:$enc?sid=${service.id}&flags=8224&sn=$sn",
+                    "object.item.audioItem.audioBroadcast")
                 item.itemType == "track" -> Triple("10032020$enc",
                     "x-sonos-http:$enc${extension(item.mimeType)}?sid=${service.id}&flags=8224&sn=$sn", "object.item.audioItem.musicTrack")
                 item.itemType == "stream" -> Triple("10092020$enc", "x-sonosapi-stream:$enc?sid=${service.id}&flags=8224&sn=$sn",

@@ -75,31 +75,35 @@ class MusicServices @Inject constructor(
         catalogue ?: coordinator().musicServices().also { catalogue = it }
 
     /**
-     * The overview: linked services, then those the household already uses
-     * (seen in its favorites) and Hausmusik can link, then one entry for the
-     * long rest.
+     * The overview: linked services and those that need no sign-in, then the
+     * well-known ones and those the household already uses that can be
+     * linked, then one entry for the long rest.
      */
     suspend fun overview(): List<DidlObject> {
         val (household, _) = identity()
         val all = available()
         val linked = accounts.forHousehold(household).first().map { it.serviceId }.toSet()
-        val used = usedServiceIds()
-        val mine = all.filter { it.id in linked }.map { s ->
-            DidlObject(id = ServiceIds.of(s.id, "root"), parentId = ServiceIds.OVERVIEW, isContainer = true,
-                title = s.displayName, upnpClass = "object.container")
-        }
-        val suggested = all.filter { it.linkable && it.id !in linked && it.id in used }.sortedBy { it.name.lowercase() }.map(::linkEntry)
+        val top = POPULAR + usedServiceIds()
+        val ready = all.filter { it.id in linked || it.id in top && it.anonymous }.sortedBy { it.name.lowercase() }.map(::openEntry)
+        val suggested = all.filter { it.linkable && it.id !in linked && it.id in top }.sortedBy { it.name.lowercase() }.map(::linkEntry)
         val rest = DidlObject(id = ServiceIds.MORE, parentId = ServiceIds.OVERVIEW, isContainer = true,
             title = context.getString(de.linuxundich.hausmusik.R.string.services_more), upnpClass = "object.container")
-        return mine + suggested + rest
+        return ready + suggested + rest
     }
 
-    /** Every linkable service not linked yet, A to Z. */
+    /** Every other service, A to Z: those without sign-in open, the rest to link. */
     suspend fun more(): List<DidlObject> {
         val (household, _) = identity()
         val linked = accounts.forHousehold(household).first().map { it.serviceId }.toSet()
-        return available().filter { it.linkable && it.id !in linked }.sortedBy { it.name.lowercase() }.map(::linkEntry)
+        val top = POPULAR + usedServiceIds()
+        return available()
+            .filter { it.id !in linked && !(it.anonymous && it.id in top) && (it.linkable || it.anonymous) }
+            .sortedBy { it.name.lowercase() }
+            .map { if (it.anonymous) openEntry(it) else linkEntry(it) }
     }
+
+    private fun openEntry(s: MusicService) = DidlObject(id = ServiceIds.of(s.id, "root"), parentId = ServiceIds.OVERVIEW,
+        isContainer = true, title = s.displayName, upnpClass = "object.container")
 
     private fun linkEntry(s: MusicService) = DidlObject(id = "link:${s.id}", parentId = ServiceIds.OVERVIEW, isContainer = false,
         title = s.displayName, upnpClass = ServiceIds.LINK_CLASS,
@@ -116,8 +120,9 @@ class MusicServices @Inject constructor(
 
     private suspend fun client(serviceId: Int): SmapiClient {
         clients[serviceId]?.let { return it }
-        val (household, _) = identity()
+        val (household, device) = identity()
         val service = available().firstOrNull { it.id == serviceId } ?: throw IOException("service $serviceId unknown")
+        if (service.anonymous) return SmapiClient(http, service, SmapiCredentials(device, household)).also { clients[serviceId] = it }
         val account = accounts.get(household, serviceId) ?: throw IOException("${service.name} not linked")
         return SmapiClient(http, service, SmapiCredentials(account.deviceId, household, account.token, account.key)) { fresh ->
             accounts.put(account.copy(token = fresh.token.orEmpty(), key = fresh.key))
@@ -207,6 +212,27 @@ class MusicServices @Inject constructor(
         household = null; deviceId = null; catalogue = null; clients.clear()
     }
 }
+
+/**
+ * Services shown at the top of the overview, besides those the household
+ * already uses: the ones people in Germany, Austria and Switzerland know
+ * (Christoph's choice, 2026-10-13). By Sonos service ID, which stays fixed.
+ */
+private val POPULAR = setOf(
+    9, // Spotify
+    2, // Deezer
+    174, // TIDAL
+    201, // Amazon Music
+    204, // Apple Music
+    284, // YouTube Music
+    31, // Qobuz
+    239, // Audible
+    226, // Storytel
+    212, // Plex
+    157, // Bandcamp
+    271, // IDAGIO
+    254, // TuneIn
+)
 
 /** bonob calls itself "bonob"; lists look better with a capital. */
 val MusicService.displayName: String get() = name.replaceFirstChar { it.uppercase() }

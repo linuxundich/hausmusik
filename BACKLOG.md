@@ -47,6 +47,7 @@ Completed items stay checked.
 - [ ] **P1** bonob on the real household: link once (needs Christoph's Navidrome sign-in), browse, play one track
 - [ ] **P1** Search inside a linked service (client has `search`, the library search does not use it yet)
 - [ ] **P1** Spotify through SMAPI: link and browse; check whether Sonos still accepts third-party tokens
+- [ ] **P1** TuneIn on the real household: browse and play a station (fake tested)
 - [ ] **P2** Services with UserId sign-in (user name and password form)
 
 ## Phase 3: Rooms and everyday use

@@ -30,10 +30,13 @@ All notable changes to Hausmusik are documented here. The format follows
   Artists" get no picture. Shown in the artist list, in search results and on
   the artist page.
 - Music services through SMAPI, the API Sonos defines for them. A new
-  *Services* tab lists the linked services, then the linkable ones the
-  household already uses (found in its favorites), and every other AppLink
-  or DeviceLink service under *More services* (the S1 household offers more
-  than 90). Linking opens the
+  *Services* tab lists the linked services and the well-known ones in
+  Germany, Austria and Switzerland (Spotify, Deezer, TIDAL, Amazon Music,
+  Apple Music, YouTube Music, Qobuz, Audible, Storytel, Plex, Bandcamp,
+  IDAGIO, TuneIn) plus those the household already uses (found in its
+  favorites, e.g. bonob); every other service is under *More services* (the
+  S1 household offers 96). Services without sign-in, such as TuneIn and many
+  radio stations, open directly; their stations play without the queue. Linking opens the
   service's sign-in page in the browser and waits for the confirmation; the
   token is stored per household and renewed when the service hands out a new
   one. Folders, albums and tracks open like the local library; albums,
