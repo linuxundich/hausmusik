@@ -101,6 +101,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var showLyrics by remember { mutableStateOf(false) }
     var lyricsConsent by remember { mutableStateOf(false) }
     val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
+    val artistImagesOn by vm.artistImagesEnabled.collectAsStateWithLifecycle()
     val now = selected.nowPlaying
     val lyricsKey = now?.let { listOf(it.title, it.artist, it.album, it.durationMs) }
     val lyrics by produceState<LyricsUi?>(null, showLyrics, lyricsEnabled, lyricsKey) {
@@ -164,9 +165,10 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             )
             Screen.Alarms -> AlarmsScreen(hiltViewModel(), onBack = { stack.removeAt(stack.lastIndex) })
             Screen.Settings -> SettingsScreen(
-                SettingsState(manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled),
+                SettingsState(manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn),
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
+                onArtistImages = vm::setArtistImagesEnabled,
                 onLicenses = { stack.add(Screen.Licenses) },
                 onClearCache = vm::clearListCache,
                 onBack = { stack.removeAt(stack.lastIndex) },

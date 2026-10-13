@@ -148,4 +148,9 @@
     <string name="cache_body">Interpreten, Alben, Favoriten und Playlists liegen auf diesem Handy und werden nur neu geladen, wenn Sonos eine Änderung meldet.</string>
     <string name="cache_clear">Gespeicherte Listen löschen</string>
     <string name="cache_cleared">Gespeicherte Listen gelöscht</string>
+    <string name="artist_images_title">Künstlerbilder zeigen?</string>
+    <string name="artist_images_body">Die Bilder kommen von Deezer. Dafür gehen die Namen der Interpreten, die du ansiehst, an api.deezer.com; die Bilder bleiben auf diesem Handy gespeichert.</string>
+    <string name="artist_images_yes">Bilder zeigen</string>
+    <string name="artist_images_no">Nein, danke</string>
+    <string name="artist_images_setting">Künstlerbilder von Deezer</string>
 </resources>

@@ -150,4 +150,9 @@
     <string name="cache_body">Artists, albums, favorites and playlists are kept on this phone and only loaded again when Sonos reports a change.</string>
     <string name="cache_clear">Delete stored lists</string>
     <string name="cache_cleared">Stored lists deleted</string>
+    <string name="artist_images_title">Show artist pictures?</string>
+    <string name="artist_images_body">Pictures come from Deezer. For that, the names of the artists you look at are sent to api.deezer.com; the pictures are kept on this phone.</string>
+    <string name="artist_images_yes">Show pictures</string>
+    <string name="artist_images_no">No, thanks</string>
+    <string name="artist_images_setting">Artist pictures from Deezer</string>
 </resources>

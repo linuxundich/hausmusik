@@ -67,6 +67,10 @@ app.
 Lyrics come from [LRCLIB](https://lrclib.net), only after the user switches
 them on. The lyrics belong to their respective rights holders.
 
+Artist pictures come from the public [Deezer API](https://developers.deezer.com),
+only after the user switches them on. Hausmusik is not affiliated with Deezer;
+the pictures belong to their respective rights holders.
+
 ## Test data
 
 - `sonos/src/test/resources/fixtures/` holds responses recorded from the

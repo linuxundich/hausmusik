@@ -62,6 +62,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -91,6 +92,17 @@ private fun LibraryTab.label() = when (this) {
 }
 
 /** Library: favorites, albums of the music share, radio, Sonos playlists. */
+/** Lets list rows ask for an artist picture without threading the ViewModel through every call. */
+val LocalArtistImage = androidx.compose.runtime.staticCompositionLocalOf<suspend (String) -> String?> { { null } }
+
+@Composable
+private fun ProvideArtistImages(vm: LibraryViewModel, content: @Composable () -> Unit) {
+    // A new lambda when the switch flips, so rows already on screen ask again.
+    val on by vm.artistImagesEnabled.collectAsStateWithLifecycle()
+    val fetch: suspend (String) -> String? = androidx.compose.runtime.remember(on) { { name -> vm.artistImage(name) } }
+    androidx.compose.runtime.CompositionLocalProvider(LocalArtistImage provides fetch, content = content)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
@@ -161,26 +173,47 @@ fun LibraryScreen(
         bottomBar = { if (group != null) MiniPlayer(group, onMiniPlayer, onPlayPause) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Column(Modifier.padding(padding)) {
-            if (searching) {
-                SearchResults(search, vm::artUrl, onOpenContainer, onPlay)
-                return@Column
-            }
-            if (!wide) LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(LibraryTab.entries) { t ->
-                    FilterChip(selected = t == tab, onClick = { vm.select(t) }, label = { Text(stringResource(t.label())) })
+        ProvideArtistImages(vm) {
+            Column(Modifier.padding(padding)) {
+                if (searching) {
+                    SearchResults(search, vm::artUrl, onOpenContainer, onPlay)
+                    return@Column
+                }
+                if (!wide) LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(LibraryTab.entries) { t ->
+                        FilterChip(selected = t == tab, onClick = { vm.select(t) }, label = { Text(stringResource(t.label())) })
+                    }
+                }
+                val imagesOn by vm.artistImagesEnabled.collectAsStateWithLifecycle()
+                val hintDone by vm.artistHintDone.collectAsStateWithLifecycle()
+                if (tab == LibraryTab.Artists && !imagesOn && !hintDone) {
+                    ArtistImagesHint(onEnable = vm::enableArtistImages, onDismiss = vm::dismissArtistHint)
+                }
+                if (tab == LibraryTab.History) {
+                    // Tap: search the library for the track, since Sonos cannot replay a history entry by itself.
+                    HistoryList(history, onClear = vm::clearHistory) { e ->
+                        searching = true
+                        vm.setQuery(e.title)
+                    }
+                    return@Column
+                }
+                ItemList(lists[tab.objectId], grid = tab.grid, artUrl = vm::artUrl, onRetry = { vm.load(tab.objectId, force = true) }) { item ->
+                    if (item.isContainer && tab != LibraryTab.Favorites) onOpenContainer(item) else onPlay(item)
                 }
             }
-            if (tab == LibraryTab.History) {
-                // Tap: search the library for the track, since Sonos cannot replay a history entry by itself.
-                HistoryList(history, onClear = vm::clearHistory) { e ->
-                    searching = true
-                    vm.setQuery(e.title)
-                }
-                return@Column
-            }
-            ItemList(lists[tab.objectId], grid = tab.grid, artUrl = vm::artUrl, onRetry = { vm.load(tab.objectId, force = true) }) { item ->
-                if (item.isContainer && tab != LibraryTab.Favorites) onOpenContainer(item) else onPlay(item)
+        }
+    }
+}
+
+@Composable
+private fun ArtistImagesHint(onEnable: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(R.string.artist_images_title), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.artist_images_body), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.artist_images_no)) }
+                Button(onClick = onEnable) { Text(stringResource(R.string.artist_images_yes)) }
             }
         }
     }
@@ -239,63 +272,67 @@ fun ContainerScreen(
     val lists by vm.lists.collectAsStateWithLifecycle()
     val wideBar = isWide()
     LaunchedEffect(container.id) { vm.load(container.id) }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(container.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
-                actions = {
-                    // Landscape: the play button lives up here, always in reach.
-                    if (wideBar) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(end = 8.dp)) {
-                        Icon(AppIcons.Play, null, Modifier.size(18.dp))
-                        Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
+    ProvideArtistImages(vm) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(container.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
+                    actions = {
+                        // Landscape: the play button lives up here, always in reach.
+                        if (wideBar) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(end = 8.dp)) {
+                            Icon(AppIcons.Play, null, Modifier.size(18.dp))
+                            Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
+                        }
+                    },
+                )
+            },
+            bottomBar = { if (group != null) MiniPlayer(group, onMiniPlayer, onPlayPause) },
+            snackbarHost = { SnackbarHost(snackbar) },
+        ) { padding ->
+            val person = container.upnpClass.contains("person")
+            val artistImage = LocalArtistImage.current
+            val picture by produceState<String?>(null, container.title, person, artistImage) { if (person) value = artistImage(container.title) }
+            val cover: @Composable (Modifier) -> Unit = { m ->
+                Cover(picture ?: vm.artUrl(container.albumArtUri), m, corner = if (person) 60.dp else 16.dp,
+                    placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    icon = if (person) Icons.Filled.Person else AppIcons.Album)
+            }
+            val info: @Composable () -> Unit = {
+                Text(container.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 2)
+                container.creator?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                if (!wideBar) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(top = 8.dp)) {
+                    Icon(AppIcons.Play, null, Modifier.size(18.dp))
+                    Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
+                }
+            }
+            val state = lists[container.id]
+            val allContainers = (state as? ListState.Loaded)?.items?.let { it.isNotEmpty() && it.all { i -> i.isContainer } } == true
+            // Inside an album, track numbers say more than the same cover over and over.
+            val isAlbum = container.upnpClass.contains("album")
+            val list: @Composable () -> Unit = {
+                ItemList(state, grid = allContainers, artUrl = vm::artUrl, numbered = isAlbum, onRetry = { vm.load(container.id, force = true) }) { item ->
+                    if (item.isContainer) onOpenContainer(item) else onPlay(item)
+                }
+            }
+            if (isWide()) {
+                // Landscape: cover and play button on the left, the tracks get the full height.
+                Row(Modifier.padding(padding)) {
+                    Column(Modifier.width(240.dp).verticalScroll(rememberScrollState()).padding(16.dp)) {
+                        cover(Modifier.size(120.dp))
+                        Spacer(Modifier.height(12.dp))
+                        info()
                     }
-                },
-            )
-        },
-        bottomBar = { if (group != null) MiniPlayer(group, onMiniPlayer, onPlayPause) },
-        snackbarHost = { SnackbarHost(snackbar) },
-    ) { padding ->
-        val person = container.upnpClass.contains("person")
-        val cover: @Composable (Modifier) -> Unit = { m ->
-            Cover(vm.artUrl(container.albumArtUri), m, corner = if (person) 60.dp else 16.dp,
-                placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                icon = if (person) Icons.Filled.Person else AppIcons.Album)
-        }
-        val info: @Composable () -> Unit = {
-            Text(container.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 2)
-            container.creator?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-            if (!wideBar) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(top = 8.dp)) {
-                Icon(AppIcons.Play, null, Modifier.size(18.dp))
-                Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
-            }
-        }
-        val state = lists[container.id]
-        val allContainers = (state as? ListState.Loaded)?.items?.let { it.isNotEmpty() && it.all { i -> i.isContainer } } == true
-        // Inside an album, track numbers say more than the same cover over and over.
-        val isAlbum = container.upnpClass.contains("album")
-        val list: @Composable () -> Unit = {
-            ItemList(state, grid = allContainers, artUrl = vm::artUrl, numbered = isAlbum, onRetry = { vm.load(container.id, force = true) }) { item ->
-                if (item.isContainer) onOpenContainer(item) else onPlay(item)
-            }
-        }
-        if (isWide()) {
-            // Landscape: cover and play button on the left, the tracks get the full height.
-            Row(Modifier.padding(padding)) {
-                Column(Modifier.width(240.dp).verticalScroll(rememberScrollState()).padding(16.dp)) {
-                    cover(Modifier.size(120.dp))
-                    Spacer(Modifier.height(12.dp))
-                    info()
+                    Box(Modifier.weight(1f)) { list() }
                 }
-                Box(Modifier.weight(1f)) { list() }
-            }
-        } else {
-            Column(Modifier.padding(padding)) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    cover(Modifier.size(120.dp))
-                    Column(Modifier.padding(start = 16.dp).weight(1f)) { info() }
+            } else {
+                Column(Modifier.padding(padding)) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        cover(Modifier.size(120.dp))
+                        Column(Modifier.padding(start = 16.dp).weight(1f)) { info() }
+                    }
+                    list()
                 }
-                list()
             }
         }
     }
@@ -361,6 +398,9 @@ private fun ItemList(
 
 @Composable
 private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Boolean = false, onClick: () -> Unit) {
+    val person = item.upnpClass.contains("person")
+    val artistImage = LocalArtistImage.current
+    val picture by produceState<String?>(null, item.title, person, artistImage) { if (person) value = artistImage(item.title) }
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -369,7 +409,7 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
             Text("${item.originalTrackNumber}", modifier = Modifier.width(28.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             Cover(
-                artUrl(item.albumArtUri), Modifier.size(44.dp), corner = if (item.upnpClass.contains("person")) 22.dp else 8.dp,
+                picture ?: artUrl(item.albumArtUri), Modifier.size(44.dp), corner = if (person) 22.dp else 8.dp,
                 placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 icon = when {
                     item.isRadio -> AppIcons.Radio

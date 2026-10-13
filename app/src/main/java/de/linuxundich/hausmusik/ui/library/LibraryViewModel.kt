@@ -6,7 +6,9 @@ package de.linuxundich.hausmusik.ui.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import de.linuxundich.hausmusik.data.ArtistImages
 import de.linuxundich.hausmusik.data.HouseholdRepository
+import de.linuxundich.hausmusik.data.Settings
 import de.linuxundich.hausmusik.data.history.HistoryDao
 import de.linuxundich.hausmusik.data.history.HistoryEntry
 import de.linuxundich.hausmusik.sonos.DidlObject
@@ -53,7 +55,16 @@ sealed interface SearchState {
 class LibraryViewModel @Inject constructor(
     private val repo: HouseholdRepository,
     private val historyDao: HistoryDao,
+    private val artistImages: ArtistImages,
+    private val settings: Settings,
 ) : ViewModel() {
+    val artistImagesEnabled: StateFlow<Boolean> = settings.artistImagesEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val artistHintDone: StateFlow<Boolean> = settings.artistImagesHintDone.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
+    suspend fun artistImage(name: String): String? = artistImages.forArtist(name)
+    fun enableArtistImages() = viewModelScope.launch { settings.setArtistImagesEnabled(true) }
+    fun dismissArtistHint() = viewModelScope.launch { settings.dismissArtistImagesHint() }
+
     val history: StateFlow<List<HistoryEntry>> = historyDao.recent().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun clearHistory() = viewModelScope.launch { historyDao.clear() }

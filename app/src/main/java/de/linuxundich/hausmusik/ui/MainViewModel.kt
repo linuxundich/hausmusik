@@ -39,6 +39,8 @@ class MainViewModel @Inject constructor(
     val manualHost: StateFlow<String?> = settings.manualHost.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     fun setLyricsEnabled(on: Boolean) = viewModelScope.launch { settings.setLyricsEnabled(on) }
+    val artistImagesEnabled: StateFlow<Boolean> = settings.artistImagesEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    fun setArtistImagesEnabled(on: Boolean) = viewModelScope.launch { settings.setArtistImagesEnabled(on) }
 
     suspend fun lyrics(now: NowPlaying): LyricsUi =
         lyricsRepo.find(now.title, now.artist, now.album, now.durationMs).fold(

@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import de.linuxundich.hausmusik.BuildConfig
 import de.linuxundich.hausmusik.R
 
-data class SettingsState(val manualHost: String?, val connectedTo: String?, val lyricsEnabled: Boolean)
+data class SettingsState(val manualHost: String?, val connectedTo: String?, val lyricsEnabled: Boolean, val artistImagesEnabled: Boolean = false)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +49,7 @@ fun SettingsScreen(
     state: SettingsState,
     onConnect: (String?) -> Unit,
     onLyrics: (Boolean) -> Unit,
+    onArtistImages: (Boolean) -> Unit,
     onLicenses: () -> Unit,
     onClearCache: () -> Unit,
     onBack: () -> Unit,
@@ -95,6 +96,11 @@ fun SettingsScreen(
                 Switch(checked = state.lyricsEnabled, onCheckedChange = onLyrics)
             }
             Text(stringResource(R.string.lyrics_consent_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.artist_images_setting), Modifier.weight(1f))
+                Switch(checked = state.artistImagesEnabled, onCheckedChange = onArtistImages)
+            }
+            Text(stringResource(R.string.artist_images_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.settings_about), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)

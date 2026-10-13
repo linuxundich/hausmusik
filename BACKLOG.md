@@ -42,7 +42,7 @@ Completed items stay checked.
 - [x] **P1** Lyrics from LRCLIB (synced, opt-in)
 - [x] **P1** Settings screen: speaker address, lyrics, about
 - [x] **P1** Cache library lists, refresh only when Sonos reports a new list version
-- [ ] **P1** Artist pictures from Deezer (opt-in)
+- [x] **P1** Artist pictures from Deezer (opt-in)
 - [ ] **P1** Music services: bonob first, then Spotify
 
 ## Phase 3: Rooms and everyday use

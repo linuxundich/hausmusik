@@ -72,15 +72,36 @@ interface CachedListDao {
     suspend fun clear()
 }
 
+/** A Deezer picture for an artist name (lower case); url null means "none found". */
+@Entity(tableName = "artist_image")
+data class ArtistImage(
+    @PrimaryKey val name: String,
+    val url: String?,
+    val fetchedAt: Long,
+)
+
+@Dao
+interface ArtistImageDao {
+    @Query("SELECT * FROM artist_image WHERE name = :name")
+    suspend fun get(name: String): ArtistImage?
+
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    suspend fun put(image: ArtistImage)
+
+    @Query("DELETE FROM artist_image")
+    suspend fun clear()
+}
+
 @Database(
-    entities = [HistoryEntry::class, CachedList::class],
-    version = 2,
+    entities = [HistoryEntry::class, CachedList::class, ArtistImage::class],
+    version = 3,
     exportSchema = true,
-    autoMigrations = [androidx.room.AutoMigration(from = 1, to = 2)],
+    autoMigrations = [androidx.room.AutoMigration(from = 1, to = 2), androidx.room.AutoMigration(from = 2, to = 3)],
 )
 abstract class HistoryDatabase : RoomDatabase() {
     abstract fun history(): HistoryDao
     abstract fun cachedLists(): CachedListDao
+    abstract fun artistImages(): ArtistImageDao
 
     companion object {
         fun create(context: Context): HistoryDatabase =

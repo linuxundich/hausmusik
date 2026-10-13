@@ -36,6 +36,16 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
 
     suspend fun setLyricsEnabled(on: Boolean) = store.edit { it[lyricsKey] = on }
 
+    private val artistImagesKey = booleanPreferencesKey("artist_images_enabled")
+    private val artistHintKey = booleanPreferencesKey("artist_images_hint_done")
+
+    /** Artist pictures from Deezer; off until the user agrees, since it sends artist names to deezer.com. */
+    val artistImagesEnabled: Flow<Boolean> = store.data.map { it[artistImagesKey] ?: false }
+    val artistImagesHintDone: Flow<Boolean> = store.data.map { it[artistHintKey] ?: false }
+
+    suspend fun setArtistImagesEnabled(on: Boolean) = store.edit { it[artistImagesKey] = on; it[artistHintKey] = true }
+    suspend fun dismissArtistImagesHint() = store.edit { it[artistHintKey] = true }
+
     private val debugCallbackKey = stringPreferencesKey("debug_callback")
 
     /**

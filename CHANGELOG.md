@@ -22,6 +22,13 @@ All notable changes to Hausmusik are documented here. The format follows
   RadioFavoritesUpdateID); only a changed list is loaded again, also while the
   app is open. On the S1 household 1061 albums and 38 favorites came from the
   cache after a restart. Settings can delete the stored lists.
+- Artist pictures from Deezer, off until switched on (a card in the Artists tab
+  or Settings). Only the names of artists on screen go to api.deezer.com, at
+  most three at a time; the result is stored, and a name without a picture is
+  asked again after 30 days. Names are matched without article, accents and
+  punctuation ("The Beatles" = "Beatles"); collections such as "Various
+  Artists" get no picture. Shown in the artist list, in search results and on
+  the artist page.
 - Fixed: a page that an S1 player answers empty while still resolving
   favorites ended the list early; it is now asked once more, and only complete
   lists are stored.
