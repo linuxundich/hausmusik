@@ -131,4 +131,12 @@
     <string name="history_empty">Nothing has played yet while Hausmusik was connected.</string>
     <string name="history_note">Kept on this phone only; Sonos keeps no history. Tap an entry to search for it.</string>
     <string name="history_clear">Clear</string>
+    <string name="offline_title">Not in your home Wi-Fi</string>
+    <string name="offline_body">Hausmusik controls your speakers directly in your home network. Connect the phone to the Wi-Fi your Sonos speakers are in.</string>
+    <string name="offline_manual_failed">The fixed speaker address did not answer either.</string>
+    <string name="offline_wifi_settings">Wi-Fi settings</string>
+    <string name="offline_back">Hausmusik connects by itself once you are back.</string>
+    <string name="offline_back_room">Hausmusik connects by itself once you are back. Last room: %1$s</string>
+    <string name="offline_short">Not in Wi-Fi</string>
+    <string name="reconnecting">Speakers gone for a moment, reconnecting…</string>
 </resources>

@@ -5,6 +5,7 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.data.Connection
 import de.linuxundich.hausmusik.data.Household
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +22,10 @@ class RoomTileService : TileService() {
     override fun onStartListening() {
         super.onStartListening()
         val household = HouseholdAccess.entry(this).household()
+        if (!household.hasLocalNetwork()) {
+            renderOffline()
+            return
+        }
         render(household.state.value)
         // Connect briefly so the tile shows the current state, then follow it.
         scope.launch { HouseholdAccess.withSelected(this@RoomTileService) { _, _ -> } }
@@ -43,7 +48,17 @@ class RoomTileService : TileService() {
         }
     }
 
+    private fun renderOffline() {
+        val tile = qsTile ?: return
+        tile.icon = Icon.createWithResource(this, R.drawable.ic_speaker)
+        tile.label = getString(R.string.app_name)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) tile.subtitle = getString(R.string.offline_short)
+        tile.state = Tile.STATE_UNAVAILABLE
+        tile.updateTile()
+    }
+
     private fun render(h: Household) {
+        if (h.connection == Connection.NoLocalNetwork) return renderOffline()
         val tile = qsTile ?: return
         val g = h.selected
         tile.icon = Icon.createWithResource(this, R.drawable.ic_speaker)

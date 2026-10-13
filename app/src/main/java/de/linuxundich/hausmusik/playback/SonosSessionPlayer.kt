@@ -10,6 +10,7 @@ import androidx.media3.common.SimpleBasePlayer
 import androidx.media3.common.util.UnstableApi
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import de.linuxundich.hausmusik.data.Connection
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.HouseholdRepository
 import de.linuxundich.hausmusik.sonos.SourceKind
@@ -40,7 +41,11 @@ class SonosSessionPlayer(private val household: HouseholdRepository) : SimpleBas
 
     init {
         scope.launch {
-            household.state.map { it.selected }.distinctUntilChanged().collect {
+            // Without the household (no Wi-Fi, speakers gone) the session goes idle,
+            // so the notification does not show a stale "playing".
+            household.state.map { h ->
+                h.selected.takeIf { h.connection == Connection.Connected || h.connection == Connection.Reconnecting }
+            }.distinctUntilChanged().collect {
                 group = it
                 invalidateState()
             }

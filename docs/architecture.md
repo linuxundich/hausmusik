@@ -55,6 +55,20 @@ Polling remains as a safety net: with working subscriptions the selected group
 every 10 s and the rest every 30 s; without them once a second and every three
 seconds, as before. The progress bar extrapolates between reads.
 
+## Connection states
+
+| State | When | What the user sees |
+|---|---|---|
+| Searching | first search | loading screen |
+| Connected | a read succeeded | Stage |
+| Reconnecting | a read failed, household known | Stage with a band |
+| NotFound | three failures, or nothing answered | "No speakers found", retries every 30 s |
+| NoLocalNetwork | no Wi-Fi or Ethernet and no fixed address | "Not in your home Wi-Fi", waits for the network |
+
+A `NetworkCallback` for Wi-Fi and Ethernet drives the transitions: losing the
+last local network switches to NoLocalNetwork at once, a returning or changed
+network starts over. Only ticks that actually read something count as success.
+
 ## Media session
 
 `PlaybackService` (Media3 `MediaSessionService`) hosts `SonosSessionPlayer`, a

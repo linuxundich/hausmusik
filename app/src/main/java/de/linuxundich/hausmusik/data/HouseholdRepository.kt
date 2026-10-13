@@ -90,22 +90,59 @@ class HouseholdRepository @Inject constructor(
         watchNetwork()
     }
 
-    // A new Wi-Fi network means a new own address for the event callbacks and
-    // maybe other speakers: start over.
+    // Network: the speakers live in the home Wi-Fi. Without Wi-Fi or Ethernet
+    // (mobile data) there is nothing to search; a new Wi-Fi means a new own
+    // address for the event callbacks and maybe other speakers.
 
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    private var currentNetwork: Network? = null
+    private val localNetworks = ConcurrentHashMap.newKeySet<Network>()
+    @Volatile private var lastLocalNetwork: Network? = null
+
+    /** True while the phone has Wi-Fi or Ethernet. */
+    @Suppress("DEPRECATION") // allNetworks: the simple way to see a Wi-Fi that is not the default network
+    fun hasLocalNetwork(): Boolean {
+        if (localNetworks.isNotEmpty()) return true
+        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return true
+        return cm.allNetworks.any { n ->
+            cm.getNetworkCapabilities(n)?.let {
+                it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+            } == true
+        }
+    }
 
     private fun watchNetwork() {
         if (networkCallback != null) return
         val cm = context.getSystemService(ConnectivityManager::class.java) ?: return
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                val previous = currentNetwork
-                currentNetwork = network
-                if (previous != null && previous != network) {
-                    Log.i(TAG, "network changed, reconnecting")
-                    scope.launch { reconnect() }
+                val wasOffline = localNetworks.isEmpty() && _state.value.connection == Connection.NoLocalNetwork
+                val previous = lastLocalNetwork
+                localNetworks += network
+                lastLocalNetwork = network
+                when {
+                    wasOffline -> {
+                        Log.i(TAG, "local network back, connecting")
+                        scope.launch { reconnect() }
+                    }
+                    previous != null && previous != network -> {
+                        Log.i(TAG, "network changed, reconnecting")
+                        scope.launch { reconnect() }
+                    }
+                }
+            }
+
+            override fun onLost(network: Network) {
+                localNetworks -= network
+                if (localNetworks.isEmpty()) {
+                    Log.i(TAG, "no local network")
+                    scope.launch {
+                        if (settings.manualHost() == null) {
+                            events.stop()
+                            entry = null
+                            _state.update { it.copy(connection = Connection.NoLocalNetwork) }
+                        }
+                        refreshNow()
+                    }
                 }
             }
         }
@@ -118,7 +155,8 @@ class HouseholdRepository @Inject constructor(
         val cb = networkCallback ?: return
         runCatching { context.getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(cb) }
         networkCallback = null
-        currentNetwork = null
+        localNetworks.clear()
+        lastLocalNetwork = null
     }
 
     /** Same address setting, fresh connection and subscriptions. */
@@ -179,11 +217,24 @@ class HouseholdRepository @Inject constructor(
         var lastOthers = 0L
         while (true) {
             if (entry == null) {
-                _state.update { it.copy(connection = Connection.Searching) }
-                entry = findEntry()
-                if (entry == null) {
-                    _state.update { it.copy(connection = Connection.NotFound(settings.manualHost())) }
+                val local = hasLocalNetwork()
+                val manual = settings.manualHost()
+                // Mobile data only: no search, no timeouts. A fixed address is still
+                // tried once, it may be reachable through a VPN.
+                if (!local && manual == null) {
+                    _state.update { it.copy(connection = Connection.NoLocalNetwork) }
                     wakeUp.receive()
+                    continue
+                }
+                _state.update { it.copy(connection = if (it.groups.isEmpty()) Connection.Searching else Connection.Reconnecting) }
+                entry = findEntry(searchNetwork = local)
+                if (entry == null) {
+                    _state.update {
+                        it.copy(connection = if (!hasLocalNetwork()) Connection.NoLocalNetwork else Connection.NotFound(manual))
+                    }
+                    // Speakers rebooting or the router being slow: look again by
+                    // ourselves every half minute (or at once on "search again").
+                    withTimeoutOrNull(30_000) { wakeUp.receive() }
                     continue
                 }
                 lastTopology = 0L
@@ -193,7 +244,9 @@ class HouseholdRepository @Inject constructor(
             val evented = events.active
             val now = System.currentTimeMillis()
             try {
+                var readSomething = false
                 if (pendingTopology || now - lastTopology > (if (evented) 60_000 else 5_000)) {
+                    readSomething = true
                     pendingTopology = false
                     refreshTopology()
                     lastTopology = now
@@ -211,12 +264,29 @@ class HouseholdRepository @Inject constructor(
                     ids += _state.value.groups.map { it.id }
                     lastOthers = now
                 }
-                if (ids.isNotEmpty()) refreshGroups(ids)
-                failures = 0
-                _state.update { it.copy(connection = Connection.Connected) }
+                if (ids.isNotEmpty()) {
+                    refreshGroups(ids)
+                    readSomething = true
+                }
+                // Only a successful read proves the speakers are there; a quiet
+                // tick between polls must not clear a failure.
+                if (readSomething) {
+                    failures = 0
+                    _state.update { it.copy(connection = Connection.Connected) }
+                }
             } catch (e: IOException) {
-                Log.w(TAG, "poll failed", e)
+                Log.w(TAG, "poll failed: ${e.message}")
+                if (!hasLocalNetwork() && settings.manualHost() == null) {
+                    entry = null
+                    failures = 0
+                    _state.update { it.copy(connection = Connection.NoLocalNetwork) }
+                    continue
+                }
+                _state.update { it.copy(connection = Connection.Reconnecting) }
+                lastSelected = 0L // try again on the next tick, not in ten seconds
                 if (++failures >= 3) {
+                    // Rebooted speakers do not know our subscriptions any more.
+                    events.stop()
                     entry = null
                     failures = 0
                     continue
@@ -227,11 +297,12 @@ class HouseholdRepository @Inject constructor(
     }
 
     /** A manual address wins; otherwise SSDP. Returns a player that answered GetZoneGroupState. */
-    private suspend fun findEntry(): HttpUrl? {
+    private suspend fun findEntry(searchNetwork: Boolean = true): HttpUrl? {
         settings.manualHost()?.let { host ->
             val url = hostToUrl(host) ?: return@let
             if (runCatching { client(url).zoneGroups() }.isSuccess) return url
         }
+        if (!searchNetwork) return null
         val wifi = context.applicationContext.getSystemService(WifiManager::class.java)
         val lock = wifi?.createMulticastLock("hausmusik-ssdp")?.apply { setReferenceCounted(false) }
         return try {

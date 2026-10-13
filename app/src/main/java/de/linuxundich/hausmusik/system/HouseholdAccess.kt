@@ -5,6 +5,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import de.linuxundich.hausmusik.data.Connection
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.HouseholdRepository
 import de.linuxundich.hausmusik.di.AppScope
@@ -43,7 +44,14 @@ object HouseholdAccess {
             releaseJob?.cancel()
             household.acquire(OWNER)
         }
-        val group = withTimeoutOrNull(8_000) { household.state.first { it.selected?.nowPlaying != null || it.selected?.positionReadAt != 0L && it.selected != null }.selected }
+        // Returns at once without a home network instead of waiting for a timeout.
+        val reached = withTimeoutOrNull(8_000) {
+            household.state.first {
+                it.connection == Connection.NoLocalNetwork || it.connection is Connection.NotFound ||
+                    (it.connection == Connection.Connected && it.selected != null && it.selected!!.positionReadAt != 0L)
+            }
+        }
+        val group = reached?.takeIf { it.connection == Connection.Connected }?.selected
         val result = group?.let { block(household, it) }
         synchronized(this) {
             // Stay connected a little longer: a second tap usually follows.

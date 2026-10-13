@@ -51,6 +51,7 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import de.linuxundich.hausmusik.MainActivity
 import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.data.Connection
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.system.HouseholdAccess
 
@@ -66,9 +67,10 @@ class PlayerWidget : GlanceAppWidget() {
             val state by household.state.collectAsState()
             // Connect briefly when nothing is known yet (app process just started).
             LaunchedEffect(Unit) { if (household.state.value.selected == null) HouseholdAccess.withSelected(context) { _, _ -> } }
-            val group = state.selected
+            val offline = state.connection == Connection.NoLocalNetwork
+            val group = state.selected.takeIf { !offline }
             val cover by produceState<Bitmap?>(null, group?.artUrl) { value = group?.artUrl?.let { loadCover(context, it) } }
-            GlanceTheme { Content(context, group, cover) }
+            GlanceTheme { Content(context, group, cover, offline) }
         }
     }
 
@@ -78,7 +80,7 @@ class PlayerWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun Content(context: Context, group: GroupState?, cover: Bitmap?) {
+    private fun Content(context: Context, group: GroupState?, cover: Bitmap?, offline: Boolean) {
         val now = group?.nowPlaying
         Row(
             GlanceModifier.fillMaxSize().background(GlanceTheme.colors.widgetBackground).cornerRadius(24.dp).padding(10.dp)
@@ -99,7 +101,8 @@ class PlayerWidget : GlanceAppWidget() {
                     maxLines = 1, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp, color = GlanceTheme.colors.onSurface),
                 )
                 Text(
-                    listOfNotNull(now?.artist ?: now?.station, group?.group?.displayName).joinToString(" · "),
+                    if (offline) context.getString(R.string.offline_short)
+                    else listOfNotNull(now?.artist ?: now?.station, group?.group?.displayName).joinToString(" · "),
                     maxLines = 1, style = TextStyle(fontSize = 12.sp, color = GlanceTheme.colors.onSurfaceVariant),
                 )
                 Spacer(GlanceModifier.height(6.dp))

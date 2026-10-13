@@ -129,4 +129,12 @@
     <string name="history_empty">Noch ist nichts gelaufen, während Hausmusik verbunden war.</string>
     <string name="history_note">Liegt nur auf diesem Handy; Sonos führt keinen Verlauf. Tippen sucht den Titel.</string>
     <string name="history_clear">Leeren</string>
+    <string name="offline_title">Nicht im Heimnetz</string>
+    <string name="offline_body">Hausmusik steuert deine Lautsprecher direkt im Heimnetz. Verbinde das Handy mit dem WLAN, in dem deine Sonos-Lautsprecher stehen.</string>
+    <string name="offline_manual_failed">Auch die feste Lautsprecher-Adresse hat nicht geantwortet.</string>
+    <string name="offline_wifi_settings">WLAN-Einstellungen</string>
+    <string name="offline_back">Hausmusik verbindet sich von selbst, sobald du zurück bist.</string>
+    <string name="offline_back_room">Hausmusik verbindet sich von selbst, sobald du zurück bist. Zuletzt: %1$s</string>
+    <string name="offline_short">Nicht im WLAN</string>
+    <string name="reconnecting">Lautsprecher kurz weg, verbinde neu …</string>
 </resources>

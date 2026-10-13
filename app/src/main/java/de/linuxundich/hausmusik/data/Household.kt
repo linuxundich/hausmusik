@@ -10,6 +10,10 @@ import de.linuxundich.hausmusik.sonos.ZoneGroup
 sealed interface Connection {
     data object Searching : Connection
     data object Connected : Connection
+    /** Had the household, lost it for a moment; the last state stays visible. */
+    data object Reconnecting : Connection
+    /** No Wi-Fi or Ethernet (mobile data only, or offline): speakers cannot be reached. */
+    data object NoLocalNetwork : Connection
     /** Nothing answered. [manualHost] is the address that was tried, if any. */
     data class NotFound(val manualHost: String?) : Connection
 }

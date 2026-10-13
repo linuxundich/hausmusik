@@ -106,3 +106,48 @@ fun ConnectScreen(connection: Connection, onConnect: (String) -> Unit, onSearchA
     Button(onClick = { onConnect(host) }, enabled = host.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.setup_connect)) }
     OutlinedButton(onClick = onSearchAgain, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.setup_search_again)) }
 }
+
+/**
+ * No Wi-Fi: the phone is on mobile data (or offline). Says so plainly, offers
+ * the Wi-Fi settings and promises what happens next: Hausmusik reconnects by
+ * itself.
+ */
+@Composable
+fun OfflineScreen(lastRoom: String?, hasManualHost: Boolean) = Centered {
+    val context = LocalContext.current
+    Icon(AppIcons.WifiOff, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
+    Spacer(Modifier.height(16.dp))
+    Text(stringResource(R.string.offline_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+    Spacer(Modifier.height(12.dp))
+    Text(stringResource(R.string.offline_body), textAlign = TextAlign.Center)
+    if (hasManualHost) {
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.offline_manual_failed), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+    }
+    Spacer(Modifier.height(24.dp))
+    Button(onClick = {
+        val panel = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) Settings.Panel.ACTION_WIFI else Settings.ACTION_WIFI_SETTINGS
+        context.startActivity(Intent(panel))
+    }) { Text(stringResource(R.string.offline_wifi_settings)) }
+    Spacer(Modifier.height(16.dp))
+    Text(
+        lastRoom?.let { stringResource(R.string.offline_back_room, it) } ?: stringResource(R.string.offline_back),
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+    )
+}
+
+/** Thin band over the Stage while the connection is being rebuilt. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ReconnectingBanner(modifier: Modifier = Modifier) {
+    Surface(color = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface, shape = MaterialTheme.shapes.large, modifier = modifier) {
+        androidx.compose.foundation.layout.Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LoadingIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.inverseOnSurface)
+            Spacer(Modifier.size(12.dp))
+            Text(stringResource(R.string.reconnecting), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}

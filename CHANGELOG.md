@@ -42,6 +42,18 @@ All notable changes to Hausmusik are documented here. The format follows
 - Sound: bass, treble and loudness for every speaker of the selected group.
 - The timer button shows the remaining sleep time.
 - Landscape layout for the Stage: cover on the left, controls on the right.
+- Offline handling, since the phone is often on mobile data:
+  - No Wi-Fi or Ethernet: a clear "Not in your home Wi-Fi" mask with a button
+    to the Wi-Fi settings; no search, no timeouts. Hausmusik connects by itself
+    when Wi-Fi is back. A fixed speaker address is still tried once (VPN).
+  - Speakers gone for a moment: the Stage stays, with a "reconnecting" band;
+    after three failed reads within a few seconds "No speakers found".
+  - Speakers not found: Hausmusik looks again every 30 seconds by itself and
+    subscribes to events afresh (rebooted speakers forget subscriptions).
+  - Media notification goes idle, the tile shows "Not in Wi-Fi" as
+    unavailable, the widget says so too; tile and widget actions return at once.
+- Fixed: a quiet tick between polls reset the failure count, so lost speakers
+  were never noticed while events were active.
 - The media output chip on the notification shows the room instead of "This
   phone". The system output switcher lists every room: tap one to show it,
   "+" lets it play along, the slider sets the group volume, "Stop streaming"

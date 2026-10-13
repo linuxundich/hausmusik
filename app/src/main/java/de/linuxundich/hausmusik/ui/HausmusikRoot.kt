@@ -52,6 +52,9 @@ import de.linuxundich.hausmusik.ui.queue.QueueSheet
 import de.linuxundich.hausmusik.ui.rooms.RoomActions
 import de.linuxundich.hausmusik.ui.rooms.RoomsSheet
 import de.linuxundich.hausmusik.ui.setup.ConnectScreen
+import de.linuxundich.hausmusik.ui.setup.OfflineScreen
+import de.linuxundich.hausmusik.ui.setup.ReconnectingBanner
+import androidx.compose.foundation.layout.statusBarsPadding
 import de.linuxundich.hausmusik.ui.stage.StageActions
 import de.linuxundich.hausmusik.ui.stage.StageScreen
 import de.linuxundich.hausmusik.ui.theme.rememberCoverColors
@@ -73,6 +76,12 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     LaunchedEffect(Unit) { vm.messages.collect { snackbar.showSnackbar(resources.getString(it)) } }
 
     val selected = household.selected
+    val manualHost by vm.manualHost.collectAsStateWithLifecycle()
+    // No Wi-Fi: one clear mask over everything, whatever was shown before.
+    if (household.connection == Connection.NoLocalNetwork) {
+        OfflineScreen(lastRoom = selected?.group?.displayName, hasManualHost = manualHost != null)
+        return
+    }
     if (selected == null) {
         ConnectScreen(household.connection, vm::connect, vm::searchAgain)
         return
@@ -86,7 +95,6 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var showLyrics by remember { mutableStateOf(false) }
     var lyricsConsent by remember { mutableStateOf(false) }
     val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
-    val manualHost by vm.manualHost.collectAsStateWithLifecycle()
     val now = selected.nowPlaying
     val lyricsKey = now?.let { listOf(it.title, it.artist, it.album, it.durationMs) }
     val lyrics by produceState<LyricsUi?>(null, showLyrics, lyricsEnabled, lyricsKey) {
@@ -168,6 +176,9 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
 
     if (stack.last() is Screen.Stage) {
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 72.dp))
+    }
+    if (household.connection == Connection.Reconnecting || household.connection == Connection.Searching) {
+        ReconnectingBanner(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 56.dp))
     }
     }
 
