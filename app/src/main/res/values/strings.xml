@@ -77,4 +77,25 @@
     <string name="sleep_off">Off</string>
     <string name="sleep_minutes">%1$d min</string>
     <string name="sleep_title">Stop playing after</string>
+    <string name="alarms">Alarms</string>
+    <string name="alarms_empty">No alarms yet. Alarms live in your Sonos system and ring even when your phone is off.</string>
+    <string name="alarm_add">Alarm</string>
+    <string name="alarm_new">New alarm</string>
+    <string name="alarm_edit">Edit alarm</string>
+    <string name="alarm_once">Once</string>
+    <string name="alarm_daily">Every day</string>
+    <string name="alarm_days">Days</string>
+    <string name="alarm_room">Room</string>
+    <string name="alarm_linked">Include grouped rooms</string>
+    <string name="alarm_source">Plays</string>
+    <string name="alarm_chime">Sonos chime</string>
+    <string name="alarm_other_source">Other source</string>
+    <string name="alarm_volume">Volume %1$d</string>
+    <string name="alarm_duration">Stops after</string>
+    <string name="alarm_duplicate">Duplicate</string>
+    <string name="alarm_delete">Delete</string>
+    <string name="sound">Sound</string>
+    <string name="sound_bass">Bass</string>
+    <string name="sound_treble">Treble</string>
+    <string name="sound_loudness">Loudness</string>
 </resources>

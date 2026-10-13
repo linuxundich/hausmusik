@@ -66,8 +66,9 @@ around the current track; the neighbours stand for next() and previous().
 
 The service runs in the foreground (type `mediaPlayback`) while music plays and
 ends itself after ten minutes without playback when the app is not visible.
-With the screen off, Android does not route the volume buttons to remote
-sessions; this is a platform limit.
+On a Pixel 10 with Android 17 the volume buttons reach the session also with
+the screen off and on the lock screen; the emulator does not route them while
+the screen is off.
 
 Volume from the Stage, the rooms sheet, the notification and the buttons goes
 through one throttle in the repository: at most one request per 120 ms per

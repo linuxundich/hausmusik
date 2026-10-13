@@ -41,6 +41,12 @@ ALBUMS = [  # invented artists and albums
 RADIO = [("Radio Tuxfunk", "x-rincon-mp3radio://radio.example/tuxfunk", ["#4f7c93", "#1f3a4a"]),
          ("Kernel FM", "x-rincon-mp3radio://radio.example/kernelfm", ["#9c7b2c", "#3a2c10"])]
 
+ALARMS = {"1": {"StartTime": "06:45:00", "Duration": "01:00:00", "Recurrence": "WEEKDAYS", "Enabled": "1",
+               "RoomUUID": "RINCON_FAKE000000301400", "ProgramURI": "x-rincon-mp3radio://radio.example/kernelfm",
+               "ProgramMetaData": "", "PlayMode": "NORMAL", "Volume": "18", "IncludeLinkedZones": "0"},
+          "2": {"StartTime": "09:30:00", "Duration": "00:30:00", "Recurrence": "WEEKENDS", "Enabled": "0",
+               "RoomUUID": "RINCON_FAKE000000101400", "ProgramURI": "x-rincon-buzzer:0",
+               "ProgramMetaData": "", "PlayMode": "NORMAL", "Volume": "20", "IncludeLinkedZones": "1"}}
 SAVED = [("Morgens", [])]  # Sonos playlists: (title, tracks)
 TRACKS = []
 for ai, (album, artist, colors, titles) in enumerate(ALBUMS):
@@ -316,7 +322,26 @@ def act(p, service, action, a):
     if action == "Browse":
         return browse(p, a["ObjectID"], int(a.get("StartingIndex", 0)), int(a.get("RequestedCount", 0)))
     if action == "ListAlarms":
-        return {"CurrentAlarmList": "<Alarms></Alarms>", "CurrentAlarmListVersion": "RINCON_FAKE:1"}
+        rows = "".join(
+            "<Alarm " + " ".join(f'{k}="{html.escape(str(v))}"' for k, v in [("ID", i)] + list(al.items())) + "/>"
+            for i, al in ALARMS.items())
+        return {"CurrentAlarmList": f"<Alarms>{rows}</Alarms>", "CurrentAlarmListVersion": f"RINCON_FAKE:{len(ALARMS)}"}
+    if action in ("CreateAlarm", "UpdateAlarm"):
+        al = {"StartTime": a["StartLocalTime"]}
+        for k in ("Duration", "Recurrence", "Enabled", "RoomUUID", "ProgramURI", "ProgramMetaData", "PlayMode", "Volume", "IncludeLinkedZones"):
+            al[k] = a.get(k, "")
+        if action == "CreateAlarm":
+            new_id = str(max([int(i) for i in ALARMS] + [0]) + 1)
+            ALARMS[new_id] = al
+            return {"AssignedID": new_id}
+        if a["ID"] not in ALARMS:
+            raise Fault(801)
+        ALARMS[a["ID"]] = al
+        return {}
+    if action == "DestroyAlarm":
+        if ALARMS.pop(a["ID"], None) is None:
+            raise Fault(801)
+        return {}
     raise Fault(401)
 
 

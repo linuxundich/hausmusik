@@ -5,6 +5,8 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.linuxundich.hausmusik.di.AppScope
+import de.linuxundich.hausmusik.sonos.Alarm
+import de.linuxundich.hausmusik.sonos.AlarmClient
 import de.linuxundich.hausmusik.sonos.BrowseResult
 import de.linuxundich.hausmusik.sonos.Didl
 import de.linuxundich.hausmusik.sonos.DidlObject
@@ -244,7 +246,11 @@ class HouseholdRepository @Inject constructor(
             val actions = async { c.transportActions() }
             val mode = async { runCatching { c.playMode() }.getOrDefault(PlayMode.Normal) }
             val volumes = gs.group.members.map { m -> async { m.uuid to client(m).volume() } }
-            next = next.copy(actions = actions.await(), playMode = mode.await(), memberVolumes = volumes.awaitAll().toMap())
+            val sleep = async { runCatching { c.remainingSleepTimerMs() }.getOrNull()?.takeIf { it > 0 } }
+            next = next.copy(
+                actions = actions.await(), playMode = mode.await(), memberVolumes = volumes.awaitAll().toMap(),
+                sleepRemainingMs = sleep.await(),
+            )
         }
         next.copy(groupVolume = groupVolume.await())
     }
@@ -372,6 +378,37 @@ class HouseholdRepository @Inject constructor(
         c.seekTrack(trackNumber)
         c.play()
     }
+
+    // Alarms: stored in the household, any player answers.
+
+    private fun alarmClient(): AlarmClient? = entry?.let { AlarmClient(it, soap) }
+
+    suspend fun alarms(): Result<List<Alarm>> =
+        alarmClient()?.let { c -> runCatching { c.list() } } ?: Result.failure(IOException("not connected"))
+
+    /** Creates the alarm if it has no ID yet, otherwise updates it. */
+    suspend fun saveAlarm(alarm: Alarm): Result<Unit> = alarmClient()?.let { c ->
+        runCatching { if (alarm.id == null) c.create(alarm) else c.update(alarm) }.map { }
+    } ?: Result.failure(IOException("not connected"))
+
+    suspend fun deleteAlarm(id: String): Result<Unit> =
+        alarmClient()?.let { c -> runCatching { c.delete(id) } } ?: Result.failure(IOException("not connected"))
+
+    // Sound settings, per speaker.
+
+    suspend fun sound(player: SonosPlayer): Result<SoundSettings> = runCatching {
+        coroutineScope {
+            val c = client(player)
+            val bass = async { c.bass() }
+            val treble = async { c.treble() }
+            val loudness = async { c.loudness() }
+            SoundSettings(bass.await(), treble.await(), loudness.await())
+        }
+    }
+
+    suspend fun setBass(player: SonosPlayer, value: Int) = runCatching { client(player).setBass(value) }
+    suspend fun setTreble(player: SonosPlayer, value: Int) = runCatching { client(player).setTreble(value) }
+    suspend fun setLoudness(player: SonosPlayer, on: Boolean) = runCatching { client(player).setLoudness(on) }
 
     // Queue editing (selected group)
 

@@ -36,4 +36,12 @@ All notable changes to Hausmusik are documented here. The format follows
 - Queue editing: swipe a track to the left to remove it, long press for
   "play next", clear the queue (asks first) and save it as a Sonos playlist.
 - Messages (errors, "saved") now also show on the Stage.
+- Alarms: list with on/off switch, create, edit, duplicate and delete. Time
+  from the clock dial, days (Monday first), room, linked rooms, Sonos chime or a
+  radio favorite, volume and duration.
+- Sound: bass, treble and loudness for every speaker of the selected group.
+- The timer button shows the remaining sleep time.
+- Landscape layout for the Stage: cover on the left, controls on the right.
+- Tested on a Pixel 10 (Android 17): SSDP search and UPnP events with the real
+  S1 household, lock screen controls, volume buttons also with the screen off.
 - The fake household accepts subscriptions and sends NOTIFY on every change.

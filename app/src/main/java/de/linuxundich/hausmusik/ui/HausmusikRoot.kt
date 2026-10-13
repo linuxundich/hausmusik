@@ -30,6 +30,11 @@ import de.linuxundich.hausmusik.data.Connection
 import de.linuxundich.hausmusik.data.QueueMode
 import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.sonos.playsDirectly
+import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.ui.alarms.AlarmsScreen
+import de.linuxundich.hausmusik.ui.sound.SoundActions
+import de.linuxundich.hausmusik.ui.sound.SoundSheet
+import androidx.compose.ui.res.stringResource
 import de.linuxundich.hausmusik.ui.common.PlayDialog
 import de.linuxundich.hausmusik.ui.common.SleepTimerDialog
 import de.linuxundich.hausmusik.ui.library.ContainerScreen
@@ -48,6 +53,7 @@ private sealed interface Screen {
     data object Stage : Screen
     data object Library : Screen
     data class Container(val item: DidlObject) : Screen
+    data object Alarms : Screen
 }
 
 @Composable
@@ -68,6 +74,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var roomsOpen by remember { mutableStateOf(false) }
     var queueOpen by remember { mutableStateOf(false) }
     var timerOpen by remember { mutableStateOf(false) }
+    var soundOpen by remember { mutableStateOf(false) }
     var pendingPlay by remember { mutableStateOf<DidlObject?>(null) }
     BackHandler(stack.size > 1) { stack.removeAt(stack.lastIndex) }
 
@@ -102,6 +109,11 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                     onVolume = { vm.setGroupVolume(selected.id, it) },
                     onShuffle = vm::toggleShuffle,
                     onRepeat = vm::cycleRepeat,
+                    onAlarms = { stack.add(Screen.Alarms) },
+                    onSound = { soundOpen = true },
+                    timerLabel = selected.sleepRemainingMs?.let { ms ->
+                        stringResource(R.string.sleep_minutes, ((ms + 59_999) / 60_000).toInt())
+                    },
                 ),
             )
             Screen.Library -> LibraryScreen(
@@ -112,6 +124,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onMiniPlayer = { stack.removeRange(1, stack.size) },
                 onPlayPause = vm::playPause,
             )
+            Screen.Alarms -> AlarmsScreen(hiltViewModel(), onBack = { stack.removeAt(stack.lastIndex) })
             is Screen.Container -> ContainerScreen(
                 library, screen.item, selected, snackbar,
                 onBack = { stack.removeAt(stack.lastIndex) },
@@ -154,6 +167,13 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 save = { vm.saveQueue(it) },
             ),
             onDismiss = { queueOpen = false },
+        )
+    }
+    if (soundOpen) {
+        SoundSheet(
+            selected.group.members, colors,
+            SoundActions(load = { vm.sound(it) }, setBass = vm::setBass, setTreble = vm::setTreble, setLoudness = vm::setLoudness),
+            onDismiss = { soundOpen = false },
         )
     }
     if (timerOpen) {

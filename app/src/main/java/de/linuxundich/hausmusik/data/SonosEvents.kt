@@ -74,7 +74,10 @@ class SonosEvents @Inject constructor(
             val existing = subs[key]
             if (existing != null && existing.player.baseUrl == player.baseUrl) continue
             runCatching { client.subscribe(player.baseUrl, service, "$callback/${player.uuid}/${service.name}") }
-                .onSuccess { s -> subs[key] = Sub(player, service, s.sid, now() + s.timeoutSeconds * 1000L, s.timeoutSeconds) }
+                .onSuccess { s ->
+                    subs[key] = Sub(player, service, s.sid, now() + s.timeoutSeconds * 1000L, s.timeoutSeconds)
+                    Log.i(TAG, "subscribed ${player.roomName} $service via $callback (${s.timeoutSeconds} s)")
+                }
                 .onFailure { Log.w(TAG, "subscribe ${player.roomName} $service failed: ${it.message}") }
         }
         ensureRenewing()
@@ -104,6 +107,7 @@ class SonosEvents @Inject constructor(
         listener = scope.launch {
             server.events.collect { n ->
                 val sub = subs.values.firstOrNull { it.sid == n.sid }
+                Log.d(TAG, "event ${sub?.player?.roomName} ${sub?.service} seq ${n.seq}")
                 val trigger = when (sub?.service) {
                     SonosService.AVTransport -> SonosTrigger.Transport(sub.player.uuid)
                     SonosService.RenderingControl -> SonosTrigger.Volume(sub.player.uuid)

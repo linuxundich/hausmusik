@@ -28,10 +28,15 @@ data class GroupState(
     val queueLength: Int = 0,
     /** When the position was read, to extrapolate the progress bar between polls. */
     val positionReadAt: Long = 0,
+    /** Remaining sleep timer, read together with the position; null when none runs. */
+    val sleepRemainingMs: Long? = null,
 ) {
     val id: String get() = group.coordinator.uuid
     val isPlaying: Boolean get() = transport == TransportState.Playing || transport == TransportState.Transitioning
 }
+
+/** Tone settings of one speaker. */
+data class SoundSettings(val bass: Int, val treble: Int, val loudness: Boolean)
 
 data class Household(
     val connection: Connection = Connection.Searching,

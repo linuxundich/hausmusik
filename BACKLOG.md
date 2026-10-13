@@ -20,7 +20,7 @@ Completed items stay checked.
 - [x] **P0** Check which foreground service type Android 17 accepts for a remote player (`mediaPlayback` works)
 - [ ] **P1** Output switcher shows "This phone" instead of the room: needs a MediaRouter2 routing controller
 - [ ] **P1** Re-subscribe after a Wi-Fi change and after Doze (test on the real phone)
-- [ ] **P1** Test lock screen controls on a device with a lock screen
+- [x] **P1** Test lock screen controls on a device with a lock screen (Pixel 10: works, volume buttons also with the screen off)
 - [ ] **P1** Remember the last room per Wi-Fi network
 
 ## Phase 2: Finding music
@@ -37,9 +37,12 @@ Completed items stay checked.
 
 - [x] **P0** Group by checkbox, sleep timer
 - [ ] **P1** Group by dragging room tiles (from design A)
-- [ ] **P1** Show the remaining sleep time
-- [ ] **P1** Alarms: list, create, edit, duplicate
-- [ ] **P1** Sound: bass, treble, loudness, night mode
+- [x] **P1** Show the remaining sleep time
+- [x] **P1** Alarms: list, create, edit, duplicate
+- [x] **P1** Sound: bass, treble, loudness
+- [ ] **P2** Sound: night mode and speech enhancement for home theatre speakers (no test device)
+- [ ] **P2** Tone sliders centered at 0 (the centered track has a different API in material3 1.5 beta)
+- [ ] **P2** Alarms with Sonos playlists and albums as source (only chime and radio favorites so far)
 
 ## Phase 4: Part of the system
 

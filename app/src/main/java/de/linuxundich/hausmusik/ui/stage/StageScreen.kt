@@ -7,6 +7,9 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +23,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,13 +78,16 @@ data class StageActions(
     val onVolume: (Int) -> Unit,
     val onShuffle: () -> Unit,
     val onRepeat: () -> Unit,
+    val onAlarms: () -> Unit,
+    val onSound: () -> Unit,
+    /** "23 min" while a sleep timer runs. */
+    val timerLabel: String? = null,
 )
 
 /** The Stage: what plays in the selected room, large and in the cover's colors. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StageScreen(group: GroupState, colors: CoverColors, actions: StageActions) {
-    val now = group.nowPlaying
     val swipeThreshold = with(LocalDensity.current) { 80.dp.toPx() }
     Box(
         Modifier
@@ -91,56 +101,107 @@ fun StageScreen(group: GroupState, colors: CoverColors, actions: StageActions) {
                 ) { _, dy -> total += dy }
             },
     ) {
-        Column(
-            Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            RoomChip(group.group.displayName, colors, actions.onRooms)
-            Spacer(Modifier.weight(0.4f))
-            Cover(
-                url = group.artUrl,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 420.dp)
-                    .aspectRatio(1f)
-                    .shadow(24.dp, RoundedCornerShape(24.dp)),
-                corner = 24.dp,
-                placeholderColor = colors.subtle,
-                iconColor = colors.content.copy(alpha = 0.5f),
-                icon = if (now?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker,
-            )
-            Spacer(Modifier.height(24.dp))
-            Column(Modifier.fillMaxWidth()) {
-                Text(
-                    now?.title ?: stringResource(R.string.nothing_playing),
-                    color = colors.content, fontSize = 24.sp, fontWeight = FontWeight.Bold,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis,
-                )
-                val sub = when {
-                    now == null -> stringResource(R.string.queue_empty_hint)
-                    now.kind == SourceKind.Radio -> listOfNotNull(now.station, now.artist).joinToString(" · ")
-                    else -> listOfNotNull(now.artist, now.album).joinToString(" · ")
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+            if (maxWidth > maxHeight) {
+                // Landscape: cover on the left, everything else on the right.
+                Row(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    StageCover(group, colors, Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true))
+                    Spacer(Modifier.width(32.dp))
+                    Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f)) { RoomChip(group.group.displayName, colors, actions.onRooms) }
+                            IconAction(AppIcons.Queue, stringResource(R.string.queue), colors, actions.onQueue)
+                            IconAction(AppIcons.Library, stringResource(R.string.library), colors, actions.onLibrary)
+                            IconAction(AppIcons.Timer, actions.timerLabel ?: stringResource(R.string.sleep_timer), colors, actions.onTimer)
+                            StageMenu(colors, actions)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        StageControls(group, colors, actions)
+                        Spacer(Modifier.weight(1f))
+                    }
                 }
-                Text(sub, color = colors.content.copy(alpha = 0.72f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            Spacer(Modifier.height(16.dp))
-            if (now?.durationMs != null && now.durationMs!! > 0) {
-                Progress(group, colors, actions.onSeek)
             } else {
-                Spacer(Modifier.height(36.dp))
+                Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        RoomChip(group.group.displayName, colors, actions.onRooms)
+                        Box(Modifier.align(Alignment.CenterEnd).padding(top = 8.dp)) { StageMenu(colors, actions) }
+                    }
+                    Spacer(Modifier.weight(0.4f))
+                    StageCover(group, colors, Modifier.fillMaxWidth().widthIn(max = 420.dp).aspectRatio(1f))
+                    Spacer(Modifier.height(24.dp))
+                    StageControls(group, colors, actions)
+                    Spacer(Modifier.weight(0.6f))
+                    BottomActions(colors, actions)
+                    Spacer(Modifier.height(8.dp))
+                }
             }
-            Spacer(Modifier.height(8.dp))
-            Transport(group, colors, actions)
-            Spacer(Modifier.height(12.dp))
-            VolumeRow(group.groupVolume, colors, actions.onVolume)
-            Spacer(Modifier.weight(0.6f))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                BottomAction(AppIcons.Queue, stringResource(R.string.queue), colors, actions.onQueue)
-                BottomAction(AppIcons.Library, stringResource(R.string.library), colors, actions.onLibrary)
-                BottomAction(AppIcons.Timer, stringResource(R.string.sleep_timer), colors, actions.onTimer)
-            }
-            Spacer(Modifier.height(8.dp))
         }
+    }
+}
+
+@Composable
+private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifier) {
+    Cover(
+        url = group.artUrl,
+        modifier = modifier.shadow(24.dp, RoundedCornerShape(24.dp)),
+        corner = 24.dp,
+        placeholderColor = colors.subtle,
+        iconColor = colors.content.copy(alpha = 0.5f),
+        icon = if (group.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker,
+    )
+}
+
+@Composable
+private fun StageControls(group: GroupState, colors: CoverColors, actions: StageActions) {
+    val now = group.nowPlaying
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            now?.title ?: stringResource(R.string.nothing_playing),
+            color = colors.content, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+            maxLines = 2, overflow = TextOverflow.Ellipsis,
+        )
+        val sub = when {
+            now == null -> stringResource(R.string.queue_empty_hint)
+            now.kind == SourceKind.Radio -> listOfNotNull(now.station, now.artist).joinToString(" · ")
+            else -> listOfNotNull(now.artist, now.album).joinToString(" · ")
+        }
+        Text(sub, color = colors.content.copy(alpha = 0.72f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(16.dp))
+        if (now?.durationMs != null && now.durationMs!! > 0) {
+            Progress(group, colors, actions.onSeek)
+        } else {
+            Spacer(Modifier.height(36.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        Transport(group, colors, actions)
+        Spacer(Modifier.height(12.dp))
+        VolumeRow(group.groupVolume, colors, actions.onVolume)
+    }
+}
+
+@Composable
+private fun StageMenu(colors: CoverColors, actions: StageActions) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.queue_more), tint = colors.content.copy(alpha = 0.85f)) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(text = { Text(stringResource(R.string.alarms)) }, onClick = { open = false; actions.onAlarms() })
+            DropdownMenuItem(text = { Text(stringResource(R.string.sound)) }, onClick = { open = false; actions.onSound() })
+        }
+    }
+}
+
+@Composable
+private fun IconAction(icon: ImageVector, label: String, colors: CoverColors, onClick: () -> Unit) {
+    IconButton(onClick = onClick) { Icon(icon, contentDescription = label, tint = colors.content.copy(alpha = 0.85f)) }
+}
+
+@Composable
+private fun BottomActions(colors: CoverColors, actions: StageActions) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+        BottomAction(AppIcons.Queue, stringResource(R.string.queue), colors, actions.onQueue)
+        BottomAction(AppIcons.Library, stringResource(R.string.library), colors, actions.onLibrary)
+        BottomAction(AppIcons.Timer, actions.timerLabel ?: stringResource(R.string.sleep_timer), colors, actions.onTimer)
     }
 }
 

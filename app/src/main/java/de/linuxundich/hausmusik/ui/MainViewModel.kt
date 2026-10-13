@@ -85,6 +85,11 @@ class MainViewModel @Inject constructor(
 
     fun setSleepTimer(minutes: Int?) = run { repo.command { it.configureSleepTimer(minutes?.let { m -> m * 60_000L }) } }
 
+    suspend fun sound(player: SonosPlayer) = repo.sound(player)
+    fun setBass(player: SonosPlayer, v: Int) = run { repo.setBass(player, v) }
+    fun setTreble(player: SonosPlayer, v: Int) = run { repo.setTreble(player, v) }
+    fun setLoudness(player: SonosPlayer, on: Boolean) = run { repo.setLoudness(player, on) }
+
     fun play(item: DidlObject, mode: QueueMode) = viewModelScope.launch {
         repo.play(item, mode)
             .onSuccess {

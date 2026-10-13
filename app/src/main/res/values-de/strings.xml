@@ -75,4 +75,25 @@
     <string name="sleep_off">Aus</string>
     <string name="sleep_minutes">%1$d min</string>
     <string name="sleep_title">Wiedergabe beenden nach</string>
+    <string name="alarms">Wecker</string>
+    <string name="alarms_empty">Noch keine Wecker. Wecker liegen in deinem Sonos-System und klingeln auch, wenn das Handy aus ist.</string>
+    <string name="alarm_add">Wecker</string>
+    <string name="alarm_new">Neuer Wecker</string>
+    <string name="alarm_edit">Wecker bearbeiten</string>
+    <string name="alarm_once">Einmalig</string>
+    <string name="alarm_daily">Täglich</string>
+    <string name="alarm_days">Tage</string>
+    <string name="alarm_room">Raum</string>
+    <string name="alarm_linked">Gruppierte Räume einbeziehen</string>
+    <string name="alarm_source">Spielt</string>
+    <string name="alarm_chime">Sonos-Klingelton</string>
+    <string name="alarm_other_source">Andere Quelle</string>
+    <string name="alarm_volume">Lautstärke %1$d</string>
+    <string name="alarm_duration">Endet nach</string>
+    <string name="alarm_duplicate">Duplizieren</string>
+    <string name="alarm_delete">Löschen</string>
+    <string name="sound">Klang</string>
+    <string name="sound_bass">Bass</string>
+    <string name="sound_treble">Höhen</string>
+    <string name="sound_loudness">Loudness</string>
 </resources>
