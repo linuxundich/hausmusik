@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -49,6 +50,7 @@ data class PendingLink(val service: MusicService, val link: SmapiLink)
 @Singleton
 class MusicServices @Inject constructor(
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
+    @de.linuxundich.hausmusik.di.AppScope private val scope: kotlinx.coroutines.CoroutineScope,
     http: OkHttpClient,
     private val repo: HouseholdRepository,
     private val accounts: ServiceAccountDao,
@@ -68,20 +70,40 @@ class MusicServices @Inject constructor(
         repo.coverResolver = ::serviceCover
     }
 
+    private val coverJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
+
     /**
      * The cover a linked service gives for the item behind a speaker cover
-     * path (`/getaa?…&u=x-sonos-http:…?sid=…`), or null. Remembered per item;
-     * "none" is remembered too, as an empty string.
+     * path (`/getaa?…&u=x-sonos-http:…?sid=…`). Never waits: a known cover
+     * comes back at once; otherwise null now, the lookup runs in the
+     * background and the room is read again when it found one. Only a real
+     * answer is remembered ("none" as an empty string), never a failure.
      */
-    suspend fun serviceCover(albumArtUri: String): String? {
+    fun serviceCover(albumArtUri: String): String? {
         val (sid, itemId) = SmapiClient.itemOf(SmapiClient.uriOfCover(albumArtUri)) ?: return null
         val key = "$sid/$itemId"
         covers[key]?.let { return it.ifEmpty { null } }
-        val (household, _) = identity()
-        if (accounts.get(household, sid) == null) return null
-        val url = runCatching { client(sid).artFor(itemId) }.getOrNull()
-        covers[key] = url.orEmpty()
-        return url
+        if (coverJobs[key]?.isActive == true) return null
+        coverJobs[key] = scope.launch {
+            try {
+                val (household, _) = identity()
+                if (accounts.get(household, sid) == null) {
+                    covers[key] = ""
+                    return@launch
+                }
+                // bonob hands out its 180 px size; its size map goes up to 1500, the stage needs about 640.
+                val url = client(sid).artFor(itemId)?.replace(Regex("/size/\\d+$"), "/size/640")
+                covers[key] = url.orEmpty()
+                if (url != null) repo.refreshSelected()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("MusicServices", "cover of $key: ${e.message}")
+            } finally {
+                coverJobs.remove(key)
+            }
+        }
+        return null
     }
 
     private fun coordinator() = repo.selectedCoordinator() ?: throw IOException("not connected")

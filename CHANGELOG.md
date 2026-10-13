@@ -15,7 +15,10 @@ All notable changes to Hausmusik are documented here. The format follows
   until the new one is there, so nothing flickers within an album. For a
   linked service (bonob) the cover comes from the service itself
   (getMediaMetadata) instead of the speaker: on the S1 the speaker needed
-  about 1.7 s per cover and served a 5 KB thumbnail.
+  about 1.7 s per cover and served a 5 KB thumbnail; bonob's cover is asked
+  for at 640 px, Spotify's comes from its image server. The lookup never
+  holds up a read of the room: the speaker's cover shows first and is
+  replaced once the service answered.
 
 - Waiting indicator while the speakers have not answered yet (design A + B
   from https://claude.ai/artifact/VHMYvndVYtRUQ7g35h3E7f): play/pause shows

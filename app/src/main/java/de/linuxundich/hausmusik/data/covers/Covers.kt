@@ -111,6 +111,9 @@ class CoverPrefetcher @Inject constructor(
         val c = household.selectedCoordinator() ?: return
         // Queue positions start at 1; the browse index at 0, so `position` is the next track.
         val next = c.browse("Q:0", start = position, count = count).items
+        // First ask the services for their own covers (runs in the background), then load.
+        next.forEach { household.coverFor(c, it.albumArtUri) }
+        delay(2000)
         for (item in next) {
             val url = household.coverFor(c, item.albumArtUri) ?: continue
             context.imageLoader.execute(

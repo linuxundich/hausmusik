@@ -87,12 +87,16 @@ class HouseholdRepository @Inject constructor(
      * speaker only offers as a slow, small `/getaa` copy (bonob: ~1.7 s and
      * 5 KB on an S1, the original comes from the music server at once).
      */
-    @Volatile var coverResolver: (suspend (String) -> String?)? = null
+    @Volatile var coverResolver: ((String) -> String?)? = null
 
-    /** The best cover URL: the service's own if it answers within a moment, else the speaker's. */
-    suspend fun coverFor(c: SonosPlayerClient, albumArtUri: String?): String? {
-        val better = albumArtUri?.let { uri -> coverResolver?.let { r -> withTimeoutOrNull(1500) { runCatching { r(uri) }.getOrNull() } } }
-        return better ?: c.absoluteArtUrl(albumArtUri)
+    /** The best cover URL known right now: the service's own, else the speaker's. Never waits. */
+    fun coverFor(c: SonosPlayerClient, albumArtUri: String?): String? =
+        albumArtUri?.let { uri -> coverResolver?.invoke(uri) } ?: c.absoluteArtUrl(albumArtUri)
+
+    /** Reads the selected room again soon, e.g. when a better cover turned up. */
+    fun refreshSelected() {
+        _state.value.selected?.let { pendingGroups += it.id }
+        refreshNow()
     }
 
     // Waiting for the speakers: a command counts as busy from the moment it is
