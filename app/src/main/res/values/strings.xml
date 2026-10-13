@@ -25,6 +25,8 @@
     <string name="shuffle">Shuffle</string>
     <string name="repeat">Repeat</string>
     <string name="volume">Volume</string>
+    <string name="volume_down">Quieter</string>
+    <string name="volume_up">Louder</string>
     <string name="volume_all_rooms">All rooms</string>
     <string name="volume_rooms">Volume of each room</string>
     <string name="volume_mute">Mute %1$s</string>

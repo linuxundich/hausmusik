@@ -18,10 +18,9 @@ import kotlinx.coroutines.launch
 
 /**
  * Redraws the widget when what it shows changes: room, title, cover, playing,
- * the connection (no Wi-Fi, no speakers), and for the tall size the queue
- * length and the playing track.
- * Position and volume do not count, so a playing track does not redraw it
- * every second.
+ * the connection (no Wi-Fi, no speakers), for the tall size the queue
+ * length and the playing track, and the selected room's volume for the player's volume row. The position
+ * does not count, so a playing track does not redraw it every second.
  */
 @Singleton
 class WidgetUpdater @Inject constructor(
@@ -33,7 +32,7 @@ class WidgetUpdater @Inject constructor(
     fun start() {
         scope.launch {
             household.state
-                .map { h -> h.connection::class to h.selected?.let { listOf(it.group.displayName, it.nowPlaying?.title, it.nowPlaying?.artist, it.artUrl, it.isPlaying, it.queueLength, it.nowPlaying?.queuePosition) } }
+                .map { h -> h.connection::class to h.selected?.let { listOf(it.group.displayName, it.nowPlaying?.title, it.nowPlaying?.artist, it.artUrl, it.isPlaying, it.queueLength, it.nowPlaying?.queuePosition, it.groupVolume, it.memberVolumes, it.memberMutes) } }
                 .distinctUntilChanged()
                 .debounce(500)
                 .collect { runCatching { PlayerWidget.refresh(context) } }
@@ -41,7 +40,7 @@ class WidgetUpdater @Inject constructor(
         // The room widgets show every group, not only the selected one.
         scope.launch {
             household.state
-                .map { h -> h.connection::class to h.groups.map { listOf(it.group.displayName, it.nowPlaying?.title, it.isPlaying) } }
+                .map { h -> h.connection::class to h.groups.map { listOf(it.group.displayName, it.nowPlaying?.title, it.nowPlaying?.artist, it.artUrl, it.isPlaying) } }
                 .distinctUntilChanged()
                 .debounce(500)
                 .collect { runCatching { RoomWidget.refresh(context) } }

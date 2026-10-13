@@ -23,6 +23,8 @@
     <string name="shuffle">Zufall</string>
     <string name="repeat">Wiederholen</string>
     <string name="volume">Lautstärke</string>
+    <string name="volume_down">Leiser</string>
+    <string name="volume_up">Lauter</string>
     <string name="volume_all_rooms">Alle Räume</string>
     <string name="volume_rooms">Lautstärke der Räume</string>
     <string name="volume_mute">%1$s stumm schalten</string>

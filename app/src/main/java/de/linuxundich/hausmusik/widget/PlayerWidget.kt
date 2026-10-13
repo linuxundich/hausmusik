@@ -11,8 +11,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -31,6 +29,7 @@ import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
@@ -57,16 +56,11 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import androidx.palette.graphics.Palette
-import coil3.imageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
-import coil3.request.allowHardware
-import coil3.toBitmap
 import de.linuxundich.hausmusik.MainActivity
 import de.linuxundich.hausmusik.R
 import de.linuxundich.hausmusik.data.Connection
 import de.linuxundich.hausmusik.data.GroupState
+import de.linuxundich.hausmusik.data.audibleVolume
 import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.sonos.SourceKind
 import de.linuxundich.hausmusik.system.HouseholdAccess
@@ -77,16 +71,13 @@ import kotlinx.coroutines.withContext
 /** What the widget can show: the player, or why there is none. */
 private enum class WidgetStatus { Ready, Reconnecting, Searching, NoWifi, NoSpeakers }
 
-/** Cover colors and the background gradient drawn from them. */
-private data class WidgetLook(val colors: CoverColors, val background: Bitmap)
-
 /**
  * Home screen player for the selected room, in the stage's look: background
  * and accent come from the cover. Three sizes: one row, a large player, and
  * the large player with the queue to scroll.
  */
 class PlayerWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Responsive(setOf(ROW, LARGE, TALL))
+    override val sizeMode = SizeMode.Responsive(setOf(ROW, ROW_WIDE, LARGE, LARGE_VOLUME, TALL))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val household = HouseholdAccess.entry(context).household()
@@ -125,8 +116,15 @@ class PlayerWidget : GlanceAppWidget() {
                 when {
                     group == null -> Status(context, status, c, size.height >= LARGE.height)
                     tall -> Column(GlanceModifier.fillMaxSize()) {
-                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxWidth().height(LARGE.height), status)
+                        // A little taller than the large size: a title over two lines must leave room for the controls.
+                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxWidth().height(LARGE.height + 24.dp), status)
+                        VolumeRow(context, group, c, big = true)
                         QueueList(context, group, queue, c)
+                    }
+                    size.height >= LARGE_VOLUME.height && size.width >= LARGE.width -> Column(GlanceModifier.fillMaxSize()) {
+                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxWidth().defaultWeight(), status)
+                        VolumeRow(context, group, c, big = true)
+                        Spacer(GlanceModifier.height(8.dp))
                     }
                     size.height >= LARGE.height && size.width >= LARGE.width ->
                         Large(context, group, cover, offline, c, GlanceModifier.fillMaxSize(), status)
@@ -179,19 +177,6 @@ class PlayerWidget : GlanceAppWidget() {
         }
     }
 
-    private suspend fun loadCover(context: Context, url: String): Bitmap? {
-        val request = ImageRequest.Builder(context).data(url).size(384).allowHardware(false).build()
-        return (context.imageLoader.execute(request) as? SuccessResult)?.image?.toBitmap()
-    }
-
-    /** The stage's colors from the cover, and its gradient as a small bitmap to stretch. */
-    private fun lookOf(cover: Bitmap?): WidgetLook {
-        val colors = cover?.let { CoverColors.from(Palette.from(it).generate()) } ?: CoverColors.Default
-        val bmp = Bitmap.createBitmap(1, 64, Bitmap.Config.ARGB_8888)
-        for (y in 0 until 64) bmp.setPixel(0, y, lerp(colors.backgroundTop, colors.backgroundBottom, y / 63f).toArgb())
-        return WidgetLook(colors, bmp)
-    }
-
     private fun title(context: Context, group: GroupState?) =
         group?.nowPlaying?.title ?: context.getString(if (group == null) R.string.app_name else R.string.nothing_playing)
 
@@ -211,17 +196,18 @@ class PlayerWidget : GlanceAppWidget() {
 
     /** Previous, a pill-shaped play/pause in the accent color like on the stage, next. */
     @Composable
-    private fun Controls(context: Context, group: GroupState?, c: CoverColors, big: Boolean) {
+    private fun Controls(context: Context, group: GroupState?, c: CoverColors, big: Boolean, slim: Boolean = false) {
         val playing = group?.isPlaying == true
-        val side = if (big) 44.dp else 40.dp
+        val side = if (big) 44.dp else if (slim) 34.dp else 40.dp
+        val gap = if (slim) 2.dp else 6.dp
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBox(context, R.drawable.ic_previous, R.string.previous, actionRunCallback<PreviousAction>(), side, side, null, c.content)
-            Spacer(GlanceModifier.width(6.dp))
+            Spacer(GlanceModifier.width(gap))
             IconBox(
                 context, if (playing) R.drawable.ic_pause else R.drawable.ic_play, if (playing) R.string.pause else R.string.play,
-                actionRunCallback<PlayPauseAction>(), if (big) 72.dp else 56.dp, side, c.accent, c.onAccent,
+                actionRunCallback<PlayPauseAction>(), if (big) 72.dp else if (slim) 48.dp else 56.dp, side, c.accent, c.onAccent,
             )
-            Spacer(GlanceModifier.width(6.dp))
+            Spacer(GlanceModifier.width(gap))
             IconBox(context, R.drawable.ic_next, R.string.next, actionRunCallback<NextAction>(), side, side, null, c.content)
         }
     }
@@ -235,13 +221,15 @@ class PlayerWidget : GlanceAppWidget() {
         }
     }
 
-    /** One row: cover, title and room, controls. */
+    /**
+     * One row: cover, title and room, controls. Narrow (two cells), only
+     * play/pause, so the title keeps room to be read.
+     */
     @Composable
     private fun Compact(context: Context, group: GroupState?, cover: Bitmap?, offline: Boolean, c: CoverColors, status: WidgetStatus) {
-        Row(GlanceModifier.fillMaxSize().padding(10.dp).clickable(actionStartActivity<MainActivity>()), verticalAlignment = Alignment.CenterVertically) {
-            CoverImage(cover, c, 56.dp, 16.dp)
-            Spacer(GlanceModifier.width(10.dp))
-            Column(GlanceModifier.defaultWeight()) {
+        val narrow = LocalSize.current.width < ROW_WIDE.width
+        val texts = @Composable { modifier: GlanceModifier ->
+            Column(modifier) {
                 Text(title(context, group), maxLines = 1, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp, color = ColorProvider(c.content)))
                 Text(
                     if (status == WidgetStatus.Reconnecting) context.getString(R.string.widget_reconnecting)
@@ -249,7 +237,74 @@ class PlayerWidget : GlanceAppWidget() {
                     maxLines = 1, style = TextStyle(fontSize = 12.sp, color = ColorProvider(c.content.copy(alpha = 0.7f))),
                 )
             }
-            Controls(context, group, c, big = false)
+        }
+        if (narrow) {
+            Row(GlanceModifier.fillMaxSize().padding(10.dp).clickable(actionStartActivity<MainActivity>()), verticalAlignment = Alignment.CenterVertically) {
+                CoverImage(cover, c, 48.dp, 14.dp)
+                Spacer(GlanceModifier.width(10.dp))
+                texts(GlanceModifier.defaultWeight())
+                Spacer(GlanceModifier.width(6.dp))
+                PlayPause(context, group, c)
+            }
+            return
+        }
+        // Four cells: the cover over the full height; beside it title and controls, below them the volume.
+        Row(
+            GlanceModifier.fillMaxSize().padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 8.dp).clickable(actionStartActivity<MainActivity>()),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CoverImage(cover, c, 64.dp, 16.dp)
+            Spacer(GlanceModifier.width(12.dp))
+            Column(GlanceModifier.defaultWeight()) {
+                Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    texts(GlanceModifier.defaultWeight())
+                    Spacer(GlanceModifier.width(4.dp))
+                    Controls(context, group, c, big = false, slim = true)
+                }
+                VolumeRow(context, group, c, big = false)
+            }
+        }
+    }
+
+    @Composable
+    private fun PlayPause(context: Context, group: GroupState?, c: CoverColors) {
+        val playing = group?.isPlaying == true
+        IconBox(
+            context, if (playing) R.drawable.ic_pause else R.drawable.ic_play, if (playing) R.string.pause else R.string.play,
+            actionRunCallback<PlayPauseAction>(), 44.dp, 44.dp, c.accent, c.onAccent,
+        )
+    }
+
+    /**
+     * Quieter, the level, louder: Glance has no slider. With muted rooms in the
+     * group it shows and moves the audible ones, as the app's group slider does.
+     */
+    @Composable
+    private fun VolumeRow(context: Context, group: GroupState?, c: CoverColors, big: Boolean) {
+        val volume = group?.let { audibleVolume(it.memberVolumes, it.memberMutes) ?: it.groupVolume } ?: 0
+        val button = if (big) 36.dp else 28.dp
+        val step = @Composable { icon: Int, label: Int, delta: Int ->
+            Box(
+                GlanceModifier.size(button).cornerRadius(button / 2).background(ColorProvider(c.subtle))
+                    .clickable(actionRunCallback<VolumeStepAction>(actionParametersOf(VOLUME_STEP to delta))),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(ImageProvider(icon), context.getString(label), GlanceModifier.size(button / 2 + 2.dp), colorFilter = ColorFilter.tint(ColorProvider(c.content)))
+            }
+        }
+        Row(
+            GlanceModifier.fillMaxWidth().padding(horizontal = if (big) 14.dp else 0.dp, vertical = if (big) 4.dp else 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            step(R.drawable.ic_volume_down, R.string.volume_down, -VOLUME_DELTA)
+            Box(GlanceModifier.defaultWeight().padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
+                LinearProgressIndicator(
+                    progress = volume / 100f,
+                    modifier = GlanceModifier.fillMaxWidth().height(if (big) 6.dp else 4.dp).cornerRadius(3.dp),
+                    color = ColorProvider(c.accent), backgroundColor = ColorProvider(c.subtle),
+                )
+            }
+            step(R.drawable.ic_volume_up, R.string.volume_up, VOLUME_DELTA)
         }
     }
 
@@ -330,9 +385,13 @@ class PlayerWidget : GlanceAppWidget() {
 
     companion object {
         private val ROW = DpSize(200.dp, 72.dp)
+        private val ROW_WIDE = DpSize(300.dp, 72.dp)
         private val LARGE = DpSize(250.dp, 140.dp)
+        private val LARGE_VOLUME = DpSize(250.dp, 190.dp)
         private val TALL = DpSize(250.dp, 260.dp)
+        internal val VOLUME_STEP = ActionParameters.Key<Int>("step")
         private const val QUEUE_LIMIT = 300
+        private const val VOLUME_DELTA = 2
 
         suspend fun refresh(context: Context) {
             if (GlanceAppWidgetManager(context).getGlanceIds(PlayerWidget::class.java).isNotEmpty()) PlayerWidget().updateAll(context)
@@ -358,6 +417,17 @@ class PlayerWidgetReceiver : GlanceAppWidgetReceiver() {
 class PlayPauseAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         HouseholdAccess.withSelected(context) { h, g -> h.command { if (g.isPlaying) it.pause() else it.play() } }
+    }
+}
+
+/** One step for the selected room, from the volume known now (not when the widget was drawn). */
+class VolumeStepAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        val delta = parameters[PlayerWidget.VOLUME_STEP] ?: return
+        HouseholdAccess.withSelected(context) { h, _ ->
+            val g = h.state.value.selected ?: return@withSelected
+            h.requestGroupVolume(g.id, (audibleVolume(g.memberVolumes, g.memberMutes) ?: g.groupVolume) + delta)
+        }
     }
 }
 

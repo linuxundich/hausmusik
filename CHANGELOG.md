@@ -8,6 +8,17 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Room widget in the player's look: background and accent from the cover
+  the room plays, the room above with a speaker or heart for a favorite,
+  title and artist below; wider than two cells, the cover shows too. The
+  one-row player keeps only play/pause at two cells, so the title stays
+  readable.
+- Fixed: on the tall player widget a title over two lines cut off the
+  play/pause button.
+- Player widget volume: quieter, a level bar and louder. In the one-row
+  player from four cells beside the cover, under title and controls; from about three rows under the player, and
+  above the queue when it shows. With muted rooms in the group it moves the
+  audible ones only, like the app's group slider.
 - Lyrics that run off the music, as on live albums whose LRCLIB entry carries
   the studio times: press and hold the line being sung now and all lines
   shift to match, or move them in half-second steps. The shift is kept per
