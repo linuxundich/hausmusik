@@ -12,7 +12,8 @@ All notable changes to Hausmusik are documented here. The format follows
   speakers and moves only them, each scaled like Sonos does; the muted one
   keeps its volume. Before, Sonos' group volume counted the muted speaker in
   and scaled it too, so it came back louder when un-muted. With no or all
-  speakers muted nothing changes. Tested on the fake household.
+  speakers muted nothing changes. Tested on the fake household and on the
+  real S1 household (the muted living room kept its volume).
 - Fixed: while dragging a single speaker's slider, a refresh could make it
   jump back for a moment; the dragged value now wins, as for the group.
 - Landscape: the rooms sheet puts three tiles in a row, so a household of
