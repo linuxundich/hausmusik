@@ -140,6 +140,10 @@ class HouseholdRepository @Inject constructor(
                             events.stop()
                             entry = null
                             _state.update { it.copy(connection = Connection.NoLocalNetwork) }
+                        } else {
+                            // A fixed address may still answer (VPN): check right away.
+                            _state.value.selected?.let { pendingGroups += it.id }
+                            _state.update { it.copy(connection = Connection.Reconnecting) }
                         }
                         refreshNow()
                     }
@@ -212,6 +216,7 @@ class HouseholdRepository @Inject constructor(
 
     private suspend fun run() {
         var failures = 0
+        var misses = 0
         var lastTopology = 0L
         var lastSelected = 0L
         var lastOthers = 0L
@@ -226,19 +231,31 @@ class HouseholdRepository @Inject constructor(
                     wakeUp.receive()
                     continue
                 }
-                _state.update { it.copy(connection = if (it.groups.isEmpty()) Connection.Searching else Connection.Reconnecting) }
+                _state.update {
+                    it.copy(
+                        connection = when {
+                            // Retrying a fixed address without Wi-Fi: keep the mask, no flicker.
+                            !local && it.connection == Connection.NoLocalNetwork -> Connection.NoLocalNetwork
+                            it.groups.isEmpty() -> Connection.Searching
+                            else -> Connection.Reconnecting
+                        },
+                    )
+                }
                 entry = findEntry(searchNetwork = local)
                 if (entry == null) {
                     _state.update {
                         it.copy(connection = if (!hasLocalNetwork()) Connection.NoLocalNetwork else Connection.NotFound(manual))
                     }
-                    // Speakers rebooting or the router being slow: look again by
-                    // ourselves every half minute (or at once on "search again").
-                    withTimeoutOrNull(30_000) { wakeUp.receive() }
+                    // Fresh Wi-Fi often is not usable for a few seconds, and speakers
+                    // may be rebooting: look again soon, then every half minute
+                    // (or at once on "search again").
+                    val wait = RETRY_DELAYS.getOrElse(misses++) { RETRY_DELAYS.last() }
+                    withTimeoutOrNull(wait) { wakeUp.receive() }
                     continue
                 }
                 lastTopology = 0L
                 lastOthers = 0L
+                misses = 0
             }
             // With events, polling is only a safety net; the progress bar extrapolates.
             val evented = events.active
@@ -276,7 +293,10 @@ class HouseholdRepository @Inject constructor(
                 }
             } catch (e: IOException) {
                 Log.w(TAG, "poll failed: ${e.message}")
-                if (!hasLocalNetwork() && settings.manualHost() == null) {
+                if (!hasLocalNetwork()) {
+                    // Without Wi-Fi a second try will not do better: start over at
+                    // once (a fixed address gets one more try there, e.g. over VPN).
+                    events.stop()
                     entry = null
                     failures = 0
                     _state.update { it.copy(connection = Connection.NoLocalNetwork) }
@@ -326,6 +346,7 @@ class HouseholdRepository @Inject constructor(
                 ?: groups.firstOrNull()?.coordinator?.uuid
             old.copy(groups = newGroups, selectedId = selected)
         }
+        _state.value.selected?.group?.displayName?.let { settings.setLastRoomName(it) }
         // New groups have no state yet, changed groups need their member volumes.
         pendingGroups += _state.value.groups.filter { g ->
             g.positionReadAt == 0L || g.group.members.map { it.uuid }.toSet() != g.memberVolumes.keys && g.memberVolumes.isNotEmpty()
@@ -428,7 +449,10 @@ class HouseholdRepository @Inject constructor(
 
     fun select(groupId: String) {
         _state.update { it.copy(selectedId = groupId) }
-        scope.launch { settings.setLastRoom(groupId) }
+        scope.launch {
+            settings.setLastRoom(groupId)
+            _state.value.selected?.group?.displayName?.let { settings.setLastRoomName(it) }
+        }
         refreshNow()
     }
 
@@ -585,6 +609,7 @@ class HouseholdRepository @Inject constructor(
 
     companion object {
         private const val TAG = "Household"
+        private val RETRY_DELAYS = listOf(2_000L, 5_000L, 10_000L, 30_000L)
 
         /** "192.168.0.59" → http://192.168.0.59:1400/, "10.0.2.2:1401" keeps its port. */
         fun hostToUrl(host: String): HttpUrl? {

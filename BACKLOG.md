@@ -38,7 +38,7 @@ Completed items stay checked.
 ## Additions
 
 - [x] **P0** Offline handling: no Wi-Fi mask, reconnecting band, automatic retry, idle session, tile and widget
-- [ ] **P1** Test the offline masks on the Pixel when it leaves the home Wi-Fi
+- [x] **P1** Test the offline masks on the Pixel (Wi-Fi off and on, cold start, fixed address)
 - [x] **P1** Lyrics from LRCLIB (synced, opt-in)
 - [x] **P1** Settings screen: speaker address, lyrics, about
 

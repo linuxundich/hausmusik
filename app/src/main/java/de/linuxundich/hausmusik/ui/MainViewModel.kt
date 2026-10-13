@@ -32,6 +32,7 @@ class MainViewModel @Inject constructor(
 ) : ViewModel() {
 
     val lyricsEnabled: StateFlow<Boolean> = settings.lyricsEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val lastRoomName: StateFlow<String?> = settings.lastRoomName.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val manualHost: StateFlow<String?> = settings.manualHost.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     fun setLyricsEnabled(on: Boolean) = viewModelScope.launch { settings.setLyricsEnabled(on) }

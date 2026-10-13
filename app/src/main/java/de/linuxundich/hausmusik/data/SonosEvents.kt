@@ -83,15 +83,20 @@ class SonosEvents @Inject constructor(
         ensureRenewing()
     }
 
-    /** Cancels every subscription; used when nothing shows or plays any more. */
+    /**
+     * Cancels every subscription; used when nothing shows or plays any more, or
+     * the household is gone. The UNSUBSCRIBEs go out in the background: without
+     * Wi-Fi each would wait for its timeout, and nobody needs their answer.
+     */
     suspend fun stop() = mutex.withLock {
         renewer?.cancel()
         listener?.cancel()
         renewer = null
         listener = null
-        subs.values.toList().forEach { client.unsubscribe(it.player.baseUrl, it.service, it.sid) }
+        val old = subs.values.toList()
         subs.clear()
         server.stop()
+        if (old.isNotEmpty()) scope.launch { old.forEach { client.unsubscribe(it.player.baseUrl, it.service, it.sid) } }
     }
 
     private suspend fun callbackBase(anyPlayer: SonosPlayer): String? {

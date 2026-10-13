@@ -52,6 +52,14 @@ All notable changes to Hausmusik are documented here. The format follows
     subscribes to events afresh (rebooted speakers forget subscriptions).
   - Media notification goes idle, the tile shows "Not in Wi-Fi" as
     unavailable, the widget says so too; tile and widget actions return at once.
+- Tested on the Pixel 10 on mobile data: the mask appears within 1 to 3 s,
+  also on a cold start (with the last room), and Hausmusik is back about 10 s
+  after Wi-Fi returns. Retries after a miss come after 2, 5 and 10 s before
+  the 30 s rhythm, since a fresh Wi-Fi is often not usable at once.
+- Fixed: unsubscribing waited for every speaker without Wi-Fi (3 s each), which
+  held the app in "reconnecting"; unsubscribes now run in the background.
+- Fixed: with a fixed address and no Wi-Fi the screen flickered between the
+  mask and the band on every retry.
 - Fixed: a quiet tick between polls reset the failure count, so lost speakers
   were never noticed while events were active.
 - The media output chip on the notification shows the room instead of "This

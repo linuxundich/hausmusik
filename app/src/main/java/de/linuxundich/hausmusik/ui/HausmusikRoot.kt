@@ -78,8 +78,9 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     val selected = household.selected
     val manualHost by vm.manualHost.collectAsStateWithLifecycle()
     // No Wi-Fi: one clear mask over everything, whatever was shown before.
+    val lastRoomName by vm.lastRoomName.collectAsStateWithLifecycle()
     if (household.connection == Connection.NoLocalNetwork) {
-        OfflineScreen(lastRoom = selected?.group?.displayName, hasManualHost = manualHost != null)
+        OfflineScreen(lastRoom = selected?.group?.displayName ?: lastRoomName, hasManualHost = manualHost != null)
         return
     }
     if (selected == null) {

@@ -44,6 +44,13 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
         if (value.isNullOrBlank()) it.remove(debugCallbackKey) else it[debugCallbackKey] = value.trim()
     }
 
+    private val lastRoomNameKey = stringPreferencesKey("last_room_name")
+
+    /** Name of the room shown last, for the offline mask after a cold start. */
+    val lastRoomName: Flow<String?> = store.data.map { it[lastRoomNameKey] }
+
+    suspend fun setLastRoomName(name: String) = store.edit { if (it[lastRoomNameKey] != name) it[lastRoomNameKey] = name }
+
     /** The room the app showed last; any member UUID of the group. */
     suspend fun lastRoom(): String? = store.data.first()[lastGroupKey]
 
