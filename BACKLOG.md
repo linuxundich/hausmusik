@@ -19,9 +19,10 @@ Completed items stay checked.
 - [x] **P0** Media3 session as a remote player: notification, lock screen, hardware volume buttons
 - [x] **P0** Check which foreground service type Android 17 accepts for a remote player (`mediaPlayback` works)
 - [ ] **P1** Output switcher shows "This phone" instead of the room: needs a MediaRouter2 routing controller
-- [ ] **P1** Re-subscribe after a Wi-Fi change and after Doze (test on the real phone)
+- [x] **P1** Re-subscribe after a Wi-Fi change (tested in the emulator)
+- [ ] **P1** Check subscriptions after Doze on the real phone
 - [x] **P1** Test lock screen controls on a device with a lock screen (Pixel 10: works, volume buttons also with the screen off)
-- [ ] **P1** Remember the last room per Wi-Fi network
+- [ ] **P2** Remember the last room per Wi-Fi network (only matters with several households)
 
 ## Phase 2: Finding music
 

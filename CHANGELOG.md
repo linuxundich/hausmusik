@@ -42,6 +42,8 @@ All notable changes to Hausmusik are documented here. The format follows
 - Sound: bass, treble and loudness for every speaker of the selected group.
 - The timer button shows the remaining sleep time.
 - Landscape layout for the Stage: cover on the left, controls on the right.
+- After a Wi-Fi change the app connects and subscribes again, since its own
+  address for the events changed.
 - Queue: drag a track by its handle to reorder it. Messages show above the
   queue sheet.
 - Room tiles in the rooms sheet: hold a tile and drop it on another room to

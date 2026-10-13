@@ -1,6 +1,10 @@
 package de.linuxundich.hausmusik.data
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.wifi.WifiManager
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -83,7 +87,42 @@ class HouseholdRepository @Inject constructor(
         if (loop?.isActive == true) return
         loop = scope.launch { run() }
         triggerJob = scope.launch { events.triggers.collect(::onTrigger) }
+        watchNetwork()
     }
+
+    // A new Wi-Fi network means a new own address for the event callbacks and
+    // maybe other speakers: start over.
+
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var currentNetwork: Network? = null
+
+    private fun watchNetwork() {
+        if (networkCallback != null) return
+        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                val previous = currentNetwork
+                currentNetwork = network
+                if (previous != null && previous != network) {
+                    Log.i(TAG, "network changed, reconnecting")
+                    scope.launch { reconnect() }
+                }
+            }
+        }
+        val request = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET).build()
+        runCatching { cm.registerNetworkCallback(request, callback) }.onSuccess { networkCallback = callback }
+    }
+
+    private fun unwatchNetwork() {
+        val cb = networkCallback ?: return
+        runCatching { context.getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(cb) }
+        networkCallback = null
+        currentNetwork = null
+    }
+
+    /** Same address setting, fresh connection and subscriptions. */
+    suspend fun reconnect() = connectTo(settings.manualHost())
 
     @Synchronized
     fun release(owner: String) {
@@ -93,6 +132,7 @@ class HouseholdRepository @Inject constructor(
         triggerJob?.cancel()
         loop = null
         triggerJob = null
+        unwatchNetwork()
         scope.launch { events.stop() }
     }
 
