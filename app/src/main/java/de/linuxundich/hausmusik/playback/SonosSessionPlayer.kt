@@ -109,7 +109,7 @@ class SonosSessionPlayer(private val household: HouseholdRepository) : SimpleBas
             .setPlaybackState(if (g.transport == TransportState.Transitioning) STATE_BUFFERING else STATE_READY)
             .setContentPositionMs(
                 PositionSupplier {
-                    val elapsed = if (playing) System.currentTimeMillis() - readAt else 0
+                    val elapsed = if (playing && readAt > 0) System.currentTimeMillis() - readAt else 0
                     val p = basePosition + elapsed
                     if (duration != null && duration > 0) p.coerceAtMost(duration) else p
                 },

@@ -42,6 +42,10 @@ All notable changes to Hausmusik are documented here. The format follows
 - Sound: bass, treble and loudness for every speaker of the selected group.
 - The timer button shows the remaining sleep time.
 - Landscape layout for the Stage: cover on the left, controls on the right.
+- Compose UI tests with Robolectric: Stage (track, room, radio cannot skip,
+  timer label), play dialog in English and German, alarm day labels; unit
+  tests for the speaker address.
+- The progress bar no longer jumps to the end when a position has no read time.
 - After a Wi-Fi change the app connects and subscribes again, since its own
   address for the events changed.
 - Queue: drag a track by its handle to reorder it. Messages show above the

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Host activity for Compose UI tests under Robolectric (instead of ui-test-manifest). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name="androidx.activity.ComponentActivity" android:exported="false" />
+    </application>
+</manifest>

@@ -236,7 +236,8 @@ private fun Progress(group: GroupState, colors: CoverColors, onSeek: (Long) -> U
             delay(250)
         }
     }
-    val elapsed = if (group.isPlaying) (clock - group.positionReadAt).coerceAtLeast(0) else 0
+    // Without a read time there is nothing to extrapolate from.
+    val elapsed = if (group.isPlaying && group.positionReadAt > 0) (clock - group.positionReadAt).coerceAtLeast(0) else 0
     val position = ((now.positionMs ?: 0) + elapsed).coerceAtMost(duration)
     var dragFraction by remember { mutableStateOf<Float?>(null) }
     var width by remember { mutableFloatStateOf(1f) }

@@ -42,3 +42,10 @@ player IDs, IP addresses and the NAS name are replaced, long lists trimmed.
 ```sh
 ./gradlew :sonos:test :app:testDebugUnitTest :app:lintDebug
 ```
+
+- `:sonos:test`: parsing against recorded fixtures, SOAP and GENA against
+  MockWebServer, and `FakeHouseholdTest`, which starts the fake household per
+  test (needs `python3`, otherwise skipped).
+- `:app:testDebugUnitTest`: Compose UI tests under Robolectric. The host
+  activity comes from `app/src/debug/AndroidManifest.xml` instead of
+  `ui-test-manifest`.
