@@ -31,6 +31,8 @@ object ServiceIds {
     /** The long list of every other service Sonos offers. */
     const val MORE = "svc:more"
     const val LINK_CLASS = "object.hausmusik.link"
+    /** The start page of a linked service: it can be unlinked there. */
+    const val LINKED_CLASS = "object.container.hausmusik.linked"
     fun of(serviceId: Int, itemId: String) = "svc:$serviceId:$itemId"
     fun parse(navId: String): Pair<Int, String>? {
         val rest = navId.removePrefix("svc:").takeIf { navId.startsWith("svc:") } ?: return null
@@ -137,10 +139,11 @@ class MusicServices @Inject constructor(
         val top = topIds()
         if (linked.isNotEmpty()) {
             // Ready to use: linked services and the well-known ones without sign-in (TuneIn).
-            return all.filter { it.id in linked || it.anonymous && it.id in top }.sortedBy { it.name.lowercase() }.map(::openEntry) + rest
+            return all.filter { it.id in linked || it.anonymous && it.id in top }.sortedBy { it.name.lowercase() }
+                .map { openEntry(it, linked = it.id in linked) } + rest
         }
         return all.filter { it.id in top && (it.anonymous || it.linkable) }.sortedBy { it.name.lowercase() }
-            .map { if (it.anonymous) openEntry(it) else linkEntry(it) } + rest
+            .map { if (it.anonymous) openEntry(it, linked = false) else linkEntry(it) } + rest
     }
 
     /** Every service not shown in the overview, A to Z: those without sign-in open, the rest to link. */
@@ -152,7 +155,7 @@ class MusicServices @Inject constructor(
         return available()
             .filter { it.id !in linked && it.id !in shown && (it.linkable || it.anonymous) }
             .sortedBy { it.name.lowercase() }
-            .map { if (it.anonymous) openEntry(it) else linkEntry(it) }
+            .map { if (it.anonymous) openEntry(it, linked = false) else linkEntry(it) }
     }
 
     private suspend fun linkedIds(): Set<Int> {
@@ -162,8 +165,8 @@ class MusicServices @Inject constructor(
 
     private suspend fun topIds(): Set<Int> = POPULAR + usedServiceIds()
 
-    private fun openEntry(s: MusicService) = DidlObject(id = ServiceIds.of(s.id, "root"), parentId = ServiceIds.OVERVIEW,
-        isContainer = true, title = s.displayName, upnpClass = "object.container")
+    private fun openEntry(s: MusicService, linked: Boolean) = DidlObject(id = ServiceIds.of(s.id, "root"), parentId = ServiceIds.OVERVIEW,
+        isContainer = true, title = s.displayName, upnpClass = if (linked) ServiceIds.LINKED_CLASS else "object.container")
 
     private fun linkEntry(s: MusicService) = DidlObject(id = "link:${s.id}", parentId = ServiceIds.OVERVIEW, isContainer = false,
         title = s.displayName, upnpClass = ServiceIds.LINK_CLASS,

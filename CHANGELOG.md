@@ -8,6 +8,18 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Spotify and TuneIn tested on the real S1 household: Spotify browses (your
+  albums, playlists, charts) and an album appended to the queue played;
+  TuneIn browses and a station (Deutschlandfunk) played. Everything restored
+  afterwards.
+- Fixed before that test: Spotify tracks need the `x-sonos-spotify:` scheme
+  (Hausmusik sent `x-sonos-http:` as for bonob), TuneIn stations the item ID
+  prefix `F10092020`, and service containers now carry
+  `?sid=…&flags=8300&sn=…` like the Sonos app writes them (checked against
+  the household's own favorites).
+- TuneIn stations show their logos; *Unlink* only shows for services
+  Hausmusik linked, not for TuneIn.
+
 - Fixed: the first search after starting the app could show "Speakers
   briefly gone, reconnecting". Setting up the music services asks the
   speaker for household, serial number and the 35 KB service list; on an S1

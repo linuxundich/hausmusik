@@ -239,6 +239,7 @@ class SmapiClient(
 
     companion object {
         const val NS = "http://www.sonos.com/Services/1.1"
+        const val SPOTIFY = 9
         private const val USER_AGENT = "Linux UPnP/1.0 Sonos/85.0-66270 (ACR_hausmusik)"
         private val XML = "text/xml; charset=\"utf-8\"".toMediaType()
 
@@ -276,7 +277,8 @@ class SmapiClient(
                             title = e.childText("title").orEmpty(),
                             artist = t?.childText("artist")?.ifBlank { null },
                             album = t?.childText("album")?.ifBlank { null },
-                            artUrl = t?.childText("albumArtURI")?.ifBlank { null },
+                            // Stations carry their logo in streamMetadata instead.
+                            artUrl = (t?.childText("albumArtURI") ?: e.child("streamMetadata")?.childText("logo"))?.ifBlank { null },
                             canPlay = true,
                             mimeType = e.childText("mimeType"),
                             durationMs = t?.childText("duration")?.toLongOrNull()?.times(1000),
@@ -313,19 +315,25 @@ class SmapiClient(
             val enc = escapeId(item.id)
             // TuneIn's items carry an F prefix, as libnoson writes them.
             val tunein = service.id == 254
+            // As the Sonos app writes them (checked against the household's own favorites):
+            // Spotify tracks use their own scheme, containers carry the service and account.
+            val account = "sid=${service.id}&flags=8300&sn=$sn"
+            fun container(prefix: String) = "x-rincon-cpcontainer:$prefix$enc?$account"
             val (didlId, uri, upnpClass) = when {
-                tunein && item.itemType == "stream" -> Triple("F00092020$enc", "x-sonosapi-stream:$enc?sid=${service.id}&flags=8224&sn=$sn",
+                tunein && item.itemType == "stream" -> Triple("F10092020$enc", "x-sonosapi-stream:$enc?sid=${service.id}&flags=8224&sn=$sn",
                     "object.item.audioItem.audioBroadcast")
+                item.itemType == "track" && service.id == SPOTIFY -> Triple("10032020$enc",
+                    "x-sonos-spotify:$enc?sid=${service.id}&flags=8224&sn=$sn", "object.item.audioItem.musicTrack")
                 item.itemType == "track" -> Triple("10032020$enc",
                     "x-sonos-http:$enc${extension(item.mimeType)}?sid=${service.id}&flags=8224&sn=$sn", "object.item.audioItem.musicTrack")
                 item.itemType == "stream" -> Triple("10092020$enc", "x-sonosapi-stream:$enc?sid=${service.id}&flags=8224&sn=$sn",
                     "object.item.audioItem.audioBroadcast")
-                item.itemType == "program" -> Triple("100c206c$enc", "x-sonosapi-radio:$enc?sid=${service.id}&flags=8300&sn=$sn",
+                item.itemType == "program" -> Triple("100c206c$enc", "x-sonosapi-radio:$enc?$account",
                     "object.item.audioItem.audioBroadcast.#program")
-                item.itemType == "album" -> Triple("1004206c$enc", "x-rincon-cpcontainer:1004206c$enc", "object.container.album.musicAlbum")
-                item.itemType == "playlist" || item.itemType == "albumList" -> Triple("1006206c$enc", "x-rincon-cpcontainer:1006206c$enc", "object.container.playlistContainer")
-                item.itemType == "artist" -> Triple("10052064$enc", "x-rincon-cpcontainer:10052064$enc", "object.container.person.musicArtist")
-                else -> Triple("100f006c$enc", "x-rincon-cpcontainer:100f006c$enc", "object.container")
+                item.itemType == "album" -> Triple("1004206c$enc", container("1004206c"), "object.container.album.musicAlbum")
+                item.itemType == "playlist" || item.itemType == "albumList" -> Triple("1006206c$enc", container("1006206c"), "object.container.playlistContainer")
+                item.itemType == "artist" -> Triple("10052064$enc", container("10052064"), "object.container.person.musicArtist")
+                else -> Triple("100f006c$enc", container("100f006c"), "object.container")
             }
             val playable = item.canPlay || item.itemType == "track"
             val md = buildString {

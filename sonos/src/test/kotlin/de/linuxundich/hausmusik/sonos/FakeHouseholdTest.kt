@@ -348,6 +348,6 @@ class FakeHouseholdTest {
         val d = SmapiClient.toDidl(tunein, "0", stations[0], "svc")
         assertEquals("x-sonosapi-stream:s1000?sid=254&flags=8224&sn=0", d.uri)
         assertTrue(d.playsDirectly)
-        assertTrue(d.resMd!!.contains("F00092020s1000"))
+        assertTrue(d.resMd!!.contains("F10092020s1000"))
     }
 }

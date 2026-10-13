@@ -48,7 +48,7 @@ class SmapiTest {
         assertEquals("x-sonos-http:track%3a1.flac?sid=246&flags=8224&sn=7", d.uri)
         assertFalse(d.isContainer)
         val album = SmapiClient.toDidl(bonob, "7", SmapiItem("album:4", "album", "Pinguinzoo", canPlay = true, canEnumerate = true), "svc:246:album:4")
-        assertEquals("x-rincon-cpcontainer:1004206calbum%3a4", album.uri)
+        assertEquals("x-rincon-cpcontainer:1004206calbum%3a4?sid=246&flags=8300&sn=7", album.uri)
         assertTrue(album.isContainer)
         assertTrue(album.resMd!!.contains("""<item id="1004206calbum%3a4""""))
         val folder = SmapiClient.toDidl(bonob, "7", SmapiItem("albums", "albumList", "Albums", canEnumerate = true), "svc:246:albums")
@@ -123,5 +123,16 @@ class SmapiTest {
             "https://example.org/pm.xml",
             SmapiClient.presentationMapFromManifest("""{"schemaVersion":"1.0","presentationMap":{"version":3,"uri":"https://example.org/pm.xml"},"strings":{"uri":"x"}}"""),
         )
+    }
+
+    @Test
+    fun `Spotify tracks and albums are written as the Sonos app does`() {
+        val spotify = MusicService(9, "Spotify", "https://spotify-v5.ws.sonos.com/smapi", null, "AppLink", 60, null)
+        val track = SmapiClient.toDidl(spotify, "1", SmapiItem("spotify:track:6g5ov3aSDUvvDkQKIcmZQI", "track", "Guantanamera"), "svc")
+        assertEquals("x-sonos-spotify:spotify%3atrack%3a6g5ov3aSDUvvDkQKIcmZQI?sid=9&flags=8224&sn=1", track.uri)
+        assertTrue(track.resMd!!.contains("10032020spotify%3atrack%3a6g5ov3aSDUvvDkQKIcmZQI"))
+        assertTrue(track.resMd!!.contains("SA_RINCON2311_X_#Svc2311-0-Token"))
+        val album = SmapiClient.toDidl(spotify, "1", SmapiItem("spotify:album:7nvYSWwzS1SKzRe8ZOJw4K", "album", "Bierle in da Sun", canPlay = true, canEnumerate = true), "svc")
+        assertEquals("x-rincon-cpcontainer:1004206cspotify%3aalbum%3a7nvYSWwzS1SKzRe8ZOJw4K?sid=9&flags=8300&sn=1", album.uri)
     }
 }

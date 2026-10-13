@@ -384,7 +384,8 @@ fun ContainerScreen(
                     navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
                     actions = {
                         // Landscape: the play button lives up here, always in reach.
-                        if (container.id.startsWith(ServiceIds.OVERVIEW) && container.id.endsWith(":root")) {
+                        // Only a service Hausmusik linked can be unlinked; TuneIn needs no account.
+                    if (container.upnpClass == ServiceIds.LINKED_CLASS) {
                         androidx.compose.material3.TextButton(onClick = { vm.unlink(container); onBack() }) { Text(stringResource(R.string.service_unlink)) }
                     }
                     if (wideBar && playable) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(end = 8.dp)) {
