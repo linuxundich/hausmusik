@@ -8,6 +8,17 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Home screen widget redesigned in the stage's look: background gradient and
+  accent from the cover (night blue and amber without one), a pill-shaped
+  play button. Three sizes: one row; a large player with a big cover, room,
+  title and artist (default 4x2); and from 4x3 on the queue to scroll below,
+  starting at the playing track, tap a track to play it.
+- Fixed: in the release build the widget never left its loading spinner and
+  its buttons did nothing. R8 had removed constructors that WorkManager and
+  Glance create by reflection; keep rules added.
+- Fixed: the widget showed what was known when the app last ran ("nothing
+  playing" while music played); it now connects briefly on every redraw.
+
 - Menus and dialogs follow Material 3 Expressive: menus have 16 dp corners
   and an icon per entry (on the stage and in the queue in the cover colors,
   no longer the light system menu), dialogs carry an icon above the title,

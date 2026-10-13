@@ -166,4 +166,5 @@
     <string name="ok">OK</string>
     <string name="service_tap_to_link">Zum Verknüpfen antippen</string>
     <string name="services_more">Weitere Dienste</string>
+    <string name="widget_queue_empty">Die Warteschlange ist leer.</string>
 </resources>

@@ -63,7 +63,7 @@ Completed items stay checked.
 
 ## Phase 4: Part of the system
 
-- [x] **P1** Glance widget: player for the selected room
+- [x] **P1** Glance widget: player for the selected room, cover colors, three sizes, scrollable queue
 - [ ] **P2** Widgets for a single room or a favorite
 - [x] **P1** Quick Settings tile
 - [ ] **P2** App shortcuts and intents for Tasker

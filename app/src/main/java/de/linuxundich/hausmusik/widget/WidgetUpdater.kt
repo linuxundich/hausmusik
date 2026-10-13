@@ -17,7 +17,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * Redraws the widget when what it shows changes: room, title, cover, playing.
+ * Redraws the widget when what it shows changes: room, title, cover, playing,
+ * and for the tall size the queue length and the playing track.
  * Position and volume do not count, so a playing track does not redraw it
  * every second.
  */
@@ -31,7 +32,7 @@ class WidgetUpdater @Inject constructor(
     fun start() {
         scope.launch {
             household.state
-                .map { h -> h.selected?.let { listOf(it.group.displayName, it.nowPlaying?.title, it.nowPlaying?.artist, it.artUrl, it.isPlaying) } }
+                .map { h -> h.selected?.let { listOf(it.group.displayName, it.nowPlaying?.title, it.nowPlaying?.artist, it.artUrl, it.isPlaying, it.queueLength, it.nowPlaying?.queuePosition) } }
                 .distinctUntilChanged()
                 .debounce(500)
                 .collect { runCatching { PlayerWidget.refresh(context) } }
