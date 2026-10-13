@@ -28,8 +28,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import de.linuxundich.hausmusik.ui.common.AppMenu
+import de.linuxundich.hausmusik.ui.common.menuColors
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -206,10 +209,10 @@ private fun StageMenu(colors: CoverColors, actions: StageActions) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.queue_more), tint = colors.content.copy(alpha = 0.85f)) }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(text = { Text(stringResource(R.string.alarms)) }, onClick = { open = false; actions.onAlarms() })
-            DropdownMenuItem(text = { Text(stringResource(R.string.sound)) }, onClick = { open = false; actions.onSound() })
-            DropdownMenuItem(text = { Text(stringResource(R.string.settings)) }, onClick = { open = false; actions.onSettings() })
+        AppMenu(open, { open = false }, menuColors(colors)) {
+            Item(AppIcons.Alarm, stringResource(R.string.alarms)) { open = false; actions.onAlarms() }
+            Item(AppIcons.Tune, stringResource(R.string.sound)) { open = false; actions.onSound() }
+            Item(Icons.Filled.Settings, stringResource(R.string.settings)) { open = false; actions.onSettings() }
         }
     }
 }

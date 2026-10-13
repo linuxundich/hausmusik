@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,8 +30,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import de.linuxundich.hausmusik.ui.theme.AppIcons
+import androidx.compose.material.icons.filled.Delete
+import de.linuxundich.hausmusik.ui.common.AppMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -214,9 +216,9 @@ private fun AlarmCard(
             Switch(checked = alarm.enabled, onCheckedChange = onToggle)
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.queue_more)) }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.alarm_duplicate)) }, onClick = { menu = false; onDuplicate() })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.alarm_delete)) }, onClick = { menu = false; onDelete() })
+                AppMenu(menu, { menu = false }) {
+                    Item(AppIcons.Copy, stringResource(R.string.alarm_duplicate)) { menu = false; onDuplicate() }
+                    Item(Icons.Filled.Delete, stringResource(R.string.alarm_delete)) { menu = false; onDelete() }
                 }
             }
         }
@@ -270,16 +272,23 @@ private fun AlarmEditor(
                 }
                 Section(stringResource(R.string.alarm_days))
                 val locale = LocalConfiguration.current.locales[0]
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // One row of round toggles, like the clock app: all seven days stay on one line.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     weekOrder.forEach { d ->
-                        FilterChip(
-                            selected = d in alarm.recurrence.days,
-                            onClick = {
-                                val days = alarm.recurrence.days.let { if (d in it) it - d else it + d }
+                        val on = d in alarm.recurrence.days
+                        androidx.compose.material3.Surface(
+                            checked = on,
+                            onCheckedChange = {
+                                val days = alarm.recurrence.days.let { if (on) it - d else it + d }
                                 alarm = alarm.copy(recurrence = Recurrence(days))
                             },
-                            label = { Text(dayName(d, locale)) },
-                        )
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                            contentColor = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f).widthIn(max = 48.dp).aspectRatio(1f),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) { Text(dayName(d, locale), style = MaterialTheme.typography.labelLarge) }
+                        }
                     }
                 }
                 Text(recurrenceLabel(alarm.recurrence), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

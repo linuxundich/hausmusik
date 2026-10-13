@@ -35,6 +35,8 @@ import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.sonos.playsDirectly
 import de.linuxundich.hausmusik.R
 import androidx.compose.material3.AlertDialog
+import de.linuxundich.hausmusik.ui.theme.AppIcons
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.produceState
@@ -228,6 +230,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     if (lyricsConsent) {
         AlertDialog(
             onDismissRequest = { lyricsConsent = false },
+            icon = { Icon(AppIcons.Lyrics, null) },
             title = { Text(stringResource(R.string.lyrics_consent_title)) },
             text = { Text(stringResource(R.string.lyrics_consent_body)) },
             confirmButton = {

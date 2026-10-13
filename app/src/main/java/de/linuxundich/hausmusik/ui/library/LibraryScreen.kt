@@ -10,6 +10,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.TextField
@@ -235,6 +236,7 @@ private fun LinkDialog(state: LinkState, onDismiss: () -> Unit) {
     if (state is LinkState.Waiting) LaunchedEffect(state.url) { open(state.url) }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
+        icon = { Icon(if (state is LinkState.Done) Icons.Filled.Check else AppIcons.Link, null) },
         title = { Text(stringResource(R.string.link_title, state.name)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

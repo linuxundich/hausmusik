@@ -32,8 +32,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import de.linuxundich.hausmusik.ui.common.menuColors
+import de.linuxundich.hausmusik.ui.common.AppMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -132,9 +132,9 @@ fun QueueSheet(
                 IconButton(onClick = { menuOpen = true }, enabled = !items.isNullOrEmpty()) {
                     Icon(Icons.Filled.MoreVert, stringResource(R.string.queue_more), tint = colors.content)
                 }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.queue_save)) }, onClick = { menuOpen = false; saveName = "" })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.queue_clear)) }, onClick = { menuOpen = false; confirmClear = true })
+                AppMenu(menuOpen, { menuOpen = false }, menuColors(colors)) {
+                    Item(AppIcons.Save, stringResource(R.string.queue_save)) { menuOpen = false; saveName = "" }
+                    Item(AppIcons.DeleteSweep, stringResource(R.string.queue_clear)) { menuOpen = false; confirmClear = true }
                 }
             }
         }
@@ -202,14 +202,22 @@ fun QueueSheet(
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
+            icon = { Icon(AppIcons.DeleteSweep, null) },
+            title = { Text(stringResource(R.string.queue_clear)) },
             text = { Text(stringResource(R.string.queue_clear_confirm, group.group.displayName)) },
-            confirmButton = { TextButton(onClick = { confirmClear = false; edit { actions.clear() } }) { Text(stringResource(R.string.clear)) } },
+            confirmButton = {
+                TextButton(
+                    onClick = { confirmClear = false; edit { actions.clear() } },
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = androidx.compose.material3.MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.clear)) }
+            },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
     saveName?.let { name ->
         AlertDialog(
             onDismissRequest = { saveName = null },
+            icon = { Icon(AppIcons.Save, null) },
             title = { Text(stringResource(R.string.queue_save)) },
             text = {
                 OutlinedTextField(value = name, onValueChange = { saveName = it }, singleLine = true, label = { Text(stringResource(R.string.queue_save_name)) })
@@ -275,9 +283,9 @@ private fun QueueRow(
                     Icon(AppIcons.DragHandle, stringResource(R.string.queue_move), tint = colors.content.copy(alpha = 0.6f))
                 }
             }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text(stringResource(R.string.queue_play_next)) }, enabled = !playing, onClick = { menu = false; onPlayNext() })
-                DropdownMenuItem(text = { Text(stringResource(R.string.queue_remove)) }, onClick = { menu = false; onRemove() })
+            AppMenu(menu, { menu = false }, menuColors(colors)) {
+                Item(AppIcons.PlayNext, stringResource(R.string.queue_play_next), enabled = !playing) { menu = false; onPlayNext() }
+                Item(Icons.Filled.Delete, stringResource(R.string.queue_remove)) { menu = false; onRemove() }
             }
         }
     }

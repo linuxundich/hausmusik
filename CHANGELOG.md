@@ -8,6 +8,13 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Menus and dialogs follow Material 3 Expressive: menus have 16 dp corners
+  and an icon per entry (on the stage and in the queue in the cover colors,
+  no longer the light system menu), dialogs carry an icon above the title,
+  the play and sleep timer dialogs offer their choices as one grouped list
+  instead of a stack of text buttons, *Clear* is shown in the warning color,
+  and the alarm editor picks weekdays with one row of seven round toggles.
+
 - Landscape album and folder pages: the cover fills a 152 dp column, the
   gaps to the edge and to the list are an even 24 dp, and the title stays
   above the player bar. Tracks without a track number (bonob) are numbered
