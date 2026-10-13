@@ -42,6 +42,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -363,7 +364,7 @@ fun ContainerScreen(
             val artistImage = LocalArtistImage.current
             val picture by produceState<String?>(null, container.title, person, artistImage) { if (person) value = artistImage(container.title) }
             val cover: @Composable (Modifier) -> Unit = { m ->
-                Cover(picture ?: vm.artUrl(container.albumArtUri), m, corner = if (person) 60.dp else 16.dp,
+                Cover(picture ?: vm.artUrl(container.albumArtUri), m, corner = if (person) 100.dp else 16.dp,
                     placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     icon = if (person) Icons.Filled.Person else AppIcons.Album)
             }
@@ -390,12 +391,14 @@ fun ContainerScreen(
             }
             if (isWide()) {
                 // Landscape: cover and play button on the left, the tracks get the full height.
-                Row(Modifier.padding(padding)) {
-                    Column(Modifier.width(240.dp).verticalScroll(rememberScrollState()).padding(16.dp)) {
-                        cover(Modifier.size(120.dp))
+                // The cover fills its column; the list brings its own 16 dp, so both gaps come to 24 dp.
+                Row(Modifier.padding(padding).padding(start = 24.dp)) {
+                    Column(Modifier.width(152.dp).verticalScroll(rememberScrollState()).padding(vertical = 16.dp)) {
+                        cover(Modifier.fillMaxWidth().aspectRatio(1f))
                         Spacer(Modifier.height(12.dp))
                         info()
                     }
+                    Spacer(Modifier.width(8.dp))
                     Box(Modifier.weight(1f)) { list() }
                 }
             } else {
@@ -463,14 +466,15 @@ private fun ItemList(
                 }
             }
             else -> LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
-                items(state.items, key = { it.id }) { item -> ItemRow(item, artUrl, numbered) { onClick(item) } }
+                // Services often send no track numbers; then the position in the album stands in.
+                itemsIndexed(state.items, key = { _, it -> it.id }) { i, item -> ItemRow(item, artUrl, numbered, i + 1) { onClick(item) } }
             }
         }
     }
 }
 
 @Composable
-private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Boolean = false, onClick: () -> Unit) {
+private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Boolean = false, position: Int? = null, onClick: () -> Unit) {
     val person = item.upnpClass.contains("person")
     val artistImage = LocalArtistImage.current
     val picture by produceState<String?>(null, item.title, person, artistImage) { if (person) value = artistImage(item.title) }
@@ -478,8 +482,9 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (numbered && item.originalTrackNumber != null) {
-            Text("${item.originalTrackNumber}", modifier = Modifier.width(28.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val number = item.originalTrackNumber ?: position.takeIf { !item.isContainer }
+        if (numbered && number != null) {
+            Text("$number", modifier = Modifier.width(28.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             Cover(
                 picture ?: artUrl(item.albumArtUri), Modifier.size(44.dp), corner = if (person) 22.dp else 8.dp,

@@ -8,6 +8,10 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Landscape album and folder pages: the cover fills a 152 dp column, the
+  gaps to the edge and to the list are an even 24 dp, and the title stays
+  above the player bar. Tracks without a track number (bonob) are numbered
+  by position instead of repeating the cover.
 - Debug builds are called "Hausmusik Dev", so they cannot be mistaken for
   the release when both are on one phone.
 
