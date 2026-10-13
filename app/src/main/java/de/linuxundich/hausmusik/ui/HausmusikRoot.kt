@@ -128,6 +128,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             is Screen.Container -> ContainerScreen(
                 library, screen.item, selected, snackbar,
                 onBack = { stack.removeAt(stack.lastIndex) },
+                onOpenContainer = { stack.add(Screen.Container(it)) },
                 onPlay = ::requestPlay,
                 onMiniPlayer = { stack.removeRange(1, stack.size) },
                 onPlayPause = vm::playPause,

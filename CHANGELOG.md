@@ -42,6 +42,11 @@ All notable changes to Hausmusik are documented here. The format follows
 - Sound: bass, treble and loudness for every speaker of the selected group.
 - The timer button shows the remaining sleep time.
 - Landscape layout for the Stage: cover on the left, controls on the right.
+- Library search: artists, albums and tracks of the music share, as you type.
+- Library tabs for artists and genres; artists open their albums, genres
+  their albums, albums their tracks with track numbers. Every level can be
+  played as a whole.
+- Integration tests: the Sonos client against the fake household (15 tests).
 - Quick Settings tile: shows the selected room and what plays, a tap pauses or
   resumes it, also while the app is closed.
 - Home screen widget (Glance): cover, title, room, previous, play/pause, next.

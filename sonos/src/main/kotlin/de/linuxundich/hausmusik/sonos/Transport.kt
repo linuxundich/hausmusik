@@ -155,3 +155,11 @@ data class BrowseResult(
     val totalMatches: Int,
     val updateId: Int?,
 )
+
+data class LibrarySearch(
+    val artists: List<DidlObject>,
+    val albums: List<DidlObject>,
+    val tracks: List<DidlObject>,
+) {
+    val isEmpty: Boolean get() = artists.isEmpty() && albums.isEmpty() && tracks.isEmpty()
+}

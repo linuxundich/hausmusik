@@ -1,6 +1,21 @@
 package de.linuxundich.hausmusik.ui.library
 
 import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -55,6 +71,8 @@ import de.linuxundich.hausmusik.ui.theme.AppIcons
 
 private fun LibraryTab.label() = when (this) {
     LibraryTab.Favorites -> R.string.library_favorites
+    LibraryTab.Artists -> R.string.library_artists
+    LibraryTab.Genres -> R.string.library_genres
     LibraryTab.Albums -> R.string.library_albums
     LibraryTab.Radio -> R.string.library_radio
     LibraryTab.Playlists -> R.string.library_playlists
@@ -75,28 +93,99 @@ fun LibraryScreen(
 ) {
     val tab by vm.tab.collectAsStateWithLifecycle()
     val lists by vm.lists.collectAsStateWithLifecycle()
+    val query by vm.query.collectAsStateWithLifecycle()
+    val search by vm.search.collectAsStateWithLifecycle()
+    var searching by rememberSaveable { mutableStateOf(false) }
     // Loaded on first display, not in the ViewModel's init: the ViewModel may
     // exist before any room is known.
     LaunchedEffect(Unit) { vm.load(tab.objectId) }
+    BackHandler(searching) { searching = false; vm.setQuery("") }
+    val focus = remember { FocusRequester() }
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.library)) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
+                title = {
+                    if (searching) {
+                        TextField(
+                            value = query,
+                            onValueChange = vm::setQuery,
+                            placeholder = { Text(stringResource(R.string.search_hint)) },
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
+                            ),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                        )
+                        LaunchedEffect(Unit) { focus.requestFocus() }
+                    } else {
+                        Text(stringResource(R.string.library))
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { if (searching) { searching = false; vm.setQuery("") } else onBack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                    }
+                },
+                actions = {
+                    if (!searching) IconButton(onClick = { searching = true }) { Icon(Icons.Filled.Search, stringResource(R.string.search)) }
+                    else if (query.isNotEmpty()) IconButton(onClick = { vm.setQuery("") }) { Icon(Icons.Filled.Clear, stringResource(R.string.clear)) }
+                },
             )
         },
         bottomBar = { if (group != null) MiniPlayer(group, onMiniPlayer, onPlayPause) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(Modifier.padding(padding)) {
+            if (searching) {
+                SearchResults(search, vm::artUrl, onOpenContainer, onPlay)
+                return@Column
+            }
             LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(LibraryTab.entries) { t ->
                     FilterChip(selected = t == tab, onClick = { vm.select(t) }, label = { Text(stringResource(t.label())) })
                 }
             }
-            ItemList(lists[tab.objectId], grid = tab != LibraryTab.Radio, artUrl = vm::artUrl, onRetry = { vm.load(tab.objectId, force = true) }) { item ->
+            ItemList(lists[tab.objectId], grid = tab.grid, artUrl = vm::artUrl, onRetry = { vm.load(tab.objectId, force = true) }) { item ->
                 if (item.isContainer && tab != LibraryTab.Favorites) onOpenContainer(item) else onPlay(item)
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SearchResults(
+    state: SearchState,
+    artUrl: (String?) -> String?,
+    onOpenContainer: (DidlObject) -> Unit,
+    onPlay: (DidlObject) -> Unit,
+) {
+    when (state) {
+        SearchState.Idle -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) {
+            Text(stringResource(R.string.search_intro), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        SearchState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
+        SearchState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(stringResource(R.string.library_error)) }
+        is SearchState.Done -> if (state.result.isEmpty) {
+            Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) { Text(stringResource(R.string.search_nothing)) }
+        } else LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
+            fun section(title: Int, items: List<DidlObject>) {
+                if (items.isEmpty()) return
+                item(key = "h$title") {
+                    Text(
+                        stringResource(title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+                    )
+                }
+                items(items, key = { "$title/${it.id}" }) { item ->
+                    ItemRow(item, artUrl) { if (item.isContainer) onOpenContainer(item) else onPlay(item) }
+                }
+            }
+            section(R.string.library_artists, state.result.artists)
+            section(R.string.library_albums, state.result.albums)
+            section(R.string.search_tracks, state.result.tracks)
         }
     }
 }
@@ -110,6 +199,7 @@ fun ContainerScreen(
     group: GroupState?,
     snackbar: SnackbarHostState,
     onBack: () -> Unit,
+    onOpenContainer: (DidlObject) -> Unit,
     onPlay: (DidlObject) -> Unit,
     onMiniPlayer: () -> Unit,
     onPlayPause: () -> Unit,
@@ -128,8 +218,9 @@ fun ContainerScreen(
     ) { padding ->
         Column(Modifier.padding(padding)) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Cover(vm.artUrl(container.albumArtUri), Modifier.size(120.dp), corner = 16.dp,
-                    placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                Cover(vm.artUrl(container.albumArtUri), Modifier.size(120.dp), corner = if (container.upnpClass.contains("person")) 60.dp else 16.dp,
+                    placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    icon = if (container.upnpClass.contains("person")) Icons.Filled.Person else AppIcons.Album)
                 Column(Modifier.padding(start = 16.dp).weight(1f)) {
                     Text(container.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 2)
                     container.creator?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
@@ -139,14 +230,27 @@ fun ContainerScreen(
                     }
                 }
             }
-            ItemList(lists[container.id], grid = false, artUrl = vm::artUrl, onRetry = { vm.load(container.id, force = true) }, onClick = onPlay)
+            val state = lists[container.id]
+            val allContainers = (state as? ListState.Loaded)?.items?.let { it.isNotEmpty() && it.all { i -> i.isContainer } } == true
+            // Inside an album, track numbers say more than the same cover over and over.
+            val isAlbum = container.upnpClass.contains("album")
+            ItemList(state, grid = allContainers, artUrl = vm::artUrl, numbered = isAlbum, onRetry = { vm.load(container.id, force = true) }) { item ->
+                if (item.isContainer) onOpenContainer(item) else onPlay(item)
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ItemList(state: ListState?, grid: Boolean, artUrl: (String?) -> String?, onRetry: () -> Unit, onClick: (DidlObject) -> Unit) {
+private fun ItemList(
+    state: ListState?,
+    grid: Boolean,
+    artUrl: (String?) -> String?,
+    numbered: Boolean = false,
+    onRetry: () -> Unit,
+    onClick: (DidlObject) -> Unit,
+) {
     when (state) {
         null, ListState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
         ListState.Error -> Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -177,27 +281,39 @@ private fun ItemList(state: ListState?, grid: Boolean, artUrl: (String?) -> Stri
                 }
             }
             else -> LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
-                items(state.items, key = { it.id }) { item ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onClick(item) }.padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (item.originalTrackNumber != null) {
-                            Text("${item.originalTrackNumber}", modifier = Modifier.size(28.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        } else {
-                            Cover(artUrl(item.albumArtUri), Modifier.size(44.dp), corner = 8.dp,
-                                placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                icon = if (item.isRadio) AppIcons.Radio else AppIcons.Album)
-                        }
-                        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                            Text(item.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            item.creator?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
-                        }
-                        if (item.durationMs != null) Text(formatTime(item.durationMs), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
+                items(state.items, key = { it.id }) { item -> ItemRow(item, artUrl, numbered) { onClick(item) } }
             }
         }
+    }
+}
+
+@Composable
+private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Boolean = false, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (numbered && item.originalTrackNumber != null) {
+            Text("${item.originalTrackNumber}", modifier = Modifier.width(28.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            Cover(
+                artUrl(item.albumArtUri), Modifier.size(44.dp), corner = if (item.upnpClass.contains("person")) 22.dp else 8.dp,
+                placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                icon = when {
+                    item.isRadio -> AppIcons.Radio
+                    item.upnpClass.contains("person") -> Icons.Filled.Person
+                    item.isContainer -> AppIcons.Album
+                    else -> AppIcons.Playlist
+                },
+            )
+        }
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Text(item.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            (if (numbered) item.creator else listOfNotNull(item.creator, item.album).joinToString(" · ")).takeIf { !it.isNullOrEmpty() }?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
+        }
+        if (item.durationMs != null) Text(formatTime(item.durationMs), style = MaterialTheme.typography.bodySmall)
     }
 }
 

@@ -1,5 +1,7 @@
 package de.linuxundich.hausmusik.sonos
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl
 
 /**
@@ -162,6 +164,19 @@ class SonosPlayerClient(val baseUrl: HttpUrl, private val soap: SoapClient) {
             out += page.items
         } while (out.size < total && out.size < limit)
         return out
+    }
+
+    /**
+     * Searches the music library: artists, albums and tracks whose names
+     * contain [term]. Sonos does this through Browse with IDs like
+     * `A:ALBUM:term`. The three lists are loaded in parallel.
+     */
+    suspend fun search(term: String, perKind: Int = 30): LibrarySearch = coroutineScope {
+        val q = java.net.URLEncoder.encode(term.trim(), "UTF-8").replace("+", "%20")
+        val artists = async { browse("A:ALBUMARTIST:$q", 0, perKind).items }
+        val albums = async { browse("A:ALBUM:$q", 0, perKind).items }
+        val tracks = async { browse("A:TRACKS:$q", 0, perKind).items }
+        LibrarySearch(artists.await(), albums.await(), tracks.await())
     }
 
     /** Absolute URL for a relative `/getaa?...` album art path. */

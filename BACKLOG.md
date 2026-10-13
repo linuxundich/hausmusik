@@ -29,8 +29,8 @@ Completed items stay checked.
 - [x] **P0** Queue: remove (swipe), play next (long press), clear, save as Sonos playlist
 - [ ] **P1** Queue: reorder by dragging
 - [ ] **P1** Show messages above open sheets (they currently appear behind them)
-- [ ] **P1** Search in the music share
-- [ ] **P1** Artists and genres
+- [x] **P1** Search in the music share
+- [x] **P1** Artists and genres
 - [ ] **P2** Local play history (Sonos keeps none)
 
 ## Phase 3: Rooms and everyday use

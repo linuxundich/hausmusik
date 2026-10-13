@@ -9,7 +9,7 @@ generated album covers. Nothing here talks to real speakers.
 
 Then point the app at 10.0.2.2:1401 (debug settings).
 """
-import argparse, html, io, re, threading, time, uuid
+import argparse, html, io, re, threading, time, urllib.parse, uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 try:
@@ -38,6 +38,7 @@ ALBUMS = [  # invented artists and albums
     ("Frühstück im Terminal", "Pac Mann", ["#d9d2c3", "#8f8a7c", "#3f3b35"],
      ["Kaffee und Cron", "Bashrc", "Grep the Sun"]),
 ]
+GENRES = ["Rock", "Folk", "Folk", "Rock", "Pop", "Jazz"]  # per album
 RADIO = [("Radio Tuxfunk", "x-rincon-mp3radio://radio.example/tuxfunk", ["#4f7c93", "#1f3a4a"]),
          ("Kernel FM", "x-rincon-mp3radio://radio.example/kernelfm", ["#9c7b2c", "#3a2c10"])]
 
@@ -147,6 +148,19 @@ def zone_group_state():
     return "".join(out)
 
 
+def album_container(ai):
+    album, artist, _, _ = ALBUMS[ai]
+    return (f'<container id="A:ALBUM/{ai}" parentID="A:ALBUM" restricted="true"><dc:title>{html.escape(album)}</dc:title>'
+            f'<upnp:class>object.container.album.musicAlbum</upnp:class><res protocolInfo="x-rincon-playlist:*:*:*">x-rincon-playlist:X#A:ALBUM/{ai}</res>'
+            f'<dc:creator>{html.escape(artist)}</dc:creator><upnp:albumArtURI>/getaa?u=album{ai}</upnp:albumArtURI></container>')
+
+
+def artist_container(name):
+    q = urllib.parse.quote(name)
+    return (f'<container id="A:ALBUMARTIST/{q}" parentID="A:ALBUMARTIST" restricted="true"><dc:title>{html.escape(name)}</dc:title>'
+            f'<upnp:class>object.container.person.musicArtist</upnp:class><res protocolInfo="x-rincon-playlist:*:*:*">x-rincon-playlist:X#A:ALBUMARTIST/{q}</res></container>')
+
+
 def browse(p, oid, start, count):
     items = []
     if oid == "FV:2":
@@ -165,6 +179,28 @@ def browse(p, oid, start, count):
         for i, (name, uri, _) in enumerate(RADIO):
             items.append(f'<item id="R:0/0/{i}" parentID="R:0/0" restricted="false"><dc:title>{name}</dc:title>'
                          f'<upnp:class>object.item.audioItem.audioBroadcast</upnp:class><res protocolInfo="x-rincon-mp3radio:*:*:*">{html.escape(uri)}</res></item>')
+    elif oid.startswith("A:") and oid.count(":") == 2:
+        # Search: A:ALBUM:term, A:ALBUMARTIST:term, A:TRACKS:term
+        kind, term = oid[2:].split(":", 1)
+        term = urllib.parse.unquote(term).lower()
+        if kind == "ALBUM":
+            items = [album_container(ai) for ai, a in enumerate(ALBUMS) if term in a[0].lower()]
+        elif kind in ("ALBUMARTIST", "ARTIST"):
+            artists = sorted({a[1] for a in ALBUMS})
+            items = [artist_container(n) for n in artists if term in n.lower()]
+        elif kind == "TRACKS":
+            items = [track_item(t, f"A:TRACKS/{i}", "A:TRACKS") for i, t in enumerate(TRACKS) if term in t["title"].lower()]
+    elif oid == "A:ALBUMARTIST":
+        items = [artist_container(n) for n in sorted({a[1] for a in ALBUMS})]
+    elif oid.startswith("A:ALBUMARTIST/"):
+        name = urllib.parse.unquote(oid.split("/", 1)[1])
+        items = [album_container(ai) for ai, a in enumerate(ALBUMS) if a[1] == name]
+    elif oid == "A:GENRE":
+        items = [f'<container id="A:GENRE/{urllib.parse.quote(g)}" parentID="A:GENRE" restricted="true"><dc:title>{g}</dc:title>'
+                 '<upnp:class>object.container.genre.musicGenre</upnp:class></container>' for g in sorted(set(GENRES))]
+    elif oid.startswith("A:GENRE/"):
+        g = urllib.parse.unquote(oid.split("/", 1)[1])
+        items = [album_container(ai) for ai in range(len(ALBUMS)) if GENRES[ai] == g]
     elif oid == "A:ALBUM":
         for ai, (album, artist, _, _) in enumerate(ALBUMS):
             items.append(f'<container id="A:ALBUM/{ai}" parentID="A:ALBUM" restricted="true"><dc:title>{html.escape(album)}</dc:title>'
@@ -275,6 +311,10 @@ def act(p, service, action, a):
         uri = a["EnqueuedURI"]
         m = re.search(r"#A:ALBUM/(\d+)", uri)
         new = [t for t in TRACKS if m and t["album"] == ALBUMS[int(m.group(1))][0]] or [t for t in TRACKS if t["uri"] == uri]
+        art = re.search(r"#A:ALBUMARTIST/(.+)$", uri)
+        if art:
+            name = urllib.parse.unquote(art.group(1))
+            new = [t for t in TRACKS if t["artist"] == name]
         q = re.search(r"savedqueues.rsq#(\d+)", uri)
         if q:
             new = SAVED[int(q.group(1)) - 1][1][:]

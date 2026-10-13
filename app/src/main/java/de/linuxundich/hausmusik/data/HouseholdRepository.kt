@@ -10,6 +10,7 @@ import de.linuxundich.hausmusik.sonos.AlarmClient
 import de.linuxundich.hausmusik.sonos.BrowseResult
 import de.linuxundich.hausmusik.sonos.Didl
 import de.linuxundich.hausmusik.sonos.DidlObject
+import de.linuxundich.hausmusik.sonos.LibrarySearch
 import de.linuxundich.hausmusik.sonos.NowPlaying
 import de.linuxundich.hausmusik.sonos.PlayMode
 import de.linuxundich.hausmusik.sonos.SoapClient
@@ -352,6 +353,11 @@ class HouseholdRepository @Inject constructor(
     suspend fun browseAll(objectId: String, limit: Int = 3000): Result<List<DidlObject>> {
         val c = selectedCoordinator() ?: return Result.failure(IOException("no room"))
         return runCatching { c.browseAll(objectId, limit = limit) }
+    }
+
+    suspend fun search(term: String): Result<LibrarySearch> {
+        val c = selectedCoordinator() ?: return Result.failure(IOException("no room"))
+        return runCatching { c.search(term) }
     }
 
     fun artUrl(uri: String?): String? = selectedCoordinator()?.absoluteArtUrl(uri)

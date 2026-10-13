@@ -99,4 +99,11 @@
     <string name="tile_label">Sonos-Raum</string>
     <string name="widget_label">Hausmusik-Player</string>
     <string name="widget_description">Was in deinem Raum läuft, mit Pause und Springen</string>
+    <string name="library_artists">Interpreten</string>
+    <string name="library_genres">Genres</string>
+    <string name="search">Suchen</string>
+    <string name="search_hint">Interpret, Album oder Titel</string>
+    <string name="search_intro">Durchsucht die Musikfreigabe deines Sonos-Systems.</string>
+    <string name="search_nothing">Nichts gefunden</string>
+    <string name="search_tracks">Titel</string>
 </resources>

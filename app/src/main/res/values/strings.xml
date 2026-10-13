@@ -101,4 +101,11 @@
     <string name="tile_label">Sonos room</string>
     <string name="widget_label">Hausmusik player</string>
     <string name="widget_description">What plays in your room, with play/pause and skip</string>
+    <string name="library_artists">Artists</string>
+    <string name="library_genres">Genres</string>
+    <string name="search">Search</string>
+    <string name="search_hint">Artist, album or track</string>
+    <string name="search_intro">Searches the music share of your Sonos system.</string>
+    <string name="search_nothing">Nothing found</string>
+    <string name="search_tracks">Tracks</string>
 </resources>

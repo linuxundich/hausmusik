@@ -178,6 +178,27 @@ class FakeHouseholdTest {
     }
 
     @Test
+    fun `search, artists and genres`() = runBlocking {
+        val c = wohnzimmer
+        val r = c.search("arch")
+        assertEquals(listOf("Arch Ibald Trio"), r.artists.map { it.title })
+        assertTrue(r.albums.isEmpty())
+        val songs = c.search("serenade").tracks
+        assertEquals(listOf("Segfault Serenade"), songs.map { it.title })
+        assertEquals("Penny Guin", songs.single().creator)
+        assertTrue(c.search("nichts dergleichen").isEmpty)
+        val artist = c.browseAll("A:ALBUMARTIST").first { it.title == "Tina Tux" }
+        assertEquals(listOf("Pinguinzoo"), c.browseAll(artist.id).map { it.title })
+        val genres = c.browseAll("A:GENRE")
+        assertEquals(listOf("Folk", "Jazz", "Pop", "Rock"), genres.map { it.title })
+        assertEquals(2, c.browseAll(genres.first { it.title == "Rock" }.id).size)
+        // Queueing an artist adds all their tracks.
+        c.removeAllTracksFromQueue()
+        c.addToQueue(artist.uri!!)
+        assertEquals(5, c.browse("Q:0").totalMatches)
+    }
+
+    @Test
     fun `play mode and sleep timer`() = runBlocking {
         val c = wohnzimmer
         c.setPlayMode(PlayMode(shuffle = true, repeat = RepeatMode.All))
