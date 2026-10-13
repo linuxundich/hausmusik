@@ -43,7 +43,11 @@ Completed items stay checked.
 - [x] **P1** Settings screen: speaker address, lyrics, about
 - [x] **P1** Cache library lists, refresh only when Sonos reports a new list version
 - [x] **P1** Artist pictures from Deezer (opt-in)
-- [ ] **P1** Music services: bonob first, then Spotify
+- [x] **P1** Music services through SMAPI: link (AppLink/DeviceLink), browse, play; tested against the fake bonob
+- [ ] **P1** bonob on the real household: link once (needs Christoph's Navidrome sign-in), browse, play one track
+- [ ] **P1** Search inside a linked service (client has `search`, the library search does not use it yet)
+- [ ] **P1** Spotify through SMAPI: link and browse; check whether Sonos still accepts third-party tokens
+- [ ] **P2** Services with UserId sign-in (user name and password form)
 
 ## Phase 3: Rooms and everyday use
 

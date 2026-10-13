@@ -65,6 +65,9 @@ object AppModule {
     @Provides
     fun artistImageDao(db: HistoryDatabase): ArtistImageDao = db.artistImages()
 
+    @Provides
+    fun serviceAccountDao(db: HistoryDatabase): de.linuxundich.hausmusik.data.history.ServiceAccountDao = db.serviceAccounts()
+
     @Provides @Singleton @AppScope
     fun appScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 }

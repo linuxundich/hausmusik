@@ -92,16 +92,53 @@ interface ArtistImageDao {
     suspend fun clear()
 }
 
+/**
+ * A music service account Hausmusik linked itself (bonob, Spotify, …), per
+ * Sonos household. [sn] is the account serial the household uses in its own
+ * URIs for this service, once known.
+ */
+@Entity(tableName = "service_account", primaryKeys = ["household", "serviceId"])
+data class ServiceAccount(
+    val household: String,
+    val serviceId: Int,
+    val name: String,
+    val deviceId: String,
+    val token: String,
+    val key: String?,
+    val sn: String?,
+    val linkedAt: Long,
+)
+
+@Dao
+interface ServiceAccountDao {
+    @Query("SELECT * FROM service_account WHERE household = :household ORDER BY name")
+    fun forHousehold(household: String): kotlinx.coroutines.flow.Flow<List<ServiceAccount>>
+
+    @Query("SELECT * FROM service_account WHERE household = :household AND serviceId = :serviceId")
+    suspend fun get(household: String, serviceId: Int): ServiceAccount?
+
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    suspend fun put(account: ServiceAccount)
+
+    @Query("DELETE FROM service_account WHERE household = :household AND serviceId = :serviceId")
+    suspend fun delete(household: String, serviceId: Int)
+}
+
 @Database(
-    entities = [HistoryEntry::class, CachedList::class, ArtistImage::class],
-    version = 3,
+    entities = [HistoryEntry::class, CachedList::class, ArtistImage::class, ServiceAccount::class],
+    version = 4,
     exportSchema = true,
-    autoMigrations = [androidx.room.AutoMigration(from = 1, to = 2), androidx.room.AutoMigration(from = 2, to = 3)],
+    autoMigrations = [
+        androidx.room.AutoMigration(from = 1, to = 2),
+        androidx.room.AutoMigration(from = 2, to = 3),
+        androidx.room.AutoMigration(from = 3, to = 4),
+    ],
 )
 abstract class HistoryDatabase : RoomDatabase() {
     abstract fun history(): HistoryDao
     abstract fun cachedLists(): CachedListDao
     abstract fun artistImages(): ArtistImageDao
+    abstract fun serviceAccounts(): ServiceAccountDao
 
     companion object {
         fun create(context: Context): HistoryDatabase =

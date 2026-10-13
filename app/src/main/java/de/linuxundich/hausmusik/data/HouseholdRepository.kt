@@ -545,7 +545,7 @@ class HouseholdRepository @Inject constructor(
         refreshNow()
     }
 
-    private fun selectedCoordinator(): SonosPlayerClient? = _state.value.selected?.let { client(it.group.coordinator) }
+    fun selectedCoordinator(): SonosPlayerClient? = _state.value.selected?.let { client(it.group.coordinator) }
 
     /** Runs [block] against the selected coordinator and polls right after. */
     suspend fun command(block: suspend (SonosPlayerClient) -> Unit): Result<Unit> {

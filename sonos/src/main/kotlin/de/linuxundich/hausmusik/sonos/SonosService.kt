@@ -13,6 +13,7 @@ enum class SonosService(val controlPath: String, val eventPath: String) {
     ContentDirectory("/MediaServer/ContentDirectory/Control", "/MediaServer/ContentDirectory/Event"),
     AlarmClock("/AlarmClock/Control", "/AlarmClock/Event"),
     DeviceProperties("/DeviceProperties/Control", "/DeviceProperties/Event"),
+    MusicServices("/MusicServices/Control", "/MusicServices/Event"),
     ;
 
     val urn: String = "urn:schemas-upnp-org:service:$name:1"

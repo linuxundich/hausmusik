@@ -302,4 +302,39 @@ class FakeHouseholdTest {
             scope.cancel()
         }
     }
+
+    @Test
+    fun `bonob links, browses, searches and queues an album`() = runBlocking {
+        val services = wohnzimmer.musicServices()
+        val bonob = services.single { it.name == "bonob" }
+        assertEquals(listOf("bonob", "Spotify"), services.filter { it.linkable }.map { it.name })
+        val http = OkHttpClient()
+        val smapi = SmapiClient(http, bonob, SmapiCredentials(wohnzimmer.serialNumber(), wohnzimmer.householdId()))
+
+        val link = smapi.startLink()
+        assertEquals(null, smapi.finishLink(link))
+        http.newCall(okhttp3.Request.Builder().url(link.regUrl).build()).execute().close() // the user confirms in the browser
+        val creds = smapi.finishLink(link)!!
+        assertEquals("fake-bonob-token", creds.token)
+
+        assertEquals(listOf("Artists", "Albums"), smapi.metadata("root").items.map { it.title })
+        val albums = smapi.metadataAll("albums")
+        assertEquals(7, albums.total)
+        val tracks = smapi.metadata(albums.items[4].id).items
+        assertEquals(listOf("Ice Floe", "Waddle", "Fish Supper", "Colony", "Snow Crash"), tracks.map { it.title })
+        assertEquals(listOf("Pinguinzoo"), smapi.search("albums", "pinguin").items.map { it.title })
+        assertEquals(listOf("artists", "albums", "tracks"), smapi.searchCategories())
+
+        val sn = SmapiClient.accountSerial(bonob.id, wohnzimmer.browseAll("FV:2").asSequence().map { it.uri })
+        assertEquals("7", sn)
+        val track = SmapiClient.toDidl(bonob, sn!!, tracks[0], "svc")
+        assertEquals("x-sonos-http:track%3a17.mp3?sid=246&flags=8224&sn=7", track.uri)
+        val album = SmapiClient.toDidl(bonob, sn, albums.items[4], "svc")
+        assertTrue(album.resMd!!.contains("SA_RINCON62983_X_#Svc62983-0-Token"))
+        val c = arbeitszimmer
+        c.removeAllTracksFromQueue()
+        c.addToQueue(album.uri!!, album.resMd!!)
+        c.addToQueue(track.uri!!, track.resMd!!)
+        assertEquals(6, c.browseAll("Q:0").size)
+    }
 }

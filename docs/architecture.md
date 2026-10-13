@@ -105,6 +105,19 @@ Volume from the Stage, the rooms sheet, the notification and the buttons goes
 through one throttle in the repository: at most one request per 120 ms per
 target, always the latest value.
 
+## Music services (SMAPI)
+
+`sonos/Smapi.kt` holds the SMAPI client: `ListAvailableServices` on the
+speaker gives the catalogue, then Hausmusik talks SOAP to the service itself.
+The header carries the speaker's serial number as device ID and, once linked,
+a `loginToken` with token, key and household ID, as libnoson builds it.
+`TokenRefreshRequired` faults carry a new token, which is stored and the call
+repeated. For playing, items become DIDL with `x-sonos-http:` (tracks) or
+`x-rincon-cpcontainer:` (albums, playlists) and the `SA_RINCON<type>_X_#Svc…`
+descriptor; `sn=` is the account serial from the household's favorites, `0`
+if none is found. `app/data/services/MusicServices.kt` keeps the accounts in
+Room and maps service items to library IDs `svc:<service id>:<item id>`.
+
 ## Toolchain (checked 2026-10-13)
 
 | Component | Chosen | Note |

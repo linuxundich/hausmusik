@@ -155,4 +155,16 @@
     <string name="artist_images_yes">Show pictures</string>
     <string name="artist_images_no">No, thanks</string>
     <string name="artist_images_setting">Artist pictures from Deezer</string>
+    <string name="library_services">Services</string>
+    <string name="services_hint">Linked music services. Hausmusik signs in with its own link; playing uses the account your Sonos system already has.</string>
+    <string name="link_title">Link %1$s</string>
+    <string name="link_waiting">Sign in on the page that just opened in your browser, then come back here.</string>
+    <string name="link_code">Code: %1$s</string>
+    <string name="link_polling">Waiting for the confirmation …</string>
+    <string name="link_open_again">Open page again</string>
+    <string name="link_done">%1$s is linked.</string>
+    <string name="link_failed">%1$s could not be linked. Try again later.</string>
+    <string name="service_unlink">Unlink</string>
+    <string name="ok">OK</string>
+    <string name="service_tap_to_link">Tap to link</string>
 </resources>

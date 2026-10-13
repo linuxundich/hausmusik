@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.TextField
@@ -73,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.data.services.ServiceIds
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.history.HistoryEntry
 import de.linuxundich.hausmusik.sonos.DidlObject
@@ -88,6 +90,7 @@ private fun LibraryTab.label() = when (this) {
     LibraryTab.Albums -> R.string.library_albums
     LibraryTab.Radio -> R.string.library_radio
     LibraryTab.Playlists -> R.string.library_playlists
+    LibraryTab.Services -> R.string.library_services
     LibraryTab.History -> R.string.library_history
 }
 
@@ -127,6 +130,8 @@ fun LibraryScreen(
     BackHandler(searching) { searching = false; vm.setQuery("") }
     val focus = remember { FocusRequester() }
     val wide = isWide()
+    val linkState by vm.link.collectAsStateWithLifecycle()
+    linkState?.let { LinkDialog(it, onDismiss = vm::dismissLink) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -197,12 +202,69 @@ fun LibraryScreen(
                     }
                     return@Column
                 }
+                if (tab == LibraryTab.Services) ServicesHint()
                 ItemList(lists[tab.objectId], grid = tab.grid, artUrl = vm::artUrl, onRetry = { vm.load(tab.objectId, force = true) }) { item ->
-                    if (item.isContainer && tab != LibraryTab.Favorites) onOpenContainer(item) else onPlay(item)
+                    when {
+                        item.upnpClass == ServiceIds.LINK_CLASS -> vm.startLink(item)
+                        item.isContainer && tab != LibraryTab.Favorites -> onOpenContainer(item)
+                        else -> onPlay(item)
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun ServicesHint() {
+    Text(
+        stringResource(R.string.services_hint), style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
+/** Opens the service's sign-in page and waits until the user confirmed it there. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun LinkDialog(state: LinkState, onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    fun open(url: String) = runCatching {
+        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+    }
+    if (state is LinkState.Waiting) LaunchedEffect(state.url) { open(state.url) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.link_title, state.name)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                when (state) {
+                    is LinkState.Starting -> LoadingIndicator(Modifier.size(40.dp))
+                    is LinkState.Waiting -> {
+                        Text(stringResource(R.string.link_waiting, state.name))
+                        state.code?.let { Text(stringResource(R.string.link_code, it), style = MaterialTheme.typography.titleMedium) }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LoadingIndicator(Modifier.size(32.dp))
+                            Text(stringResource(R.string.link_polling), Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    is LinkState.Done -> Text(stringResource(R.string.link_done, state.name))
+                    is LinkState.Failed -> Text(stringResource(R.string.link_failed, state.name))
+                }
+            }
+        },
+        confirmButton = {
+            when (state) {
+                is LinkState.Waiting -> androidx.compose.material3.TextButton(onClick = { open(state.url) }) { Text(stringResource(R.string.link_open_again)) }
+                is LinkState.Done, is LinkState.Failed -> androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+                else -> {}
+            }
+        },
+        dismissButton = {
+            if (state is LinkState.Starting || state is LinkState.Waiting) {
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            }
+        },
+    )
 }
 
 @Composable
@@ -271,6 +333,8 @@ fun ContainerScreen(
 ) {
     val lists by vm.lists.collectAsStateWithLifecycle()
     val wideBar = isWide()
+    // Local containers play by their ID; a service's own folders (its root, "Albums") cannot be played.
+    val playable = container.uri != null || !container.id.startsWith(ServiceIds.OVERVIEW)
     LaunchedEffect(container.id) { vm.load(container.id) }
     ProvideArtistImages(vm) {
         Scaffold(
@@ -280,7 +344,10 @@ fun ContainerScreen(
                     navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
                     actions = {
                         // Landscape: the play button lives up here, always in reach.
-                        if (wideBar) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(end = 8.dp)) {
+                        if (container.id.startsWith(ServiceIds.OVERVIEW) && container.id.endsWith(":root")) {
+                        androidx.compose.material3.TextButton(onClick = { vm.unlink(container); onBack() }) { Text(stringResource(R.string.service_unlink)) }
+                    }
+                    if (wideBar && playable) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(end = 8.dp)) {
                             Icon(AppIcons.Play, null, Modifier.size(18.dp))
                             Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
                         }
@@ -301,7 +368,7 @@ fun ContainerScreen(
             val info: @Composable () -> Unit = {
                 Text(container.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 2)
                 container.creator?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-                if (!wideBar) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(top = 8.dp)) {
+                if (!wideBar && playable) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(top = 8.dp)) {
                     Icon(AppIcons.Play, null, Modifier.size(18.dp))
                     Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
                 }
@@ -412,6 +479,7 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
                 picture ?: artUrl(item.albumArtUri), Modifier.size(44.dp), corner = if (person) 22.dp else 8.dp,
                 placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 icon = when {
+                    item.upnpClass == ServiceIds.LINK_CLASS -> Icons.Filled.Add
                     item.isRadio -> AppIcons.Radio
                     item.upnpClass.contains("person") -> Icons.Filled.Person
                     item.isContainer -> AppIcons.Album
@@ -421,7 +489,8 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
         }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
             Text(item.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            (if (numbered) item.creator else listOfNotNull(item.creator, item.album).joinToString(" · ")).takeIf { !it.isNullOrEmpty() }?.let {
+            (if (item.upnpClass == ServiceIds.LINK_CLASS) item.description
+            else if (numbered) item.creator else listOfNotNull(item.creator, item.album).joinToString(" · ")).takeIf { !it.isNullOrEmpty() }?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
         }

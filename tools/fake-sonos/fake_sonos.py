@@ -181,6 +181,9 @@ def browse(p, oid, start, count):
             items.append(f'<item id="FV:2/{10 + ai}" parentID="FV:2" restricted="false"><dc:title>{html.escape(album)}</dc:title>'
                          f'<upnp:class>object.itemobject.item.sonos-favorite</upnp:class><res protocolInfo="x-rincon-playlist:*:*:*">x-rincon-playlist:{p.uuid}#A:ALBUM/{ai}</res>'
                          f'<upnp:albumArtURI>/getaa?u=album{ai}</upnp:albumArtURI><r:type>instantPlay</r:type><r:description>{html.escape(artist)}</r:description></item>')
+        items.append(f'<item id="FV:2/20" parentID="FV:2" restricted="false"><dc:title>{html.escape(TRACKS[1]["title"])}</dc:title>'
+                     f'<upnp:class>object.itemobject.item.sonos-favorite</upnp:class><res protocolInfo="sonos.com-http:*:audio/mpeg:*">x-sonos-http:track%3a1.mp3?sid=246&amp;flags=8224&amp;sn=7</res>'
+                     f'<upnp:albumArtURI>/getaa?u={TRACKS[1]["art"]}</upnp:albumArtURI><r:type>instantPlay</r:type><r:description>bonob</r:description></item>')
     elif oid == "R:0/0":
         for i, (name, uri, _) in enumerate(RADIO):
             items.append(f'<item id="R:0/0/{i}" parentID="R:0/0" restricted="false"><dc:title>{name}</dc:title>'
@@ -232,6 +235,19 @@ def browse(p, oid, start, count):
 
 def act(p, service, action, a):
     c = coord(p)
+    if action == "ListAvailableServices":
+        base = f"http://{ADVERTISE}:{ARGS.port_base}/smapi"
+        rows = (f'<Service Id="246" Name="bonob" Version="1.1" Uri="{base}" SecureUri="{base}" ContainerType="MService" Capabilities="2625">'
+                f'<Policy Auth="AppLink" PollInterval="2"/><Presentation><PresentationMap Version="1" Uri="{base}/presentationMap.xml"/></Presentation></Service>'
+                '<Service Id="9" Name="Spotify" Version="1.1" Uri="https://spotify.invalid/smapi" SecureUri="https://spotify.invalid/smapi" ContainerType="MService" Capabilities="1">'
+                '<Policy Auth="AppLink" PollInterval="60"/></Service>'
+                '<Service Id="254" Name="TuneIn" Version="1.1" Uri="https://tunein.invalid/smapi" ContainerType="MService" Capabilities="0">'
+                '<Policy Auth="Anonymous" PollInterval="0"/></Service>')
+        return {"AvailableServiceDescriptorList": f"<Services>{rows}</Services>", "AvailableServiceTypeList": "62983,2311", "AvailableServiceListVersion": "RINCON_FAKE:1"}
+    if action == "GetHouseholdID":
+        return {"CurrentHouseholdID": "Sonos_FakeHouseholdForTests0001"}
+    if action == "GetZoneInfo":
+        return {"SerialNumber": f"00-0E-58-FA-KE-0{p.port % 10}:A", "SoftwareVersion": "85.0-66270"}
     if action == "GetZoneGroupState":
         return {"ZoneGroupState": zone_group_state()}
     if action == "GetTransportInfo":
@@ -321,6 +337,15 @@ def act(p, service, action, a):
         if art:
             name = urllib.parse.unquote(art.group(1))
             new = [t for t in TRACKS if t["artist"] == name]
+        sm = re.match(r"x-rincon-cpcontainer:1004206calbum%3a(\d+)", uri)
+        if sm:
+            new = [t for t in TRACKS if t["album"] == ALBUMS[int(sm.group(1))][0]]
+        sm = re.match(r"x-rincon-cpcontainer:10052064artist%3a(\d+)", uri)
+        if sm:
+            new = [t for t in TRACKS if t["artist"] == ALBUMS[int(sm.group(1))][1]]
+        sm = re.match(r"x-sonos-http:track%3a(\d+)", uri)
+        if sm:
+            new = [TRACKS[int(sm.group(1))]]
         q = re.search(r"savedqueues.rsq#(\d+)", uri)
         if q:
             new = SAVED[int(q.group(1)) - 1][1][:]
@@ -467,6 +492,71 @@ def cover(key):
     return COVERS[key]
 
 
+LINKS = {}  # linkCode -> confirmed
+SMAPI_TOKEN = "fake-bonob-token"
+
+
+def smapi_item(kind, i):
+    if kind == "artist":
+        return (f"<mediaCollection><id>artist:{i}</id><itemType>artist</itemType><title>{html.escape(ALBUMS[i][1])}</title>"
+                "<canPlay>true</canPlay><canEnumerate>true</canEnumerate></mediaCollection>")
+    if kind == "album":
+        return (f"<mediaCollection><id>album:{i}</id><itemType>album</itemType><title>{html.escape(ALBUMS[i][0])}</title>"
+                f"<artist>{html.escape(ALBUMS[i][1])}</artist><albumArtURI>http://{ADVERTISE}:{ARGS.port_base}/getaa?u=album{i}</albumArtURI>"
+                "<canPlay>true</canPlay><canEnumerate>true</canEnumerate></mediaCollection>")
+    t = TRACKS[i]
+    return (f"<mediaMetadata><id>track:{i}</id><itemType>track</itemType><title>{html.escape(t['title'])}</title><mimeType>audio/mpeg</mimeType>"
+            f"<trackMetadata><artist>{html.escape(t['artist'])}</artist><album>{html.escape(t['album'])}</album><duration>{t['dur']}</duration>"
+            f"<albumArtURI>http://{ADVERTISE}:{ARGS.port_base}/getaa?u={t['art']}</albumArtURI></trackMetadata></mediaMetadata>")
+
+
+def smapi(action, a, token):
+    """A tiny bonob: AppLink, getMetadata and search over the invented albums."""
+    if action == "getAppLink":
+        code = uuid.uuid4().hex[:8]
+        LINKS[code] = False
+        return (f"<getAppLinkResult><authorizeAccount><appUrlStringId>AppLinkMessage</appUrlStringId><deviceLink>"
+                f"<regUrl>http://{ADVERTISE}:{ARGS.port_base}/smapi/login?linkCode={code}</regUrl><linkCode>{code}</linkCode>"
+                "<showLinkCode>false</showLinkCode></deviceLink></authorizeAccount></getAppLinkResult>")
+    if action == "getDeviceAuthToken":
+        if not LINKS.get(a.get("linkCode")):
+            raise Fault("Client.NOT_LINKED_RETRY")
+        return f"<getDeviceAuthTokenResult><authToken>{SMAPI_TOKEN}</authToken><privateKey>k</privateKey></getDeviceAuthTokenResult>"
+    if token != SMAPI_TOKEN:
+        raise Fault("Client.LoginUnauthorized")
+    if action == "getMetadata":
+        oid = a.get("id", "root")
+        if oid == "root":
+            rows = ["<mediaCollection><id>artists</id><itemType>container</itemType><title>Artists</title><canEnumerate>true</canEnumerate></mediaCollection>",
+                    "<mediaCollection><id>albums</id><itemType>albumList</itemType><title>Albums</title><canEnumerate>true</canEnumerate></mediaCollection>"]
+        elif oid == "artists":
+            rows = [smapi_item("artist", i) for i in range(len(ALBUMS))]
+        elif oid == "albums":
+            rows = [smapi_item("album", i) for i in range(len(ALBUMS))]
+        elif oid.startswith("artist:"):
+            rows = [smapi_item("album", int(oid[7:]))]
+        elif oid.startswith("album:"):
+            name = ALBUMS[int(oid[6:])][0]
+            rows = [smapi_item("track", j) for j, t in enumerate(TRACKS) if t["album"] == name]
+        else:
+            raise Fault("Client.ItemNotFound")
+    elif action == "search":
+        term = a.get("term", "").lower()
+        kind = {"artists": "artist", "albums": "album", "tracks": "track"}[a["id"]]
+        pool = range(len(TRACKS)) if kind == "track" else range(len(ALBUMS))
+        name = (lambda i: TRACKS[i]["title"]) if kind == "track" else (lambda i: ALBUMS[i][1 if kind == "artist" else 0])
+        rows = [smapi_item(kind, i) for i in pool if term in name(i).lower()]
+    else:
+        raise Fault("Client.UnsupportedOperation")
+    start, count = int(a.get("index", 0)), int(a.get("count", 100))
+    page = rows[start:start + count]
+    return f"<{action}Result><index>{start}</index><count>{len(page)}</count><total>{len(rows)}</total>{''.join(page)}</{action}Result>"
+
+
+PRESENTATION = ('<?xml version="1.0" encoding="utf-8"?><Presentation><PresentationMap type="Search"><Match><SearchCategories>'
+                '<Category id="artists"/><Category id="albums"/><Category id="tracks"/></SearchCategories></Match></PresentationMap></Presentation>')
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -493,6 +583,14 @@ class Handler(BaseHTTPRequestHandler):
                                   f'<manufacturer>Sonos, Inc.</manufacturer><modelNumber>{p.model}</modelNumber><modelName>Sonos {p.model}</modelName>'
                                   f'<softwareVersion>85.0-66270</softwareVersion><roomName>{html.escape(p.room)}</roomName><displayName>{p.model}</displayName>'
                                   f'<UDN>uuid:{p.uuid}</UDN></device></root>')
+        if self.path.startswith("/smapi/presentationMap.xml"):
+            return self.send(200, PRESENTATION)
+        if self.path.startswith("/smapi/login"):
+            code = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("linkCode", [""])[0]
+            if code in LINKS:
+                LINKS[code] = True
+                return self.send(200, "<html><body><h1>Linked</h1><p>Fake bonob: you can go back to the app.</p></body></html>", "text/html")
+            return self.send(404, "unknown link code", "text/plain")
         if self.path.startswith("/getaa"):
             m = re.search(r"u=([a-z]+\d+)", self.path)
             data = cover(m.group(1)) if m else None
@@ -521,6 +619,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode()
+        if self.path.startswith("/smapi"):
+            action = self.headers.get("SOAPAction", "").strip('"').split("#")[-1]
+            inner = re.search(rf"<ns:{action}[^>]*>(.*)</ns:{action}>", body, re.S)
+            args = {k: html.unescape(v) for k, v in re.findall(r"<ns:(\w+)>(.*?)</ns:\1>", inner.group(1) if inner else "", re.S)}
+            token = re.search(r"<token>(.*?)</token>", body)
+            env = '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>{}</soap:Body></soap:Envelope>'
+            try:
+                with lock:
+                    out = smapi(action, args, html.unescape(token.group(1)) if token else None)
+            except Fault as f:
+                return self.send(500, env.format(f"<soap:Fault><faultcode>soap:{f.code}</faultcode><faultstring>{f.code}</faultstring></soap:Fault>"))
+            return self.send(200, env.format(f'<{action}Response xmlns="http://www.sonos.com/Services/1.1">{out}</{action}Response>'))
         m = re.search(r'service:(\w+):1#(\w+)', self.headers.get("SOAPACTION", ""))
         if not m:
             return self.send(400, "")

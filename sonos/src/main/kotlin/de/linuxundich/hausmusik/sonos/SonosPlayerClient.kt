@@ -203,6 +203,18 @@ class SonosPlayerClient(val baseUrl: HttpUrl, private val soap: SoapClient) {
         LibrarySearch(artists.await(), albums.await(), tracks.await())
     }
 
+    // Household and music services
+
+    /** The household ID, which music services use to tell households apart. */
+    suspend fun householdId(): String = soap.call(baseUrl, SonosService.DeviceProperties, "GetHouseholdID")["CurrentHouseholdID"].orEmpty()
+
+    /** The player's serial number; music services get it as device ID. */
+    suspend fun serialNumber(): String = soap.call(baseUrl, SonosService.DeviceProperties, "GetZoneInfo")["SerialNumber"].orEmpty()
+
+    /** Every music service this household could use, linked or not. */
+    suspend fun musicServices(): List<MusicService> =
+        MusicService.parseList(soap.call(baseUrl, SonosService.MusicServices, "ListAvailableServices", slow = true)["AvailableServiceDescriptorList"].orEmpty())
+
     /** Absolute URL for a relative `/getaa?...` album art path. */
     fun absoluteArtUrl(albumArtUri: String?): String? = when {
         albumArtUri.isNullOrBlank() -> null

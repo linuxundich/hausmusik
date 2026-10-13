@@ -29,6 +29,16 @@ All notable changes to Hausmusik are documented here. The format follows
   punctuation ("The Beatles" = "Beatles"); collections such as "Various
   Artists" get no picture. Shown in the artist list, in search results and on
   the artist page.
+- Music services through SMAPI, the API Sonos defines for them. A new
+  *Services* tab lists the linked services and those Hausmusik can link
+  (AppLink and DeviceLink, e.g. bonob and Spotify). Linking opens the
+  service's sign-in page in the browser and waits for the confirmation; the
+  token is stored per household and renewed when the service hands out a new
+  one. Folders, albums and tracks open like the local library; albums,
+  playlists and tracks play through the queue with the account serial the
+  household already uses for that service (read from its favorites).
+  *Unlink* sits on the service's start page. The fake household now includes
+  a small bonob for tests.
 - Fixed: a page that an S1 player answers empty while still resolving
   favorites ended the list early; it is now asked once more, and only complete
   lists are stored.

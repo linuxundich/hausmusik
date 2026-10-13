@@ -31,11 +31,11 @@ What is planned next is in [BACKLOG.md](BACKLOG.md).
 
 1. Hausmusik finds your speakers with an SSDP search in your Wi-Fi network, or you enter the address of one speaker.
 2. It controls them with the same local UPnP interface the original Sonos apps used, on port 1400.
-3. Nothing leaves your home network. The only exception is the optional lyrics lookup at LRCLIB, off until you switch it on.
+3. Nothing leaves your home network unless you ask for it: lyrics from LRCLIB and artist pictures from Deezer are off until you switch them on, and a music service you link is asked for its catalogue.
 
 The Sonos implementation is based on [noson](https://github.com/janbar/noson) by Jean-Luc Barrière, the library behind [noson-app](https://github.com/janbar/noson-app) and behind [Gnomos](https://github.com/linuxundich/gnomos), Hausmusik's sibling for the GNOME desktop.
 
-Streaming services such as Spotify can only be played through Sonos favorites and playlists that already exist in your Sonos system; their sign-in only works through the Sonos app.
+Music services that link through a web page (AppLink or DeviceLink, such as [bonob](https://github.com/simojenki/bonob) and Spotify) can be linked under *Library → Services*: Hausmusik opens the service's sign-in page and receives its own token, the way noson does. Browsing and searching use that token; playing goes through the speakers with the account the Sonos system already has, so the service must be set up in the Sonos app first. Services with a user name and password form are not supported.
 
 ## Build
 
