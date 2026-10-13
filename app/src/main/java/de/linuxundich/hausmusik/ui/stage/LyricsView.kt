@@ -4,7 +4,22 @@
 package de.linuxundich.hausmusik.ui.stage
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import de.linuxundich.hausmusik.ui.theme.AppIcons
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -60,7 +75,8 @@ sealed interface LyricsUi {
     data object Loading : LyricsUi
     data object None : LyricsUi
     data object Failed : LyricsUi
-    data class Found(val lyrics: Lyrics) : LyricsUi
+    /** [offsetMs]: how much later than LRCLIB's times the lines run, set by the user for this track. */
+    data class Found(val lyrics: Lyrics, val offsetMs: Int = 0, val onOffset: (Int) -> Unit = {}) : LyricsUi
 }
 
 /** Position of the group now, extrapolated between polls while it plays. */
@@ -83,33 +99,51 @@ fun rememberPosition(group: GroupState): Long {
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LyricsView(group: GroupState, lyrics: LyricsUi, colors: CoverColors, onSeek: (Long) -> Unit, modifier: Modifier) {
-    Box(modifier.clip(RoundedCornerShape(24.dp)).fadingEdges(), contentAlignment = Alignment.Center) {
+    Box(modifier.clip(RoundedCornerShape(24.dp)), contentAlignment = Alignment.Center) {
         when (lyrics) {
             LyricsUi.Loading -> LoadingIndicator(color = colors.accent)
             LyricsUi.None, LyricsUi.Failed -> Text(
                 stringResource(if (lyrics == LyricsUi.None) R.string.lyrics_none else R.string.lyrics_failed),
                 color = colors.content.copy(alpha = 0.7f), textAlign = TextAlign.Center, modifier = Modifier.padding(24.dp),
             )
-            is LyricsUi.Found -> if (lyrics.lyrics.isSynced) {
-                SyncedLyrics(group, lyrics.lyrics, colors, onSeek)
-            } else {
-                Text(
-                    lyrics.lyrics.plain.orEmpty(), color = colors.content, fontSize = 17.sp, lineHeight = 26.sp,
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(8.dp),
-                )
+            is LyricsUi.Found -> {
+                // Times that do not fit can be swapped for the plain text.
+                var plainOnly by rememberSaveable(lyrics.lyrics) { mutableStateOf(false) }
+                if (lyrics.lyrics.isSynced && !plainOnly) {
+                    SyncedLyrics(group, lyrics, colors, onSeek, onPlain = lyrics.lyrics.plain?.let { { plainOnly = true } })
+                } else {
+                    Text(
+                        lyrics.lyrics.plain ?: lyrics.lyrics.synced.joinToString("\n") { it.text },
+                        color = colors.content, fontSize = 17.sp, lineHeight = 26.sp,
+                        modifier = Modifier.fillMaxSize().fadingEdges().verticalScroll(rememberScrollState()).padding(8.dp),
+                    )
+                }
             }
         }
     }
 }
 
+/**
+ * A tap on a line jumps there; a long press says "this line is being sung now"
+ * and shifts all times to match. The shift bar shows while the times look wrong
+ * (see [Lyrics.suspect]), a shift is set, or after a long press.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SyncedLyrics(group: GroupState, lyrics: Lyrics, colors: CoverColors, onSeek: (Long) -> Unit) {
+private fun SyncedLyrics(group: GroupState, found: LyricsUi.Found, colors: CoverColors, onSeek: (Long) -> Unit, onPlain: (() -> Unit)?) {
     val position = rememberPosition(group)
-    val lines = lyrics.synced
-    val current = lines.indexOfLast { it.timeMs <= position }
+    val lines = found.lyrics.synced
+    val offset = found.offsetMs
+    val current = lines.indexOfLast { it.timeMs + offset <= position }
     val list = rememberLazyListState()
+    val haptics = LocalHapticFeedback.current
+    var adjusting by rememberSaveable(found.lyrics) { mutableStateOf(false) }
     LaunchedEffect(current) { if (current >= 0) list.animateScrollToItem((current - 2).coerceAtLeast(0)) }
-    LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 24.dp)) {
+    Column(Modifier.fillMaxSize()) {
+    if (found.lyrics.suspect || offset != 0 || adjusting) {
+        OffsetBar(found, colors, onPlain)
+    }
+    LazyColumn(state = list, modifier = Modifier.fillMaxWidth().weight(1f).fadingEdges(), contentPadding = PaddingValues(vertical = 24.dp)) {
         itemsIndexed(lines) { i, line ->
             val color by animateColorAsState(
                 when {
@@ -125,8 +159,62 @@ private fun SyncedLyrics(group: GroupState, lyrics: Lyrics, colors: CoverColors,
                 fontSize = 22.sp,
                 lineHeight = 30.sp,
                 fontWeight = if (i == current) FontWeight.Bold else FontWeight.SemiBold,
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onSeek(line.timeMs) }.padding(horizontal = 8.dp, vertical = 6.dp),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .combinedClickable(
+                        onClick = { onSeek((line.timeMs + offset).coerceAtLeast(0)) },
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            adjusting = true
+                            found.onOffset(roundOffset(position - line.timeMs))
+                        },
+                        onLongClickLabel = stringResource(R.string.lyrics_sync_here),
+                    )
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
             )
         }
     }
+    }
 }
+
+/** Shift to 100 ms, within ±10 minutes: a long press is not more precise than that. */
+internal fun roundOffset(ms: Long): Int = ((ms.coerceIn(-600_000, 600_000) + if (ms >= 0) 50 else -50) / 100 * 100).toInt()
+
+@Composable
+private fun OffsetBar(found: LyricsUi.Found, colors: CoverColors, onPlain: (() -> Unit)?) {
+    val offset = found.offsetMs
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.subtle).padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (found.lyrics.suspect && offset == 0) {
+            Text(
+                stringResource(R.string.lyrics_suspect), fontSize = 13.sp, textAlign = TextAlign.Center,
+                color = colors.content.copy(alpha = 0.8f), modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { found.onOffset(offset - STEP_MS) }) {
+                Icon(AppIcons.Remove, stringResource(R.string.lyrics_earlier), tint = colors.content)
+            }
+            val seconds = String.format(java.util.Locale.getDefault(), "%.1f", kotlin.math.abs(offset) / 1000.0)
+            Text(
+                when {
+                    offset > 0 -> stringResource(R.string.lyrics_offset_later, seconds)
+                    offset < 0 -> stringResource(R.string.lyrics_offset_earlier, seconds)
+                    else -> stringResource(R.string.lyrics_offset_none)
+                },
+                fontSize = 14.sp, color = colors.content, textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+            )
+            IconButton(onClick = { found.onOffset(offset + STEP_MS) }) {
+                Icon(AppIcons.Add, stringResource(R.string.lyrics_later), tint = colors.content)
+            }
+        }
+        Row {
+            if (offset != 0) TextButton(onClick = { found.onOffset(0) }) { Text(stringResource(R.string.lyrics_offset_reset), color = colors.accent) }
+            if (onPlain != null) TextButton(onClick = onPlain) { Text(stringResource(R.string.lyrics_plain), color = colors.accent) }
+        }
+    }
+}
+
+private const val STEP_MS = 500

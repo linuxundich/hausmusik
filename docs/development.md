@@ -42,7 +42,9 @@ adb shell am start -n de.linuxundich.hausmusik.debug/de.linuxundich.hausmusik.Ma
 
 `--es details ''` goes back to the real services. The same extra serves the
 music video lookup (`/sparql`): invented songs get a placeholder video ID
-("Me at the zoo"), Tina Tux never has one.
+("Me at the zoo"), Tina Tux never has one. Lyrics (`/api/get`, `/api/search`)
+come back as invented lines every six seconds; "Grep the Sun" carries the
+times of a shorter version, so it shows the "times probably do not fit" bar.
 
 ## Commands from outside
 

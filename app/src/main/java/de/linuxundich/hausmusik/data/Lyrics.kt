@@ -19,8 +19,12 @@ import javax.net.SocketFactory
 
 data class LyricLine(val timeMs: Long, val text: String)
 
-/** Time-synced lines if LRCLIB has them, otherwise plain text. */
-data class Lyrics(val synced: List<LyricLine>, val plain: String?) {
+/**
+ * Time-synced lines if LRCLIB has them, otherwise plain text. [suspect]: the
+ * times probably belong to another version of the song (a live album often
+ * carries the studio timing), so the view offers to adjust them.
+ */
+data class Lyrics(val synced: List<LyricLine>, val plain: String?, val suspect: Boolean = false) {
     val isSynced: Boolean get() = synced.isNotEmpty()
 
     companion object {
@@ -46,7 +50,7 @@ data class Lyrics(val synced: List<LyricLine>, val plain: String?) {
 }
 
 @Serializable
-private data class LrclibTrack(
+internal data class LrclibTrack(
     val trackName: String? = null,
     val artistName: String? = null,
     val duration: Double? = null,
@@ -61,11 +65,17 @@ private data class LrclibTrack(
  * playing track go to lrclib.net, nothing else.
  */
 @Singleton
-class LyricsRepository(private val http: OkHttpClient, private val base: HttpUrl) {
+class LyricsRepository(
+    private val http: OkHttpClient,
+    private val lrclib: HttpUrl,
+    /** Debug builds: the fake household instead of lrclib.net (`-e details host:port`). */
+    private val debugBase: suspend () -> String? = { null },
+) {
     /** LRCLIB is on the internet: unlike the speakers, it takes the default route. */
-    @Inject constructor(http: OkHttpClient) : this(
+    @Inject constructor(http: OkHttpClient, settings: Settings) : this(
         http.newBuilder().socketFactory(SocketFactory.getDefault()).readTimeout(10, java.util.concurrent.TimeUnit.SECONDS).build(),
         "https://lrclib.net/".toHttpUrl(),
+        { if (BuildConfig.DEBUG) settings.debugDetailsBase() else null },
     )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -74,13 +84,15 @@ class LyricsRepository(private val http: OkHttpClient, private val base: HttpUrl
     suspend fun find(title: String, artist: String?, album: String?, durationMs: Long?): Result<Lyrics?> {
         val key = listOf(title, artist, album, durationMs?.div(1000)).joinToString("|")
         cache[key]?.let { return it }
-        val result = runCatching { withContext(Dispatchers.IO) { lookup(title, artist, album, durationMs) } }
+        val base = debugBase()?.let { "http://$it/".toHttpUrl() } ?: lrclib
+        val result = runCatching { withContext(Dispatchers.IO) { lookup(base, title, artist, album, durationMs) } }
         if (result.isSuccess) cache[key] = result
         return result
     }
 
-    private fun lookup(title: String, artist: String?, album: String?, durationMs: Long?): Lyrics? {
-        // Exact match first (needs duration); then the search, closest duration wins.
+    private fun lookup(base: HttpUrl, title: String, artist: String?, album: String?, durationMs: Long?): Lyrics? {
+        // Exact match first (needs duration); then the search.
+        var exact: Lyrics? = null
         if (artist != null && durationMs != null) {
             val url = base.newBuilder().addPathSegments("api/get")
                 .addQueryParameter("track_name", title)
@@ -88,16 +100,29 @@ class LyricsRepository(private val http: OkHttpClient, private val base: HttpUrl
                 .apply { if (album != null) addQueryParameter("album_name", album) }
                 .addQueryParameter("duration", (durationMs / 1000).toString())
                 .build()
-            get(url)?.let { return json.decodeFromString<LrclibTrack>(it).toLyrics() }
+            val hit = get(url)?.let { json.decodeFromString<LrclibTrack>(it) }
+            if (hit != null) {
+                // Times that fit are the best there is; doubtful ones may have a better match in the search.
+                exact = hit.toLyrics(durationMs) ?: return null // instrumental
+                if (!exact.suspect) return exact
+            }
         }
         val search = base.newBuilder().addPathSegments("api/search")
             .addQueryParameter("track_name", title)
             .apply { if (artist != null) addQueryParameter("artist_name", artist) }
             .build()
         val hits = get(search)?.let { json.decodeFromString<List<LrclibTrack>>(it) }.orEmpty()
-        val best = hits.filter { it.syncedLyrics != null || it.plainLyrics != null }
-            .minByOrNull { h -> if (durationMs == null || h.duration == null) 0.0 else kotlin.math.abs(h.duration - durationMs / 1000.0) }
-        return best?.toLyrics()
+            .filter { it.syncedLyrics != null || it.plainLyrics != null }
+        val best = hits.minByOrNull { score(it, durationMs) }?.toLyrics(durationMs)
+        return when {
+            exact == null -> best
+            best != null && best.isSynced && !best.suspect -> best
+            else -> exact
+        }
+    }
+
+    private fun LrclibTrack.toLyrics(durationMs: Long?): Lyrics? = toLyrics()?.let { l ->
+        l.copy(suspect = suspect(l, durationMs, duration))
     }
 
     private fun get(url: HttpUrl): String? {
@@ -106,6 +131,36 @@ class LyricsRepository(private val http: OkHttpClient, private val base: HttpUrl
             if (r.code == 404) return null
             if (!r.isSuccessful) throw java.io.IOException("LRCLIB: HTTP ${r.code}")
             return r.body.string()
+        }
+    }
+
+    companion object {
+        /**
+         * Lower is better: how far the entry's length is from the song's, plus a
+         * penalty when its last line does not fit the song (after its end, or
+         * so early that it belongs to a shorter version).
+         */
+        internal fun score(hit: LrclibTrack, durationMs: Long?): Double {
+            if (durationMs == null) return 0.0
+            val songS = durationMs / 1000.0
+            var s = hit.duration?.let { kotlin.math.abs(it - songS) } ?: 30.0
+            val last = hit.syncedLyrics?.let(Lyrics::parseLrc)?.lastOrNull { it.text.isNotBlank() }?.timeMs?.div(1000.0)
+            if (last != null) {
+                if (last > songS + 2) s += 1000.0
+                else if (songS - last > maxOf(45.0, songS * 0.2)) s += 60.0
+            } else {
+                s += 20.0 // plain text only: synced lines are worth a few seconds of length
+            }
+            return s
+        }
+
+        /** Times that probably belong to another version: see [Lyrics.suspect]. */
+        internal fun suspect(l: Lyrics, durationMs: Long?, entryS: Double?): Boolean {
+            if (!l.isSynced || durationMs == null) return false
+            val songS = durationMs / 1000.0
+            if (entryS != null && kotlin.math.abs(entryS - songS) > 5) return true
+            val last = l.synced.lastOrNull { it.text.isNotBlank() }?.timeMs?.div(1000.0) ?: return false
+            return last > songS + 2 || songS - last > maxOf(45.0, songS * 0.2)
         }
     }
 

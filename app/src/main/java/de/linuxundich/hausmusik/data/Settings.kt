@@ -29,6 +29,21 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
         if (host.isNullOrBlank()) it.remove(manualHostKey) else it[manualHostKey] = host.trim()
     }
 
+    private val lyricsOffsetsKey = stringPreferencesKey("lyrics_offsets")
+    private val offsetsJson = kotlinx.serialization.json.Json
+
+    /** How much later (ms) the lyrics of a track run than LRCLIB's times say; set by the user, per track. */
+    val lyricsOffsets: Flow<Map<String, Int>> = store.data.map { p ->
+        p[lyricsOffsetsKey]?.let { runCatching { offsetsJson.decodeFromString<Map<String, Int>>(it) }.getOrNull() }.orEmpty()
+    }
+
+    suspend fun setLyricsOffset(track: String, ms: Int) = store.edit { p ->
+        val now = p[lyricsOffsetsKey]?.let { runCatching { offsetsJson.decodeFromString<Map<String, Int>>(it) }.getOrNull() }.orEmpty()
+        // The newest last; the oldest go beyond 500 tracks.
+        val next = (now - track).let { if (ms == 0) it else it + (track to ms) }.entries.toList().takeLast(500).associate { it.key to it.value }
+        p[lyricsOffsetsKey] = offsetsJson.encodeToString<Map<String, Int>>(next)
+    }
+
     private val lyricsKey = booleanPreferencesKey("lyrics_enabled")
 
     /** Lyrics from LRCLIB; off until the user agrees, since it sends track names to lrclib.net. */

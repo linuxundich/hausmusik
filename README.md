@@ -25,7 +25,7 @@
 - **Everywhere.** One tap lets every room play along, except those you keep out in the settings. Crossfade is a switch in the stage menu.
 - **Shortcuts, widgets, automation.** Long press the app icon for "pause everywhere" and favorites; a small widget plays or pauses one room or starts a favorite there; Tasker and Home Assistant can send the same commands as intents (see [docs/development.md](docs/development.md#commands-from-outside)).
 - **Music video.** For many songs Wikidata knows the official YouTube video; Hausmusik opens it in the YouTube app at the point the speakers play (no ads with YouTube Premium). Otherwise a YouTube search. Off until you switch it on.
-- **Lyrics.** Time-synced lyrics from LRCLIB fill the cover area; tap a line to jump there. Off until you switch them on.
+- **Lyrics.** Time-synced lyrics from LRCLIB fill the cover area; tap a line to jump there. When a live version runs off the stored times, press and hold the line being sung and the lyrics follow; the shift is remembered per track. Off until you switch them on.
 - **Alarms and sound.** Create and edit Sonos alarms, set bass, treble and loudness for every speaker, and a sleep timer that shows how long is left.
 - **No surprises.** Before anything replaces a queue that is not empty, Hausmusik asks: play now, play next or add to the queue.
 - **Part of Android.** Media notification and lock screen controls, a home screen widget and a Quick Settings tile. The volume buttons change the volume of your room, even outside the app.

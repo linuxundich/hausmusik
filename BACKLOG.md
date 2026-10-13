@@ -41,6 +41,8 @@ Completed items stay checked.
 - [x] **P0** Offline handling: no Wi-Fi mask, reconnecting band, automatic retry, idle session, tile and widget
 - [x] **P1** Test the offline masks on the Pixel (Wi-Fi off and on, cold start, fixed address)
 - [x] **P1** Lyrics from LRCLIB (synced, opt-in)
+- [x] Lyrics shift per track (long press, ±0.5 s), doubtful times flagged, better LRCLIB match
+- [ ] Lyrics shift on the real live album (Pixel, once LRCLIB answers again)
 - [x] **P1** Settings screen: speaker address, lyrics, about
 - [x] **P1** Cache library lists, refresh only when Sonos reports a new list version
 - [x] **P1** Artist pictures from Deezer (opt-in)

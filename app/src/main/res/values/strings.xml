@@ -119,6 +119,15 @@
     <string name="lyrics">Lyrics</string>
     <string name="lyrics_none">No lyrics found for this track.</string>
     <string name="lyrics_failed">Lyrics could not be loaded. Is the phone online?</string>
+    <string name="lyrics_suspect">The times probably belong to another version. Press and hold the line being sung now.</string>
+    <string name="lyrics_earlier">Lyrics earlier</string>
+    <string name="lyrics_later">Lyrics later</string>
+    <string name="lyrics_offset_none">Times as in LRCLIB</string>
+    <string name="lyrics_offset_later">Lyrics %1$s s later</string>
+    <string name="lyrics_offset_earlier">Lyrics %1$s s earlier</string>
+    <string name="lyrics_offset_reset">Reset</string>
+    <string name="lyrics_plain">Text only</string>
+    <string name="lyrics_sync_here">This line plays now</string>
     <string name="lyrics_consent_title">Show lyrics?</string>
     <string name="lyrics_consent_body">Lyrics come from LRCLIB, a free lyrics database. For that, title, artist, album and length of the playing track are sent to lrclib.net. Nothing else leaves your home network.</string>
     <string name="lyrics_consent_yes">Show lyrics</string>

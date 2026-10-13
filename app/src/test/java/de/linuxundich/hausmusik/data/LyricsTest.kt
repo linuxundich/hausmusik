@@ -37,7 +37,7 @@ class LyricsTest {
     @Test
     fun `exact match with synced lyrics`() = runTest {
         server.server.enqueue(
-            MockResponse.Builder().body("""{"trackName":"Uptime","duration":196,"instrumental":false,"plainLyrics":"a\nb","syncedLyrics":"[00:01.00] a\n[00:02.00] b"}""").build(),
+            MockResponse.Builder().body("""{"trackName":"Uptime","duration":196,"instrumental":false,"plainLyrics":"a\nb","syncedLyrics":"[00:01.00] a\n[03:02.00] b"}""").build(),
         )
         val lyrics = repo().find("Uptime", "Penny Guin", "Kernel Panic Ballads", 196_000).getOrThrow()!!
         assertTrue(lyrics.isSynced)
@@ -70,6 +70,52 @@ class LyricsTest {
         assertNull(r.find("Rawhide", "Fedora Hutmacher", null, 164_000).getOrThrow())
         assertNull(r.find("Rawhide", "Fedora Hutmacher", null, 164_000).getOrThrow())
         assertEquals(1, server.server.requestCount)
+    }
+
+    // A live version (324 s) whose LRCLIB entry carries the studio times: the lines end at 3:58.
+    private val studioTimes = (0..20).joinToString("\\n") { "[0${it * 12 / 60}:${"%02d".format(it * 12 % 60)}.00] line $it" }
+
+    @Test
+    fun `times ending far before the song are suspect`() = runTest {
+        server.server.enqueue(MockResponse.Builder().body("""{"trackName":"Angel","duration":324,"syncedLyrics":"$studioTimes"}""").build())
+        server.server.enqueue(MockResponse.Builder().body("[]").build())
+        val lyrics = repo().find("Angel", "Penny Guin", "Live", 324_000).getOrThrow()!!
+        assertTrue(lyrics.isSynced)
+        assertTrue(lyrics.suspect)
+        // Doubtful times make it look further.
+        server.server.takeRequest()
+        assertEquals("/api/search", server.server.takeRequest().url.encodedPath)
+    }
+
+    @Test
+    fun `a search hit whose times fit beats a doubtful exact match`() = runTest {
+        server.server.enqueue(MockResponse.Builder().body("""{"trackName":"Angel","duration":324,"syncedLyrics":"$studioTimes"}""").build())
+        server.server.enqueue(
+            MockResponse.Builder().body(
+                """[{"trackName":"Angel","duration":324,"syncedLyrics":"$studioTimes"},""" +
+                    """{"trackName":"Angel (Live)","duration":323,"syncedLyrics":"[00:14.00] first\n[05:10.00] last"}]""",
+            ).build(),
+        )
+        val lyrics = repo().find("Angel", "Penny Guin", "Live", 324_000).getOrThrow()!!
+        assertEquals("first", lyrics.synced.first().text)
+        assertTrue(!lyrics.suspect)
+    }
+
+    @Test
+    fun `fitting times are not suspect and need no search`() = runTest {
+        server.server.enqueue(MockResponse.Builder().body("""{"trackName":"Angel","duration":250,"syncedLyrics":"$studioTimes"}""").build())
+        val lyrics = repo().find("Angel", "Penny Guin", null, 250_000).getOrThrow()!!
+        assertTrue(!lyrics.suspect)
+        assertEquals(1, server.server.requestCount)
+    }
+
+    @Test
+    fun `score punishes lines after the end and prefers synced lines`() {
+        val synced = LrclibTrack("A", null, 200.0, false, null, "[00:10.00] a\n[03:00.00] b")
+        val plain = LrclibTrack("A", null, 200.0, false, "a", null)
+        val tooLong = LrclibTrack("A", null, 200.0, false, null, "[00:10.00] a\n[03:50.00] b")
+        assertTrue(LyricsRepository.score(synced, 200_000) < LyricsRepository.score(plain, 200_000))
+        assertTrue(LyricsRepository.score(plain, 200_000) < LyricsRepository.score(tooLong, 200_000))
     }
 
     @Test

@@ -117,6 +117,15 @@
     <string name="lyrics">Liedtext</string>
     <string name="lyrics_none">Für diesen Titel gibt es keinen Liedtext.</string>
     <string name="lyrics_failed">Der Liedtext ließ sich nicht laden. Ist das Handy online?</string>
+    <string name="lyrics_suspect">Die Zeiten passen vermutlich nicht zu dieser Fassung. Halte die Zeile gedrückt, die gerade gesungen wird.</string>
+    <string name="lyrics_earlier">Text früher</string>
+    <string name="lyrics_later">Text später</string>
+    <string name="lyrics_offset_none">Zeiten wie in LRCLIB</string>
+    <string name="lyrics_offset_later">Text %1$s s später</string>
+    <string name="lyrics_offset_earlier">Text %1$s s früher</string>
+    <string name="lyrics_offset_reset">Zurücksetzen</string>
+    <string name="lyrics_plain">Nur Text</string>
+    <string name="lyrics_sync_here">Diese Zeile läuft jetzt</string>
     <string name="lyrics_consent_title">Liedtexte zeigen?</string>
     <string name="lyrics_consent_body">Liedtexte kommen von LRCLIB, einer freien Liedtext-Datenbank. Dafür gehen Titel, Interpret, Album und Länge des laufenden Titels an lrclib.net. Sonst verlässt nichts dein Heimnetz.</string>
     <string name="lyrics_consent_yes">Liedtexte zeigen</string>

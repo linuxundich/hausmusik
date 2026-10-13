@@ -144,13 +144,18 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     val artistImagesOn by vm.artistImagesEnabled.collectAsStateWithLifecycle()
     val now = selected.nowPlaying
     val lyricsKey = now?.let { listOf(it.title, it.artist, it.album, it.durationMs) }
-    val lyrics by produceState<LyricsUi?>(null, showLyrics, lyricsEnabled, lyricsKey) {
+    val fetchedLyrics by produceState<LyricsUi?>(null, showLyrics, lyricsEnabled, lyricsKey) {
         value = null
         if (showLyrics && lyricsEnabled && now != null) {
             value = LyricsUi.Loading
             value = vm.lyrics(now)
         }
     }
+    val lyricsOffsets by vm.lyricsOffsets.collectAsStateWithLifecycle()
+    val lyrics = (fetchedLyrics as? LyricsUi.Found)?.let { found ->
+        val track = now?.let(vm::lyricsTrack) ?: return@let found
+        found.copy(offsetMs = lyricsOffsets[track] ?: 0, onOffset = { vm.setLyricsOffset(track, it) })
+    } ?: fetchedLyrics
     var pendingPlay by rememberSaveable(saver = pendingSaver) { mutableStateOf<DidlObject?>(null) }
     BackHandler(stack.size > 1) { stack.removeAt(stack.lastIndex) }
 

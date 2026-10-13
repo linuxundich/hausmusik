@@ -664,10 +664,33 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(404, "unknown link code", "text/plain")
         if self.path.startswith(("/ws/2/", "/w/api.php", "/wiki/", "/coverart/", "/sparql")):
             return self.details()
+        if self.path.startswith("/api/"):
+            return self.lrclib()
         if self.path.startswith("/getaa"):
             m = re.search(r"u=([a-z]+\d+)", self.path)
             data = cover(m.group(1)) if m else None
             return self.send(200, data, "image/png") if data else self.send(404, "")
+        self.send(404, "")
+
+    def lrclib(self):
+        """Fake LRCLIB with invented lines (app extra `-e details host:port`). "Grep the Sun" carries
+        the times of a shorter version, like a live album with the studio timing: they end far too early."""
+        url = urllib.parse.urlparse(self.path)
+        q = {k: v[0] for k, v in urllib.parse.parse_qs(url.query).items()}
+        def entry(t):
+            short = t["title"] == "Grep the Sun"
+            end = t["dur"] * (0.55 if short else 0.9)
+            lines = [f"[{int(s // 60):02d}:{s % 60:05.2f}] {t['title']}, Zeile {n + 1}" for n, s in enumerate(range(8, int(end), 6))]
+            return dict(trackName=t["title"], artistName=t["artist"], albumName=t["album"], duration=t["dur"], instrumental=False,
+                        plainLyrics="\n".join(l.split("] ", 1)[1] for l in lines), syncedLyrics="\n".join(lines))
+        # Josh Woodward's real lines are on lrclib.net: nothing invented for him.
+        tracks = [t for t in TRACKS if t["artist"] != "Josh Woodward" and t["title"].lower() == q.get("track_name", "").lower()
+                  and t["artist"].lower() == q.get("artist_name", t["artist"]).lower()]
+        if url.path == "/api/get":
+            hit = next((t for t in tracks if abs(t["dur"] - int(q.get("duration", "0"))) <= 2), None)
+            return self.send(200, json.dumps(entry(hit)), "application/json") if hit else self.send(404, "{}", "application/json")
+        if url.path == "/api/search":
+            return self.send(200, json.dumps([entry(t) for t in tracks]), "application/json")
         self.send(404, "")
 
     def details(self):

@@ -93,6 +93,17 @@ class MainViewModel @Inject constructor(
     suspend fun artistDetails(name: String) = detailsRepo.artist(name)
     suspend fun albumDetails(title: String, artist: String?) = detailsRepo.album(title, artist)
 
+    val lyricsOffsets: StateFlow<Map<String, Int>> = settings.lyricsOffsets.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+    fun setLyricsOffset(track: String, ms: Int) = viewModelScope.launch { settings.setLyricsOffset(track, ms) }
+
+    /** The track a lyrics offset belongs to: the same song on another album keeps its own. */
+    fun lyricsTrack(now: NowPlaying): String = listOf(
+        de.linuxundich.hausmusik.data.ArtistImages.normalize(now.title),
+        now.artist?.let(de.linuxundich.hausmusik.data.ArtistImages::normalize).orEmpty(),
+        now.album?.let(de.linuxundich.hausmusik.data.ArtistImages::normalize).orEmpty(),
+        ((now.durationMs ?: 0) / 1000).toString(),
+    ).joinToString("|")
+
     suspend fun lyrics(now: NowPlaying): LyricsUi =
         lyricsRepo.find(now.title, now.artist, now.album, now.durationMs).fold(
             { if (it == null) LyricsUi.None else LyricsUi.Found(it) },
