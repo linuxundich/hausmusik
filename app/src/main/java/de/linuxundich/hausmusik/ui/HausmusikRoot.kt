@@ -7,7 +7,15 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,6 +35,7 @@ import de.linuxundich.hausmusik.ui.common.SleepTimerDialog
 import de.linuxundich.hausmusik.ui.library.ContainerScreen
 import de.linuxundich.hausmusik.ui.library.LibraryScreen
 import de.linuxundich.hausmusik.ui.library.LibraryViewModel
+import de.linuxundich.hausmusik.ui.queue.QueueActions
 import de.linuxundich.hausmusik.ui.queue.QueueSheet
 import de.linuxundich.hausmusik.ui.rooms.RoomActions
 import de.linuxundich.hausmusik.ui.rooms.RoomsSheet
@@ -69,6 +78,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         else vm.play(item, QueueMode.ReplaceAndPlay)
     }
 
+    Box(Modifier.fillMaxSize()) {
     AnimatedContent(
         targetState = stack.last(),
         transitionSpec = {
@@ -112,6 +122,11 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         }
     }
 
+    if (stack.last() is Screen.Stage) {
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 72.dp))
+    }
+    }
+
     if (roomsOpen) {
         RoomsSheet(
             household, colors,
@@ -129,9 +144,15 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     if (queueOpen) {
         QueueSheet(
             selected, colors,
-            load = { vm.loadQueue() },
             artUrl = library::artUrl,
-            onPlayTrack = vm::playQueueTrack,
+            actions = QueueActions(
+                load = { vm.loadQueue() },
+                playTrack = { vm.playQueueTrack(it) },
+                remove = { vm.removeFromQueue(it) },
+                moveToNext = { vm.moveToNext(it) },
+                clear = { vm.clearQueue() },
+                save = { vm.saveQueue(it) },
+            ),
             onDismiss = { queueOpen = false },
         )
     }

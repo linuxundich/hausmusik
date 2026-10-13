@@ -33,4 +33,7 @@ All notable changes to Hausmusik are documented here. The format follows
   while the screen is on.
 - Volume changes from the app, the notification and the buttons share one
   throttle: at most one request per 120 ms, always the latest value.
+- Queue editing: swipe a track to the left to remove it, long press for
+  "play next", clear the queue (asks first) and save it as a Sonos playlist.
+- Messages (errors, "saved") now also show on the Stage.
 - The fake household accepts subscriptions and sends NOTIFY on every change.

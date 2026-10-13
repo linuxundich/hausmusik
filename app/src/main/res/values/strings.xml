@@ -57,6 +57,16 @@
     <string name="added_to_queue">Added to the queue</string>
     <string name="error_command">The speaker did not respond.</string>
 
+    <string name="queue_remove">Remove</string>
+    <string name="queue_play_next">Play next</string>
+    <string name="queue_clear">Clear queue</string>
+    <string name="queue_clear_confirm">Remove all tracks from the queue of %1$s?</string>
+    <string name="queue_save">Save as playlist</string>
+    <string name="queue_save_name">Playlist name</string>
+    <string name="queue_saved">Saved as Sonos playlist</string>
+    <string name="queue_more">More</string>
+    <string name="save">Save</string>
+    <string name="clear">Clear</string>
     <string name="queue_title">Queue</string>
     <plurals name="queue_count">
         <item quantity="one">%1$d track</item>

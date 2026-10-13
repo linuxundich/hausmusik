@@ -373,6 +373,20 @@ class HouseholdRepository @Inject constructor(
         c.play()
     }
 
+    // Queue editing (selected group)
+
+    suspend fun removeFromQueue(trackNumber: Int): Result<Unit> = command { it.removeTrackFromQueue(trackNumber) }
+
+    /** Moves a queued track right behind the one that plays now. */
+    suspend fun moveToNext(trackNumber: Int): Result<Unit> = command { c ->
+        val current = _state.value.selected?.nowPlaying?.queuePosition ?: 0
+        if (trackNumber != current && trackNumber != current + 1) c.reorderQueue(trackNumber, 1, current + 1)
+    }
+
+    suspend fun clearQueue(): Result<Unit> = command { it.removeAllTracksFromQueue() }
+
+    suspend fun saveQueue(title: String): Result<Unit> = command { it.saveQueue(title) }
+
     companion object {
         private const val TAG = "Household"
 

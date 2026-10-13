@@ -26,7 +26,9 @@ Completed items stay checked.
 ## Phase 2: Finding music
 
 - [x] **P0** Favorites, albums, radio, playlists, album tracks
-- [ ] **P0** Queue: reorder, remove, clear, save as Sonos playlist
+- [x] **P0** Queue: remove (swipe), play next (long press), clear, save as Sonos playlist
+- [ ] **P1** Queue: reorder by dragging
+- [ ] **P1** Show messages above open sheets (they currently appear behind them)
 - [ ] **P1** Search in the music share
 - [ ] **P1** Artists and genres
 - [ ] **P2** Local play history (Sonos keeps none)

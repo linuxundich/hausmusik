@@ -55,6 +55,16 @@
     <string name="added_to_queue">An die Warteschlange angehängt</string>
     <string name="error_command">Der Lautsprecher hat nicht geantwortet.</string>
 
+    <string name="queue_remove">Entfernen</string>
+    <string name="queue_play_next">Als Nächstes spielen</string>
+    <string name="queue_clear">Warteschlange leeren</string>
+    <string name="queue_clear_confirm">Alle Titel aus der Warteschlange von %1$s entfernen?</string>
+    <string name="queue_save">Als Playlist speichern</string>
+    <string name="queue_save_name">Name der Playlist</string>
+    <string name="queue_saved">Als Sonos-Playlist gespeichert</string>
+    <string name="queue_more">Mehr</string>
+    <string name="save">Speichern</string>
+    <string name="clear">Leeren</string>
     <string name="queue_title">Warteschlange</string>
     <plurals name="queue_count">
         <item quantity="one">%1$d Titel</item>

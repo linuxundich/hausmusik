@@ -90,6 +90,10 @@ class SonosPlayerClient(val baseUrl: HttpUrl, private val soap: SoapClient) {
             "InsertBefore" to insertBefore, "UpdateID" to updateId)
     }
 
+    /** Saves the queue as a Sonos playlist and returns its object ID (e.g. "SQ:12"). */
+    suspend fun saveQueue(title: String): String =
+        av("SaveQueue", "Title" to title, "ObjectID" to "")["AssignedObjectID"].orEmpty()
+
     /** Duration of 0 or null cancels the timer. */
     suspend fun configureSleepTimer(durationMs: Long?) {
         av("ConfigureSleepTimer", "NewSleepTimerDuration" to (durationMs?.takeIf { it > 0 }?.let(::formatDuration) ?: ""))

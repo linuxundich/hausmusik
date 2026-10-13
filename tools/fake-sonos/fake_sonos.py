@@ -41,6 +41,7 @@ ALBUMS = [  # invented artists and albums
 RADIO = [("Radio Tuxfunk", "x-rincon-mp3radio://radio.example/tuxfunk", ["#4f7c93", "#1f3a4a"]),
          ("Kernel FM", "x-rincon-mp3radio://radio.example/kernelfm", ["#9c7b2c", "#3a2c10"])]
 
+SAVED = [("Morgens", [])]  # Sonos playlists: (title, tracks)
 TRACKS = []
 for ai, (album, artist, colors, titles) in enumerate(ALBUMS):
     for ti, t in enumerate(titles):
@@ -48,6 +49,7 @@ for ai, (album, artist, colors, titles) in enumerate(ALBUMS):
                            uri=f"x-file-cifs://nas/music/{ai}/{ti}.mp3", nr=ti + 1))
 
 lock = threading.Lock()
+SAVED[0] = ("Morgens", TRACKS[14:20])
 ADVERTISE = "127.0.0.1"
 
 
@@ -169,8 +171,12 @@ def browse(p, oid, start, count):
         c = coord(p)
         items = [track_item(t, f"Q:0/{i + 1}") for i, t in enumerate(c.queue)]
     elif oid == "SQ:":
-        items = [f'<container id="SQ:1" parentID="SQ:" restricted="true"><dc:title>Morgens</dc:title>'
-                 f'<upnp:class>object.container.playlistContainer</upnp:class><res protocolInfo="file:*:audio/mpegurl:*">file:///jffs/settings/savedqueues.rsq#1</res></container>']
+        items = [f'<container id="SQ:{i + 1}" parentID="SQ:" restricted="true"><dc:title>{html.escape(t)}</dc:title>'
+                 f'<upnp:class>object.container.playlistContainer</upnp:class><res protocolInfo="file:*:audio/mpegurl:*">file:///jffs/settings/savedqueues.rsq#{i + 1}</res></container>'
+                 for i, (t, _) in enumerate(SAVED)]
+    elif oid.startswith("SQ:"):
+        _, tracks = SAVED[int(oid[3:]) - 1]
+        items = [track_item(t, f"{oid}/{i}", oid) for i, t in enumerate(tracks)]
     total = len(items)
     page = items[start:start + count] if count else items[start:]
     return {"Result": didl("".join(page)), "NumberReturned": len(page), "TotalMatches": total, "UpdateID": 1}
@@ -263,6 +269,9 @@ def act(p, service, action, a):
         uri = a["EnqueuedURI"]
         m = re.search(r"#A:ALBUM/(\d+)", uri)
         new = [t for t in TRACKS if m and t["album"] == ALBUMS[int(m.group(1))][0]] or [t for t in TRACKS if t["uri"] == uri]
+        q = re.search(r"savedqueues.rsq#(\d+)", uri)
+        if q:
+            new = SAVED[int(q.group(1)) - 1][1][:]
         first = len(c.queue) + 1
         if a.get("EnqueueAsNext") == "1" and c.queue:
             first = c.track + 1
@@ -277,6 +286,9 @@ def act(p, service, action, a):
         moved = c.queue[s - 1:s - 1 + n]; del c.queue[s - 1:s - 1 + n]
         if b > s: b -= n
         c.queue[b - 1:b - 1] = moved; return {}
+    if action == "SaveQueue":
+        SAVED.append((a["Title"], c.queue[:]))
+        return {"AssignedObjectID": f"SQ:{len(SAVED)}"}
     if action == "ConfigureSleepTimer":
         d = a.get("NewSleepTimerDuration", "")
         c.sleep_until = time.time() + secs(d) if d else None; return {}
