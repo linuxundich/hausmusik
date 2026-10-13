@@ -72,14 +72,14 @@ class LyricsTest {
         assertEquals(1, server.server.requestCount)
     }
 
-    // A live version (324 s) whose LRCLIB entry carries the studio times: the lines end at 3:58.
+    // A live version (450 s) whose LRCLIB entry carries the studio times: the lines end at 4:00.
     private val studioTimes = (0..20).joinToString("\\n") { "[0${it * 12 / 60}:${"%02d".format(it * 12 % 60)}.00] line $it" }
 
     @Test
     fun `times ending far before the song are suspect`() = runTest {
-        server.server.enqueue(MockResponse.Builder().body("""{"trackName":"Angel","duration":324,"syncedLyrics":"$studioTimes"}""").build())
+        server.server.enqueue(MockResponse.Builder().body("""{"trackName":"Angel","duration":450,"syncedLyrics":"$studioTimes"}""").build())
         server.server.enqueue(MockResponse.Builder().body("[]").build())
-        val lyrics = repo().find("Angel", "Penny Guin", "Live", 324_000).getOrThrow()!!
+        val lyrics = repo().find("Angel", "Penny Guin", "Live", 450_000).getOrThrow()!!
         assertTrue(lyrics.isSynced)
         assertTrue(lyrics.suspect)
         // Doubtful times make it look further.
@@ -89,14 +89,14 @@ class LyricsTest {
 
     @Test
     fun `a search hit whose times fit beats a doubtful exact match`() = runTest {
-        server.server.enqueue(MockResponse.Builder().body("""{"trackName":"Angel","duration":324,"syncedLyrics":"$studioTimes"}""").build())
+        server.server.enqueue(MockResponse.Builder().body("""{"trackName":"Angel","duration":450,"syncedLyrics":"$studioTimes"}""").build())
         server.server.enqueue(
             MockResponse.Builder().body(
-                """[{"trackName":"Angel","duration":324,"syncedLyrics":"$studioTimes"},""" +
-                    """{"trackName":"Angel (Live)","duration":323,"syncedLyrics":"[00:14.00] first\n[05:10.00] last"}]""",
+                """[{"trackName":"Angel","duration":450,"syncedLyrics":"$studioTimes"},""" +
+                    """{"trackName":"Angel (Live)","duration":449,"syncedLyrics":"[00:14.00] first\n[05:10.00] last"}]""",
             ).build(),
         )
-        val lyrics = repo().find("Angel", "Penny Guin", "Live", 324_000).getOrThrow()!!
+        val lyrics = repo().find("Angel", "Penny Guin", "Live", 450_000).getOrThrow()!!
         assertEquals("first", lyrics.synced.first().text)
         assertTrue(!lyrics.suspect)
     }
@@ -106,6 +106,14 @@ class LyricsTest {
         server.server.enqueue(MockResponse.Builder().body("""{"trackName":"Angel","duration":250,"syncedLyrics":"$studioTimes"}""").build())
         val lyrics = repo().find("Angel", "Penny Guin", null, 250_000).getOrThrow()!!
         assertTrue(!lyrics.suspect)
+        assertEquals(1, server.server.requestCount)
+    }
+
+    @Test
+    fun `a long studio outro is no reason for doubt`() = runTest {
+        // "Stronger Than Me": 234 s, last line at 3:05.
+        server.server.enqueue(MockResponse.Builder().body("""{"trackName":"Angel","duration":234,"syncedLyrics":"[00:10.00] a\n[03:04.91] b"}""").build())
+        assertTrue(!repo().find("Angel", "Penny Guin", null, 234_000).getOrThrow()!!.suspect)
         assertEquals(1, server.server.requestCount)
     }
 

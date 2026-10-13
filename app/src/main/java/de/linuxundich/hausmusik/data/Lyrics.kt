@@ -147,12 +147,19 @@ class LyricsRepository(
             val last = hit.syncedLyrics?.let(Lyrics::parseLrc)?.lastOrNull { it.text.isNotBlank() }?.timeMs?.div(1000.0)
             if (last != null) {
                 if (last > songS + 2) s += 1000.0
-                else if (songS - last > maxOf(45.0, songS * 0.2)) s += 60.0
+                else if (songS - last > outroLimit(songS)) s += 60.0
             } else {
                 s += 20.0 // plain text only: synced lines are worth a few seconds of length
             }
             return s
         }
+
+        /**
+         * How long a song may go on after its last line before the times look
+         * like another version's. Studio outros of 50 s and more are common
+         * ("Stronger Than Me": 49 s), so only a gap far beyond that counts.
+         */
+        private fun outroLimit(songS: Double) = maxOf(90.0, songS * 0.4)
 
         /** Times that probably belong to another version: see [Lyrics.suspect]. */
         internal fun suspect(l: Lyrics, durationMs: Long?, entryS: Double?): Boolean {
@@ -160,7 +167,7 @@ class LyricsRepository(
             val songS = durationMs / 1000.0
             if (entryS != null && kotlin.math.abs(entryS - songS) > 5) return true
             val last = l.synced.lastOrNull { it.text.isNotBlank() }?.timeMs?.div(1000.0) ?: return false
-            return last > songS + 2 || songS - last > maxOf(45.0, songS * 0.2)
+            return last > songS + 2 || songS - last > outroLimit(songS)
         }
     }
 
