@@ -47,6 +47,8 @@ All notable changes to Hausmusik are documented here. The format follows
 - Home screen widget (Glance): cover, title, room, previous, play/pause, next.
   It follows the state live while the household is connected and connects
   briefly on its own when shown.
+- Switching to another speaker address restarts the update loop, so a poll in
+  flight can no longer subscribe to the old household again.
 - Every command reads its group again right away instead of waiting for the
   speaker's event.
 - Tested on a Pixel 10 (Android 17): SSDP search and UPnP events with the real

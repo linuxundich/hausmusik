@@ -106,10 +106,18 @@ class HouseholdRepository @Inject constructor(
     /** Uses [host] from now on (or SSDP again if null) and forgets the current household. */
     suspend fun connectTo(host: String?) {
         settings.setManualHost(host)
+        // Stop the loop first: a poll in flight would otherwise still use the
+        // old household and subscribe to it again.
+        val restart = synchronized(this) {
+            loop?.cancel()
+            loop = null
+            owners.isNotEmpty()
+        }
         events.stop()
         entry = null
+        pendingGroups.clear()
         _state.value = Household()
-        refreshNow()
+        if (restart) synchronized(this) { if (loop?.isActive != true) loop = scope.launch { run() } }
     }
 
     private fun onTrigger(t: SonosTrigger) {
@@ -148,7 +156,8 @@ class HouseholdRepository @Inject constructor(
                     pendingTopology = false
                     refreshTopology()
                     lastTopology = now
-                    scope.launch { runCatching { events.sync(_state.value.allPlayers) } }
+                    val players = _state.value.allPlayers
+                    scope.launch { runCatching { events.sync(players) } }
                 }
                 val ids = mutableSetOf<String>()
                 ids += pendingGroups.toList().also { pendingGroups.removeAll(it.toSet()) }
@@ -194,7 +203,8 @@ class HouseholdRepository @Inject constructor(
     }
 
     private suspend fun refreshTopology() {
-        val groups = client(entry!!).zoneGroups()
+        val e = entry ?: throw IOException("not connected")
+        val groups = client(e).zoneGroups()
         val lastRoom = settings.lastRoom()
         _state.update { old ->
             val byId = old.groups.associateBy { it.id }
