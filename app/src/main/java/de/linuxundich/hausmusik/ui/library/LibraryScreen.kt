@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.linuxundich.hausmusik.R
 import de.linuxundich.hausmusik.data.GroupState
+import de.linuxundich.hausmusik.data.history.HistoryEntry
 import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.ui.common.Cover
 import de.linuxundich.hausmusik.ui.common.formatTime
@@ -76,6 +77,7 @@ private fun LibraryTab.label() = when (this) {
     LibraryTab.Albums -> R.string.library_albums
     LibraryTab.Radio -> R.string.library_radio
     LibraryTab.Playlists -> R.string.library_playlists
+    LibraryTab.History -> R.string.library_history
 }
 
 /** Library: favorites, albums of the music share, radio, Sonos playlists. */
@@ -98,7 +100,8 @@ fun LibraryScreen(
     var searching by rememberSaveable { mutableStateOf(false) }
     // Loaded on first display, not in the ViewModel's init: the ViewModel may
     // exist before any room is known.
-    LaunchedEffect(Unit) { vm.load(tab.objectId) }
+    LaunchedEffect(Unit) { if (tab != LibraryTab.History) vm.load(tab.objectId) }
+    val history by vm.history.collectAsStateWithLifecycle()
     BackHandler(searching) { searching = false; vm.setQuery("") }
     val focus = remember { FocusRequester() }
     Scaffold(
@@ -146,6 +149,14 @@ fun LibraryScreen(
                 items(LibraryTab.entries) { t ->
                     FilterChip(selected = t == tab, onClick = { vm.select(t) }, label = { Text(stringResource(t.label())) })
                 }
+            }
+            if (tab == LibraryTab.History) {
+                // Tap: search the library for the track, since Sonos cannot replay a history entry by itself.
+                HistoryList(history, onClear = vm::clearHistory) { e ->
+                    searching = true
+                    vm.setQuery(e.title)
+                }
+                return@Column
             }
             ItemList(lists[tab.objectId], grid = tab.grid, artUrl = vm::artUrl, onRetry = { vm.load(tab.objectId, force = true) }) { item ->
                 if (item.isContainer && tab != LibraryTab.Favorites) onOpenContainer(item) else onPlay(item)
@@ -314,6 +325,53 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
             }
         }
         if (item.durationMs != null) Text(formatTime(item.durationMs), style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun HistoryList(entries: List<HistoryEntry>, onClear: () -> Unit, onClick: (HistoryEntry) -> Unit) {
+    if (entries.isEmpty()) {
+        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) {
+            Text(stringResource(R.string.history_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
+    val time = remember { java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT) }
+    val day = remember { java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM) }
+    LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
+        item {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.history_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                androidx.compose.material3.TextButton(onClick = onClear) { Text(stringResource(R.string.history_clear)) }
+            }
+        }
+        var lastDay: String? = null
+        entries.forEach { e ->
+            val d = day.format(java.util.Date(e.playedAt))
+            if (d != lastDay) {
+                lastDay = d
+                item(key = "d$d") {
+                    Text(d, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp))
+                }
+            }
+            item(key = e.id) {
+                Row(
+                    Modifier.fillMaxWidth().clickable { onClick(e) }.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Cover(e.artUrl, Modifier.size(44.dp), corner = 8.dp, placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                        iconColor = MaterialTheme.colorScheme.onSurfaceVariant, icon = if (e.station != null) AppIcons.Radio else AppIcons.Album)
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text(e.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            listOfNotNull(e.artist ?: e.station, e.room).joinToString(" · "),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                        )
+                    }
+                    Text(time.format(java.util.Date(e.playedAt)), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
     }
 }
 

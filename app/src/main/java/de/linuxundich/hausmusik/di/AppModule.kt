@@ -9,6 +9,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import de.linuxundich.hausmusik.data.history.HistoryDao
+import de.linuxundich.hausmusik.data.history.HistoryDatabase
 import de.linuxundich.hausmusik.sonos.SoapClient
 import java.util.concurrent.TimeUnit
 import javax.inject.Qualifier
@@ -40,6 +42,12 @@ object AppModule {
 
     @Provides @Singleton
     fun settings(@ApplicationContext context: Context): DataStore<Preferences> = context.settingsStore
+
+    @Provides @Singleton
+    fun historyDb(@ApplicationContext context: Context): HistoryDatabase = HistoryDatabase.create(context)
+
+    @Provides
+    fun historyDao(db: HistoryDatabase): HistoryDao = db.history()
 
     @Provides @Singleton @AppScope
     fun appScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

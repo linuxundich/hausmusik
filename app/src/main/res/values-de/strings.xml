@@ -125,4 +125,8 @@
     <string name="settings_about">Über</string>
     <string name="settings_version">Hausmusik %1$s</string>
     <string name="settings_license">Freie Software unter der GPL-3.0-or-later. Keine Verbindung zu Sonos, Inc.</string>
+    <string name="library_history">Verlauf</string>
+    <string name="history_empty">Noch ist nichts gelaufen, während Hausmusik verbunden war.</string>
+    <string name="history_note">Liegt nur auf diesem Handy; Sonos führt keinen Verlauf. Tippen sucht den Titel.</string>
+    <string name="history_clear">Leeren</string>
 </resources>

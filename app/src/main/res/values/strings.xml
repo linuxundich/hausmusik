@@ -127,4 +127,8 @@
     <string name="settings_about">About</string>
     <string name="settings_version">Hausmusik %1$s</string>
     <string name="settings_license">Free software under the GPL-3.0-or-later. Not affiliated with Sonos, Inc.</string>
+    <string name="library_history">History</string>
+    <string name="history_empty">Nothing has played yet while Hausmusik was connected.</string>
+    <string name="history_note">Kept on this phone only; Sonos keeps no history. Tap an entry to search for it.</string>
+    <string name="history_clear">Clear</string>
 </resources>

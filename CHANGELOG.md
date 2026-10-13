@@ -42,6 +42,8 @@ All notable changes to Hausmusik are documented here. The format follows
 - Sound: bass, treble and loudness for every speaker of the selected group.
 - The timer button shows the remaining sleep time.
 - Landscape layout for the Stage: cover on the left, controls on the right.
+- History: every track that plays while Hausmusik is connected, per day, kept
+  only on the phone (Room); a tap searches the library for it.
 - Lyrics on the Stage: time-synced from LRCLIB, the current line lights up, a
   tap on a line jumps there; plain text when there is no timing. Off until the
   user agrees, since title, artist, album and length go to lrclib.net.

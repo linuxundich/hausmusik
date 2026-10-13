@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.linuxundich.hausmusik.data.HouseholdRepository
+import de.linuxundich.hausmusik.data.history.HistoryDao
+import de.linuxundich.hausmusik.data.history.HistoryEntry
 import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.sonos.LibrarySearch
 import javax.inject.Inject
@@ -26,6 +28,8 @@ enum class LibraryTab(val objectId: String, val grid: Boolean) {
     Genres("A:GENRE", false),
     Radio("R:0/0", false),
     Playlists("SQ:", true),
+    /** Local, not a Sonos container. */
+    History("history", false),
 }
 
 sealed interface ListState {
@@ -43,7 +47,14 @@ sealed interface SearchState {
 
 @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class LibraryViewModel @Inject constructor(private val repo: HouseholdRepository) : ViewModel() {
+class LibraryViewModel @Inject constructor(
+    private val repo: HouseholdRepository,
+    private val historyDao: HistoryDao,
+) : ViewModel() {
+    val history: StateFlow<List<HistoryEntry>> = historyDao.recent().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun clearHistory() = viewModelScope.launch { historyDao.clear() }
+
     private val _tab = MutableStateFlow(LibraryTab.Favorites)
     val tab: StateFlow<LibraryTab> = _tab.asStateFlow()
 
@@ -74,7 +85,7 @@ class LibraryViewModel @Inject constructor(private val repo: HouseholdRepository
 
     fun select(tab: LibraryTab) {
         _tab.value = tab
-        if (_lists.value[tab.objectId] !is ListState.Loaded) load(tab.objectId)
+        if (tab != LibraryTab.History && _lists.value[tab.objectId] !is ListState.Loaded) load(tab.objectId)
     }
 
     /** Loads any container: a tab, an album, an artist, a genre. Results stay cached for the session. */

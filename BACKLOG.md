@@ -33,7 +33,7 @@ Completed items stay checked.
 - [ ] **P1** Show messages above open sheets (they currently appear behind them)
 - [x] **P1** Search in the music share
 - [x] **P1** Artists and genres
-- [ ] **P2** Local play history (Sonos keeps none)
+- [x] **P2** Local play history (Sonos keeps none)
 
 ## Additions
 
