@@ -62,6 +62,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.ui.common.isWide
+import de.linuxundich.hausmusik.ui.common.sheetDragHandle
+import de.linuxundich.hausmusik.ui.common.sheetMaxWidth
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.Household
 import de.linuxundich.hausmusik.sonos.SonosPlayer
@@ -93,54 +96,79 @@ fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, 
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val container = lerp(colors.backgroundBottom, colors.backgroundTop, 0.35f)
     val snackbar = remember { SnackbarHostState() }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = container, contentColor = colors.content) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss, sheetState = sheet, containerColor = container, contentColor = colors.content,
+        sheetMaxWidth = sheetMaxWidth(), dragHandle = sheetDragHandle(),
+    ) {
         Box {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding()) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
+            Row(Modifier.fillMaxWidth().padding(top = if (isWide()) 12.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.rooms), fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 if (household.groups.any { it.isPlaying }) {
                     TextButton(onClick = actions.onPauseAll) { Text(stringResource(R.string.rooms_pause_all), color = colors.accent) }
                 }
             }
             Spacer(Modifier.height(8.dp))
-            RoomTiles(household, colors, actions, snackbar)
-            val selected = household.selected ?: return@Column
-            Spacer(Modifier.height(12.dp))
-            Text(
-                stringResource(R.string.room_plays_with, selected.group.coordinator.roomName),
-                fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
-            )
-            Text(stringResource(R.string.rooms_together_hint), fontSize = 12.sp, color = colors.content.copy(alpha = 0.6f))
-            Spacer(Modifier.height(4.dp))
-            household.allPlayers.filter { it.uuid != selected.id }.forEach { p ->
-                val member = selected.group.members.any { it.uuid == p.uuid }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = member,
-                        onCheckedChange = { actions.onMembership(p, it) },
-                        colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.onAccent, uncheckedColor = colors.content.copy(alpha = 0.6f)),
-                    )
-                    Text(p.roomName, modifier = Modifier.weight(0.4f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (member) {
-                        VolumeSlider(selected.memberVolumes[p.uuid] ?: 0, colors, Modifier.weight(0.6f)) {
-                            actions.onMemberVolume(selected.id, p, it)
-                        }
-                    } else {
-                        Spacer(Modifier.weight(0.6f))
+            if (isWide()) {
+                // Landscape: tiles on the left, who plays along on the right.
+                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    Column(Modifier.weight(1.2f).verticalScroll(rememberScrollState())) {
+                        RoomTiles(household, colors, actions, snackbar)
+                        Spacer(Modifier.height(16.dp))
+                    }
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                        PlaysWith(household, colors, actions)
+                        Spacer(Modifier.height(16.dp))
                     }
                 }
-            }
-            if (selected.group.members.size > 1) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 48.dp)) {
-                    Text(selected.group.coordinator.roomName, modifier = Modifier.weight(0.4f), maxLines = 1)
-                    VolumeSlider(selected.memberVolumes[selected.id] ?: 0, colors, Modifier.weight(0.6f)) {
-                        actions.onMemberVolume(selected.id, selected.group.coordinator, it)
-                    }
+            } else {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    RoomTiles(household, colors, actions, snackbar)
+                    Spacer(Modifier.height(12.dp))
+                    PlaysWith(household, colors, actions)
+                    Spacer(Modifier.height(24.dp))
                 }
             }
-            Spacer(Modifier.height(24.dp))
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        }
+    }
+}
+
+/** Which rooms play along with the selected one: a checkbox and a volume per room. */
+@Composable
+private fun PlaysWith(household: Household, colors: CoverColors, actions: RoomActions) {
+    val selected = household.selected ?: return
+    Text(
+        stringResource(R.string.room_plays_with, selected.group.coordinator.roomName),
+        fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+    )
+    Text(stringResource(R.string.rooms_together_hint), fontSize = 12.sp, color = colors.content.copy(alpha = 0.6f))
+    Spacer(Modifier.height(4.dp))
+    household.allPlayers.filter { it.uuid != selected.id }.forEach { p ->
+        val member = selected.group.members.any { it.uuid == p.uuid }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = member,
+                onCheckedChange = { actions.onMembership(p, it) },
+                colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.onAccent, uncheckedColor = colors.content.copy(alpha = 0.6f)),
+            )
+            Text(p.roomName, modifier = Modifier.weight(0.4f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (member) {
+                VolumeSlider(selected.memberVolumes[p.uuid] ?: 0, colors, Modifier.weight(0.6f)) {
+                    actions.onMemberVolume(selected.id, p, it)
+                }
+            } else {
+                Spacer(Modifier.weight(0.6f))
+            }
+        }
+    }
+    if (selected.group.members.size > 1) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 48.dp)) {
+            Text(selected.group.coordinator.roomName, modifier = Modifier.weight(0.4f), maxLines = 1)
+            VolumeSlider(selected.memberVolumes[selected.id] ?: 0, colors, Modifier.weight(0.6f)) {
+                actions.onMemberVolume(selected.id, selected.group.coordinator, it)
+            }
         }
     }
 }

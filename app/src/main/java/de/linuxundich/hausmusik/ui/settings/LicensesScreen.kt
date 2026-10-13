@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -54,7 +55,7 @@ fun LicensesScreen(onBack: () -> Unit) {
         },
     ) { padding ->
         SelectionContainer(Modifier.padding(padding)) {
-            LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
+            LazyColumn(Modifier.fillMaxWidth().widthIn(max = 720.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
                 item {
                     Text(stringResource(R.string.licenses_intro), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 12.dp))
                 }

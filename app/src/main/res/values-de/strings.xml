@@ -142,4 +142,5 @@
     <string name="licenses">Open-Source-Lizenzen</string>
     <string name="licenses_intro">Hausmusik baut auf diesen Projekten auf. Danke an alle, die daran arbeiten.</string>
     <string name="licenses_apache">Apache License 2.0: apache.org/licenses/LICENSE-2.0. GNU GPL 3.0: gnu.org/licenses/gpl-3.0. Die vollständige Liste steht in NOTICE.md im Quellcode.</string>
+    <string name="alarm_time">Weckzeit</string>
 </resources>

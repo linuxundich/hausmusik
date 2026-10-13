@@ -67,6 +67,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.ui.common.isWide
+import de.linuxundich.hausmusik.ui.common.sheetDragHandle
+import de.linuxundich.hausmusik.ui.common.sheetMaxWidth
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.sonos.SourceKind
@@ -115,8 +118,11 @@ fun QueueSheet(
     val list = rememberLazyListState()
     LaunchedEffect(items != null) { if (current != null && current > 2) list.scrollToItem(current - 2) }
     val container = lerp(colors.backgroundBottom, colors.backgroundTop, 0.35f)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = container, contentColor = colors.content) {
-        Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss, sheetState = sheet, containerColor = container, contentColor = colors.content,
+        sheetMaxWidth = sheetMaxWidth(), dragHandle = sheetDragHandle(),
+    ) {
+        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = if (isWide()) 8.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.queue_title), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 val n = items?.size ?: group.queueLength

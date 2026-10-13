@@ -112,8 +112,12 @@ fun StageScreen(
             if (maxWidth > maxHeight) {
                 // Landscape: cover on the left, everything else on the right.
                 Row(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val square = Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true)
-                    if (lyrics != null) LyricsView(group, lyrics, colors, actions.onSeek, square) else StageCover(group, colors, square)
+                    // Lyrics take half the width (longer lines), the cover stays square.
+                    if (lyrics != null) {
+                        LyricsView(group, lyrics, colors, actions.onSeek, Modifier.fillMaxHeight().weight(0.85f))
+                    } else {
+                        StageCover(group, colors, Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true))
+                    }
                     Spacer(Modifier.width(32.dp))
                     Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -121,7 +125,15 @@ fun StageScreen(
                             IconAction(AppIcons.Queue, stringResource(R.string.queue), colors, actions.onQueue)
                             IconAction(AppIcons.Library, stringResource(R.string.library), colors, actions.onLibrary)
                             IconAction(AppIcons.Lyrics, stringResource(R.string.lyrics), colors, actions.onLyrics, on = lyrics != null)
-                            IconAction(AppIcons.Timer, actions.timerLabel ?: stringResource(R.string.sleep_timer), colors, actions.onTimer)
+                            if (actions.timerLabel != null) {
+                                // A running timer shows its time left, as in portrait.
+                                TextButton(onClick = actions.onTimer) {
+                                    Icon(AppIcons.Timer, null, tint = colors.accent, modifier = Modifier.size(22.dp))
+                                    Text(actions.timerLabel, color = colors.accent, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp))
+                                }
+                            } else {
+                                IconAction(AppIcons.Timer, stringResource(R.string.sleep_timer), colors, actions.onTimer)
+                            }
                             StageMenu(colors, actions)
                         }
                         Spacer(Modifier.weight(1f))
@@ -229,8 +241,9 @@ private fun RoomChip(name: String, colors: CoverColors, onClick: () -> Unit) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(AppIcons.Speaker, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(Modifier.size(8.dp))
-            Text(name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("  ▾", fontSize = 12.sp)
+            // The arrow stays on the line even when a long name is cut.
+            Text(name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            Text("  ▾", fontSize = 12.sp, maxLines = 1)
         }
     }
 }

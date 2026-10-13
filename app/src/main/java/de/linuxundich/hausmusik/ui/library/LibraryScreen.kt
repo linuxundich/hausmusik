@@ -4,6 +4,8 @@
 package de.linuxundich.hausmusik.ui.library
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Clear
@@ -27,8 +29,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -70,6 +75,7 @@ import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.history.HistoryEntry
 import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.ui.common.Cover
+import de.linuxundich.hausmusik.ui.common.isWide
 import de.linuxundich.hausmusik.ui.common.formatTime
 import de.linuxundich.hausmusik.ui.theme.AppIcons
 
@@ -107,6 +113,7 @@ fun LibraryScreen(
     val history by vm.history.collectAsStateWithLifecycle()
     BackHandler(searching) { searching = false; vm.setQuery("") }
     val focus = remember { FocusRequester() }
+    val wide = isWide()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -125,6 +132,16 @@ fun LibraryScreen(
                             modifier = Modifier.fillMaxWidth().focusRequester(focus),
                         )
                         LaunchedEffect(Unit) { focus.requestFocus() }
+                    } else if (wide) {
+                        // Landscape: the tabs share the bar with the title to save a row.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.library))
+                            LazyRow(contentPadding = PaddingValues(start = 16.dp, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(LibraryTab.entries) { t ->
+                                    FilterChip(selected = t == tab, onClick = { vm.select(t) }, label = { Text(stringResource(t.label())) })
+                                }
+                            }
+                        }
                     } else {
                         Text(stringResource(R.string.library))
                     }
@@ -148,7 +165,7 @@ fun LibraryScreen(
                 SearchResults(search, vm::artUrl, onOpenContainer, onPlay)
                 return@Column
             }
-            LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (!wide) LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(LibraryTab.entries) { t ->
                     FilterChip(selected = t == tab, onClick = { vm.select(t) }, label = { Text(stringResource(t.label())) })
                 }
@@ -219,37 +236,65 @@ fun ContainerScreen(
     onPlayPause: () -> Unit,
 ) {
     val lists by vm.lists.collectAsStateWithLifecycle()
+    val wideBar = isWide()
     LaunchedEffect(container.id) { vm.load(container.id) }
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(container.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
+                actions = {
+                    // Landscape: the play button lives up here, always in reach.
+                    if (wideBar) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(end = 8.dp)) {
+                        Icon(AppIcons.Play, null, Modifier.size(18.dp))
+                        Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
+                    }
+                },
             )
         },
         bottomBar = { if (group != null) MiniPlayer(group, onMiniPlayer, onPlayPause) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Column(Modifier.padding(padding)) {
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Cover(vm.artUrl(container.albumArtUri), Modifier.size(120.dp), corner = if (container.upnpClass.contains("person")) 60.dp else 16.dp,
-                    placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    icon = if (container.upnpClass.contains("person")) Icons.Filled.Person else AppIcons.Album)
-                Column(Modifier.padding(start = 16.dp).weight(1f)) {
-                    Text(container.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 2)
-                    container.creator?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-                    Button(onClick = { onPlay(container) }, modifier = Modifier.padding(top = 8.dp)) {
-                        Icon(AppIcons.Play, null, Modifier.size(18.dp))
-                        Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
-                    }
-                }
+        val person = container.upnpClass.contains("person")
+        val cover: @Composable (Modifier) -> Unit = { m ->
+            Cover(vm.artUrl(container.albumArtUri), m, corner = if (person) 60.dp else 16.dp,
+                placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                icon = if (person) Icons.Filled.Person else AppIcons.Album)
+        }
+        val info: @Composable () -> Unit = {
+            Text(container.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 2)
+            container.creator?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            if (!wideBar) Button(onClick = { onPlay(container) }, modifier = Modifier.padding(top = 8.dp)) {
+                Icon(AppIcons.Play, null, Modifier.size(18.dp))
+                Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
             }
-            val state = lists[container.id]
-            val allContainers = (state as? ListState.Loaded)?.items?.let { it.isNotEmpty() && it.all { i -> i.isContainer } } == true
-            // Inside an album, track numbers say more than the same cover over and over.
-            val isAlbum = container.upnpClass.contains("album")
+        }
+        val state = lists[container.id]
+        val allContainers = (state as? ListState.Loaded)?.items?.let { it.isNotEmpty() && it.all { i -> i.isContainer } } == true
+        // Inside an album, track numbers say more than the same cover over and over.
+        val isAlbum = container.upnpClass.contains("album")
+        val list: @Composable () -> Unit = {
             ItemList(state, grid = allContainers, artUrl = vm::artUrl, numbered = isAlbum, onRetry = { vm.load(container.id, force = true) }) { item ->
                 if (item.isContainer) onOpenContainer(item) else onPlay(item)
+            }
+        }
+        if (isWide()) {
+            // Landscape: cover and play button on the left, the tracks get the full height.
+            Row(Modifier.padding(padding)) {
+                Column(Modifier.width(240.dp).verticalScroll(rememberScrollState()).padding(16.dp)) {
+                    cover(Modifier.size(120.dp))
+                    Spacer(Modifier.height(12.dp))
+                    info()
+                }
+                Box(Modifier.weight(1f)) { list() }
+            }
+        } else {
+            Column(Modifier.padding(padding)) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    cover(Modifier.size(120.dp))
+                    Column(Modifier.padding(start = 16.dp).weight(1f)) { info() }
+                }
+                list()
             }
         }
     }
@@ -382,7 +427,7 @@ private fun HistoryList(entries: List<HistoryEntry>, onClear: () -> Unit, onClic
 private fun MiniPlayer(group: GroupState, onOpen: () -> Unit, onPlayPause: () -> Unit) {
     Surface(
         onClick = onOpen, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.secondaryContainer,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp).padding(bottom = 16.dp),
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Cover(group.artUrl, Modifier.size(44.dp), corner = 10.dp,

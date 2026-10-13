@@ -28,6 +28,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,6 +44,17 @@ import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.Lyrics
 import de.linuxundich.hausmusik.ui.theme.CoverColors
 import kotlinx.coroutines.delay
+
+/** Lines fade out at the top and bottom instead of being cut off. */
+private fun Modifier.fadingEdges(): Modifier = this
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        drawRect(
+            Brush.verticalGradient(0f to Color.Transparent, 0.12f to Color.Black, 0.88f to Color.Black, 1f to Color.Transparent),
+            blendMode = BlendMode.DstIn,
+        )
+    }
 
 sealed interface LyricsUi {
     data object Loading : LyricsUi
@@ -66,7 +83,7 @@ fun rememberPosition(group: GroupState): Long {
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LyricsView(group: GroupState, lyrics: LyricsUi, colors: CoverColors, onSeek: (Long) -> Unit, modifier: Modifier) {
-    Box(modifier.clip(RoundedCornerShape(24.dp)), contentAlignment = Alignment.Center) {
+    Box(modifier.clip(RoundedCornerShape(24.dp)).fadingEdges(), contentAlignment = Alignment.Center) {
         when (lyrics) {
             LyricsUi.Loading -> LoadingIndicator(color = colors.accent)
             LyricsUi.None, LyricsUi.Failed -> Text(

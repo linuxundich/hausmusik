@@ -8,6 +8,22 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Landscape reviewed screen by screen and reworked:
+  - Sheets get wider and lose the drag handle; the rooms sheet shows tiles and
+    "plays with" side by side, the sound sheet two speakers per row.
+  - Lyrics take half the width and fade out at the edges (also in portrait).
+  - Library tabs move into the top bar; the mini player is flatter.
+  - Albums and artists: cover and title on the left, tracks on the right,
+    "Play" in the top bar.
+  - Alarms in two columns with "Add" in the top bar instead of a floating
+    button over the cards; the editor in two columns.
+  - Settings and licenses at a readable width; the not-found screen in two
+    columns; all centered screens scroll if the height is short.
+  - A running sleep timer shows its time left in the landscape header.
+- Fixed: the clock dial in the alarm editor was cut off in landscape; it now
+  uses Material 3's TimePickerDialog.
+- Fixed: the alarm editor showed white status bar icons on white.
+- Fixed: the room chip broke its arrow into a second line on long names.
 - Licensing: SPDX header (copyright and GPL-3.0-or-later) in every source file;
   the Sonos layer names noson by Jean-Luc Barrière as its basis. NOTICE.md with
   all third-party components and licenses; Credits in the README; in the app

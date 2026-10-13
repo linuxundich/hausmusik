@@ -16,8 +16,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
@@ -45,7 +46,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberTimePickerState
@@ -57,7 +58,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import de.linuxundich.hausmusik.ui.common.isWide
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -103,22 +109,31 @@ fun AlarmsScreen(vm: AlarmsViewModel, onBack: () -> Unit) {
     var editing by remember { mutableStateOf<Alarm?>(null) }
     LaunchedEffect(Unit) { vm.load() }
     val rooms = household.allPlayers
+    val wide = isWide()
+    fun newAlarm() {
+        editing = Alarm(
+            id = null, startMinutes = 7 * 60, durationMinutes = 60, recurrence = Recurrence(Recurrence.WEEKDAYS),
+            enabled = true, roomUuid = household.selected?.id ?: rooms.first().uuid,
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.alarms)) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
+                actions = {
+                    // Landscape: a floating button would sit on the cards, so it moves up here.
+                    if (wide && rooms.isNotEmpty()) TextButton(onClick = ::newAlarm) {
+                        Icon(Icons.Filled.Add, null)
+                        Text(stringResource(R.string.alarm_add), Modifier.padding(start = 4.dp))
+                    }
+                },
             )
         },
         floatingActionButton = {
-            if (rooms.isNotEmpty()) ExtendedFloatingActionButton(
-                onClick = {
-                    editing = Alarm(
-                        id = null, startMinutes = 7 * 60, durationMinutes = 60, recurrence = Recurrence(Recurrence.WEEKDAYS),
-                        enabled = true, roomUuid = household.selected?.id ?: rooms.first().uuid,
-                    )
-                },
+            if (!wide && rooms.isNotEmpty()) ExtendedFloatingActionButton(
+                onClick = ::newAlarm,
                 icon = { Icon(Icons.Filled.Add, null) },
                 text = { Text(stringResource(R.string.alarm_add)) },
             )
@@ -133,7 +148,12 @@ fun AlarmsScreen(vm: AlarmsViewModel, onBack: () -> Unit) {
                 }
                 is AlarmsState.Loaded -> if (s.alarms.isEmpty()) {
                     Text(stringResource(R.string.alarms_empty), Modifier.align(Alignment.Center).padding(32.dp))
-                } else LazyColumn(contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                } else LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 340.dp),
+                    contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, if (wide) 16.dp else 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     items(s.alarms, key = { it.id ?: "" }) { alarm ->
                         AlarmCard(
                             alarm,
@@ -212,7 +232,17 @@ private fun AlarmEditor(
 ) {
     var alarm by remember { mutableStateOf(initial) }
     var pickTime by remember { mutableStateOf(false) }
+    val wide = isWide()
+    val dark = isSystemInDarkTheme()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        // The dialog has its own window: give it status bar icons that fit the theme.
+        val view = LocalView.current
+        LaunchedEffect(dark) {
+            (view.parent as? DialogWindowProvider)?.window?.let { w ->
+                WindowCompat.getInsetsController(w, view).isAppearanceLightStatusBars = !dark
+                WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = !dark
+            }
+        }
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -226,17 +256,13 @@ private fun AlarmEditor(
                 )
             },
         ) { padding ->
-            Column(
-                Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            val timeAndDays: @Composable () -> Unit = {
                 // A large time that opens the clock dial; a text field would pull up the keyboard at once.
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     TextButton(onClick = { pickTime = true }) {
                         Text(time(alarm.startMinutes), fontSize = 64.sp, fontWeight = FontWeight.Medium)
                     }
                 }
-
                 Section(stringResource(R.string.alarm_days))
                 val locale = LocalConfiguration.current.locales[0]
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -263,14 +289,15 @@ private fun AlarmEditor(
                     Text(stringResource(R.string.alarm_linked), Modifier.weight(1f))
                     Switch(checked = alarm.includeLinkedZones, onCheckedChange = { alarm = alarm.copy(includeLinkedZones = it) })
                 }
-
+            }
+            val whatAndHow: @Composable () -> Unit = {
                 Section(stringResource(R.string.alarm_source))
                 SourceRow(stringResource(R.string.alarm_chime), alarm.usesChime) {
                     alarm = alarm.copy(programUri = Alarm.BUZZER, programMetadata = "")
                 }
-                sources.forEach { s ->
-                    SourceRow(s.title, alarm.programUri == s.uri) {
-                        alarm = alarm.copy(programUri = s.uri!!, programMetadata = s.resMd.orEmpty())
+                sources.forEach { src ->
+                    SourceRow(src.title, alarm.programUri == src.uri) {
+                        alarm = alarm.copy(programUri = src.uri!!, programMetadata = src.resMd.orEmpty())
                     }
                 }
 
@@ -293,18 +320,35 @@ private fun AlarmEditor(
                 }
                 Spacer(Modifier.height(32.dp))
             }
+            if (wide) {
+                // Landscape: when and where on the left, what and how loud on the right.
+                Row(Modifier.padding(padding).fillMaxSize().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) { timeAndDays() }
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) { whatAndHow() }
+                }
+            } else {
+                Column(
+                    Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    timeAndDays()
+                    whatAndHow()
+                }
+            }
         }
     }
     if (pickTime) {
+        // TimePickerDialog switches to the side-by-side layout in landscape; a
+        // plain AlertDialog would cut the dial off there.
         val clock = rememberTimePickerState(alarm.startMinutes / 60, alarm.startMinutes % 60, is24Hour = true)
-        AlertDialog(
+        TimePickerDialog(
             onDismissRequest = { pickTime = false },
+            title = { Text(stringResource(R.string.alarm_time)) },
             confirmButton = {
                 TextButton(onClick = { alarm = alarm.copy(startMinutes = clock.hour * 60 + clock.minute); pickTime = false }) { Text("OK") }
             },
             dismissButton = { TextButton(onClick = { pickTime = false }) { Text(stringResource(R.string.cancel)) } },
-            text = { TimePicker(state = clock) },
-        )
+        ) { TimePicker(state = clock) }
     }
 }
 

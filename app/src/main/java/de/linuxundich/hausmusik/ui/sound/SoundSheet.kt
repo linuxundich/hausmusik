@@ -3,6 +3,7 @@
 
 package de.linuxundich.hausmusik.ui.sound
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +35,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.ui.common.isWide
+import de.linuxundich.hausmusik.ui.common.sheetDragHandle
+import de.linuxundich.hausmusik.ui.common.sheetMaxWidth
 import de.linuxundich.hausmusik.data.SoundSettings
 import de.linuxundich.hausmusik.sonos.SonosPlayer
 import de.linuxundich.hausmusik.ui.theme.CoverColors
@@ -53,10 +57,21 @@ fun SoundSheet(players: List<SonosPlayer>, colors: CoverColors, actions: SoundAc
     ModalBottomSheet(
         onDismissRequest = onDismiss, sheetState = sheet,
         containerColor = lerp(colors.backgroundBottom, colors.backgroundTop, 0.35f), contentColor = colors.content,
+        sheetMaxWidth = sheetMaxWidth(), dragHandle = sheetDragHandle(),
     ) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding()) {
-            Text(stringResource(R.string.sound), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            players.forEach { p -> PlayerSound(p, colors, actions) }
+            Text(stringResource(R.string.sound), fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = if (isWide()) 12.dp else 0.dp))
+            if (isWide()) {
+                // Landscape: speakers side by side, two per row.
+                players.chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        pair.forEach { p -> Column(Modifier.weight(1f)) { PlayerSound(p, colors, actions) } }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            } else {
+                players.forEach { p -> PlayerSound(p, colors, actions) }
+            }
             Spacer(Modifier.height(24.dp))
         }
     }
