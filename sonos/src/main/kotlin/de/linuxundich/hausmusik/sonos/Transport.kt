@@ -100,6 +100,24 @@ data class NowPlaying(
             if (kind == SourceKind.Empty && track == null) return null
             if (kind == SourceKind.Radio) {
                 val station = media?.currentUriMetadata?.title?.ifBlank { null } ?: track?.title
+                // A service "radio" (Spotify artist radio, x-sonosapi-radio) plays real
+                // tracks with full metadata: show the track, the station as context.
+                if (track != null && !track.title.isBlank() && track.creator != null && track.title != station &&
+                    trackUri.isNotEmpty() && !trackUri.startsWith("x-sonosapi-stream:") && !trackUri.startsWith("x-rincon-mp3radio:") &&
+                    !trackUri.startsWith("aac:") && !trackUri.startsWith("x-sonosapi-hls")
+                ) {
+                    return NowPlaying(
+                        title = track.title,
+                        artist = track.creator,
+                        album = track.album,
+                        station = station,
+                        albumArtUri = track.albumArtUri ?: media?.currentUriMetadata?.albumArtUri,
+                        durationMs = position.durationMs,
+                        positionMs = position.positionMs,
+                        kind = kind,
+                        queuePosition = null,
+                    )
+                }
                 val stream = track?.streamContent
                 val (artist, title) = splitStreamContent(stream)
                 return NowPlaying(

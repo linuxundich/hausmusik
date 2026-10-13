@@ -8,6 +8,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Test
 
 class ParsingTest {
@@ -132,5 +133,34 @@ class ParsingTest {
     fun `ssdp location`() {
         val reply = "HTTP/1.1 200 OK\r\nLOCATION: http://10.0.0.11:1400/xml/device_description.xml\r\nSERVER: Linux UPnP/1.0 Sonos/57.23\r\n\r\n"
         assertEquals("http://10.0.0.11:1400/", SsdpDiscovery.parseLocation(reply).toString())
+    }
+
+    @Test
+    fun `a Spotify artist radio shows its track, the station and the cover`() {
+        val position = PositionInfo(
+            trackNumber = 1, durationMs = 153_000, positionMs = 20_000,
+            trackUri = "x-sonosprog-spotify:spotify%3atrack%3a5pwEnDSiI7R2gNAxzd8JOc?sid=9&flags=8224&sn=3",
+            track = Didl.parse(Fixtures.load("spotify_artist_radio_position.xml")).first(),
+        )
+        val media = MediaInfo(
+            numberOfTracks = 1,
+            currentUri = "x-sonosapi-radio:spotify%3aartistRadio%3a2wm5YtIlq0Spe9rDGGTVkF?sid=9&flags=8300&sn=1",
+            currentUriMetadata = Didl.parse(Fixtures.load("spotify_artist_radio_media.xml")).first(),
+        )
+        val now = NowPlaying.from(position, media)!!
+        assertEquals("Wiederstand", now.title)
+        assertEquals("Dendemann", now.artist)
+        assertEquals("Wiederstand", now.album)
+        assertEquals("Dendemann Radio", now.station)
+        assertEquals(153_000L, now.durationMs)
+        assertEquals(
+            "/getaa?s=1&u=x-sonosprog-spotify%3aspotify%253atrack%253a5pwEnDSiI7R2gNAxzd8JOc%3fsid%3d9%26flags%3d8224%26sn%3d3",
+            now.albumArtUri,
+        )
+        val client = SonosPlayerClient("http://192.168.0.59:1400/".toHttpUrl(), SoapClient(okhttp3.OkHttpClient()))
+        assertEquals(
+            "http://192.168.0.59:1400/getaa?s=1&u=x-sonosprog-spotify%3aspotify%253atrack%253a5pwEnDSiI7R2gNAxzd8JOc%3fsid%3d9%26flags%3d8224%26sn%3d3",
+            client.absoluteArtUrl(now.albumArtUri),
+        )
     }
 }

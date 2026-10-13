@@ -8,6 +8,15 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Fixed: covers of Spotify tracks stayed empty on S1 speakers. The speaker
+  fetches such a picture from the internet first (about 4 s) and serves
+  requests one after another; stage, palette, widget and notification asked
+  at once and ran into the 8 s limit. Covers now load with 30 s patience,
+  two at a time per speaker, and are kept in a 64 MB disk cache.
+- Service radios such as a Spotify artist radio show the playing track,
+  artist, album, length and progress, with the station as context, instead
+  of only the station name.
+
 - New app icon, design 4b-3 "LEDs in the speaker ring": a gable of LED dots
   inside a speaker surround, the peak in a sand accent, in Sonos-like colors
   (near-black ground, warm white). Symmetric around the center; themed
