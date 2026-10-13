@@ -42,6 +42,13 @@ All notable changes to Hausmusik are documented here. The format follows
 - Sound: bass, treble and loudness for every speaker of the selected group.
 - The timer button shows the remaining sleep time.
 - Landscape layout for the Stage: cover on the left, controls on the right.
+- Lyrics on the Stage: time-synced from LRCLIB, the current line lights up, a
+  tap on a line jumps there; plain text when there is no timing. Off until the
+  user agrees, since title, artist, album and length go to lrclib.net.
+- Settings: change the speaker address or go back to the automatic search,
+  switch lyrics on or off, version and licence.
+- Fake household: "Breadcrumbs" by Josh Woodward (CC BY 4.0) with the real
+  "Border Blaster", so lyrics can be tried without personal data.
 - Compose UI tests with Robolectric: Stage (track, room, radio cannot skip,
   timer label), play dialog in English and German, alarm day labels; unit
   tests for the speaker address.

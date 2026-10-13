@@ -37,10 +37,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,7 +62,6 @@ import de.linuxundich.hausmusik.ui.common.Cover
 import de.linuxundich.hausmusik.ui.common.formatTime
 import de.linuxundich.hausmusik.ui.theme.AppIcons
 import de.linuxundich.hausmusik.ui.theme.CoverColors
-import kotlinx.coroutines.delay
 
 data class StageActions(
     val onRooms: () -> Unit,
@@ -80,6 +77,8 @@ data class StageActions(
     val onRepeat: () -> Unit,
     val onAlarms: () -> Unit,
     val onSound: () -> Unit,
+    val onSettings: () -> Unit,
+    val onLyrics: () -> Unit,
     /** "23 min" while a sleep timer runs. */
     val timerLabel: String? = null,
 )
@@ -87,7 +86,12 @@ data class StageActions(
 /** The Stage: what plays in the selected room, large and in the cover's colors. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun StageScreen(group: GroupState, colors: CoverColors, actions: StageActions) {
+fun StageScreen(
+    group: GroupState,
+    colors: CoverColors,
+    actions: StageActions,
+    lyrics: LyricsUi? = null,
+) {
     val swipeThreshold = with(LocalDensity.current) { 80.dp.toPx() }
     Box(
         Modifier
@@ -105,13 +109,15 @@ fun StageScreen(group: GroupState, colors: CoverColors, actions: StageActions) {
             if (maxWidth > maxHeight) {
                 // Landscape: cover on the left, everything else on the right.
                 Row(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    StageCover(group, colors, Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true))
+                    val square = Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true)
+                    if (lyrics != null) LyricsView(group, lyrics, colors, actions.onSeek, square) else StageCover(group, colors, square)
                     Spacer(Modifier.width(32.dp))
                     Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.weight(1f)) { RoomChip(group.group.displayName, colors, actions.onRooms) }
                             IconAction(AppIcons.Queue, stringResource(R.string.queue), colors, actions.onQueue)
                             IconAction(AppIcons.Library, stringResource(R.string.library), colors, actions.onLibrary)
+                            IconAction(AppIcons.Lyrics, stringResource(R.string.lyrics), colors, actions.onLyrics, on = lyrics != null)
                             IconAction(AppIcons.Timer, actions.timerLabel ?: stringResource(R.string.sleep_timer), colors, actions.onTimer)
                             StageMenu(colors, actions)
                         }
@@ -127,11 +133,12 @@ fun StageScreen(group: GroupState, colors: CoverColors, actions: StageActions) {
                         Box(Modifier.align(Alignment.CenterEnd).padding(top = 8.dp)) { StageMenu(colors, actions) }
                     }
                     Spacer(Modifier.weight(0.4f))
-                    StageCover(group, colors, Modifier.fillMaxWidth().widthIn(max = 420.dp).aspectRatio(1f))
+                    val square = Modifier.fillMaxWidth().widthIn(max = 420.dp).aspectRatio(1f)
+                    if (lyrics != null) LyricsView(group, lyrics, colors, actions.onSeek, square) else StageCover(group, colors, square)
                     Spacer(Modifier.height(24.dp))
                     StageControls(group, colors, actions)
                     Spacer(Modifier.weight(0.6f))
-                    BottomActions(colors, actions)
+                    BottomActions(colors, actions, lyricsShown = lyrics != null)
                     Spacer(Modifier.height(8.dp))
                 }
             }
@@ -187,20 +194,22 @@ private fun StageMenu(colors: CoverColors, actions: StageActions) {
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(text = { Text(stringResource(R.string.alarms)) }, onClick = { open = false; actions.onAlarms() })
             DropdownMenuItem(text = { Text(stringResource(R.string.sound)) }, onClick = { open = false; actions.onSound() })
+            DropdownMenuItem(text = { Text(stringResource(R.string.settings)) }, onClick = { open = false; actions.onSettings() })
         }
     }
 }
 
 @Composable
-private fun IconAction(icon: ImageVector, label: String, colors: CoverColors, onClick: () -> Unit) {
-    IconButton(onClick = onClick) { Icon(icon, contentDescription = label, tint = colors.content.copy(alpha = 0.85f)) }
+private fun IconAction(icon: ImageVector, label: String, colors: CoverColors, onClick: () -> Unit, on: Boolean = false) {
+    IconButton(onClick = onClick) { Icon(icon, contentDescription = label, tint = if (on) colors.accent else colors.content.copy(alpha = 0.85f)) }
 }
 
 @Composable
-private fun BottomActions(colors: CoverColors, actions: StageActions) {
+private fun BottomActions(colors: CoverColors, actions: StageActions, lyricsShown: Boolean = false) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
         BottomAction(AppIcons.Queue, stringResource(R.string.queue), colors, actions.onQueue)
         BottomAction(AppIcons.Library, stringResource(R.string.library), colors, actions.onLibrary)
+        BottomAction(AppIcons.Lyrics, stringResource(R.string.lyrics), colors, actions.onLyrics, on = lyricsShown)
         BottomAction(AppIcons.Timer, actions.timerLabel ?: stringResource(R.string.sleep_timer), colors, actions.onTimer)
     }
 }
@@ -229,16 +238,7 @@ private fun Progress(group: GroupState, colors: CoverColors, onSeek: (Long) -> U
     val now = group.nowPlaying ?: return
     val duration = now.durationMs ?: return
     // Between polls the position is extrapolated so the bar moves smoothly.
-    var clock by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(group.isPlaying) {
-        while (group.isPlaying) {
-            clock = System.currentTimeMillis()
-            delay(250)
-        }
-    }
-    // Without a read time there is nothing to extrapolate from.
-    val elapsed = if (group.isPlaying && group.positionReadAt > 0) (clock - group.positionReadAt).coerceAtLeast(0) else 0
-    val position = ((now.positionMs ?: 0) + elapsed).coerceAtMost(duration)
+    val position = rememberPosition(group)
     var dragFraction by remember { mutableStateOf<Float?>(null) }
     var width by remember { mutableFloatStateOf(1f) }
     val fraction = dragFraction ?: (position.toFloat() / duration).coerceIn(0f, 1f)
@@ -363,11 +363,12 @@ private fun VolumeRow(volume: Int, colors: CoverColors, onVolume: (Int) -> Unit)
 }
 
 @Composable
-private fun BottomAction(icon: ImageVector, label: String, colors: CoverColors, onClick: () -> Unit) {
+private fun BottomAction(icon: ImageVector, label: String, colors: CoverColors, onClick: () -> Unit, on: Boolean = false) {
+    val tint = if (on) colors.accent else colors.content.copy(alpha = 0.85f)
     TextButton(onClick = onClick) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, contentDescription = null, tint = colors.content.copy(alpha = 0.85f), modifier = Modifier.size(22.dp))
-            Text(label, color = colors.content.copy(alpha = 0.85f), fontSize = 12.sp)
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+            Text(label, color = tint, fontSize = 12.sp)
         }
     }
 }

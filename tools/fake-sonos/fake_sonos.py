@@ -37,8 +37,11 @@ ALBUMS = [  # invented artists and albums
      ["Ice Floe", "Waddle", "Fish Supper", "Colony", "Snow Crash"]),
     ("Frühstück im Terminal", "Pac Mann", ["#d9d2c3", "#8f8a7c", "#3f3b35"],
      ["Kaffee und Cron", "Bashrc", "Grep the Sun"]),
+    # Real and CC BY 4.0 (joshwoodward.com), so lyrics can be tested against LRCLIB.
+    ("Breadcrumbs", "Josh Woodward", ["#c9d6e8", "#5d7391", "#1f2a3a"],
+     ["Border Blaster"]),
 ]
-GENRES = ["Rock", "Folk", "Folk", "Rock", "Pop", "Jazz"]  # per album
+GENRES = ["Rock", "Folk", "Folk", "Rock", "Pop", "Jazz", "Folk"]  # per album
 RADIO = [("Radio Tuxfunk", "x-rincon-mp3radio://radio.example/tuxfunk", ["#4f7c93", "#1f3a4a"]),
          ("Kernel FM", "x-rincon-mp3radio://radio.example/kernelfm", ["#9c7b2c", "#3a2c10"])]
 
@@ -52,7 +55,8 @@ SAVED = [("Morgens", [])]  # Sonos playlists: (title, tracks)
 TRACKS = []
 for ai, (album, artist, colors, titles) in enumerate(ALBUMS):
     for ti, t in enumerate(titles):
-        TRACKS.append(dict(title=t, artist=artist, album=album, art=f"album{ai}", dur=150 + (ai * 37 + ti * 23) % 120,
+        TRACKS.append(dict(title=t, artist=artist, album=album, art=f"album{ai}",
+                           dur=280 if t == "Border Blaster" else 150 + (ai * 37 + ti * 23) % 120,
                            uri=f"x-file-cifs://nas/music/{ai}/{ti}.mp3", nr=ti + 1))
 
 lock = threading.Lock()

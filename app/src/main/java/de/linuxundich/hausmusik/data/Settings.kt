@@ -2,6 +2,7 @@ package de.linuxundich.hausmusik.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import javax.inject.Inject
@@ -23,6 +24,13 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
     suspend fun setManualHost(host: String?) = store.edit {
         if (host.isNullOrBlank()) it.remove(manualHostKey) else it[manualHostKey] = host.trim()
     }
+
+    private val lyricsKey = booleanPreferencesKey("lyrics_enabled")
+
+    /** Lyrics from LRCLIB; off until the user agrees, since it sends track names to lrclib.net. */
+    val lyricsEnabled: Flow<Boolean> = store.data.map { it[lyricsKey] ?: false }
+
+    suspend fun setLyricsEnabled(on: Boolean) = store.edit { it[lyricsKey] = on }
 
     private val debugCallbackKey = stringPreferencesKey("debug_callback")
 

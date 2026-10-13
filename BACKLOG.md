@@ -35,6 +35,11 @@ Completed items stay checked.
 - [x] **P1** Artists and genres
 - [ ] **P2** Local play history (Sonos keeps none)
 
+## Additions
+
+- [x] **P1** Lyrics from LRCLIB (synced, opt-in)
+- [x] **P1** Settings screen: speaker address, lyrics, about
+
 ## Phase 3: Rooms and everyday use
 
 - [x] **P0** Group by checkbox, sleep timer

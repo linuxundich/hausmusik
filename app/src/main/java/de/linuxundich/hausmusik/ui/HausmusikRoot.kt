@@ -31,7 +31,14 @@ import de.linuxundich.hausmusik.data.QueueMode
 import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.sonos.playsDirectly
 import de.linuxundich.hausmusik.R
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.produceState
 import de.linuxundich.hausmusik.ui.alarms.AlarmsScreen
+import de.linuxundich.hausmusik.ui.settings.SettingsScreen
+import de.linuxundich.hausmusik.ui.settings.SettingsState
+import de.linuxundich.hausmusik.ui.stage.LyricsUi
 import de.linuxundich.hausmusik.ui.sound.SoundActions
 import de.linuxundich.hausmusik.ui.sound.SoundSheet
 import androidx.compose.ui.res.stringResource
@@ -54,6 +61,7 @@ private sealed interface Screen {
     data object Library : Screen
     data class Container(val item: DidlObject) : Screen
     data object Alarms : Screen
+    data object Settings : Screen
 }
 
 @Composable
@@ -75,6 +83,19 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var queueOpen by remember { mutableStateOf(false) }
     var timerOpen by remember { mutableStateOf(false) }
     var soundOpen by remember { mutableStateOf(false) }
+    var showLyrics by remember { mutableStateOf(false) }
+    var lyricsConsent by remember { mutableStateOf(false) }
+    val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
+    val manualHost by vm.manualHost.collectAsStateWithLifecycle()
+    val now = selected.nowPlaying
+    val lyricsKey = now?.let { listOf(it.title, it.artist, it.album, it.durationMs) }
+    val lyrics by produceState<LyricsUi?>(null, showLyrics, lyricsEnabled, lyricsKey) {
+        value = null
+        if (showLyrics && lyricsEnabled && now != null) {
+            value = LyricsUi.Loading
+            value = vm.lyrics(now)
+        }
+    }
     var pendingPlay by remember { mutableStateOf<DidlObject?>(null) }
     BackHandler(stack.size > 1) { stack.removeAt(stack.lastIndex) }
 
@@ -111,10 +132,13 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                     onRepeat = vm::cycleRepeat,
                     onAlarms = { stack.add(Screen.Alarms) },
                     onSound = { soundOpen = true },
+                    onSettings = { stack.add(Screen.Settings) },
+                    onLyrics = { if (lyricsEnabled) showLyrics = !showLyrics else lyricsConsent = true },
                     timerLabel = selected.sleepRemainingMs?.let { ms ->
                         stringResource(R.string.sleep_minutes, ((ms + 59_999) / 60_000).toInt())
                     },
                 ),
+                lyrics = if (showLyrics && lyricsEnabled) lyrics ?: LyricsUi.Loading else null,
             )
             Screen.Library -> LibraryScreen(
                 library, selected, snackbar,
@@ -125,6 +149,12 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onPlayPause = vm::playPause,
             )
             Screen.Alarms -> AlarmsScreen(hiltViewModel(), onBack = { stack.removeAt(stack.lastIndex) })
+            Screen.Settings -> SettingsScreen(
+                SettingsState(manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled),
+                onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
+                onLyrics = vm::setLyricsEnabled,
+                onBack = { stack.removeAt(stack.lastIndex) },
+            )
             is Screen.Container -> ContainerScreen(
                 library, screen.item, selected, snackbar,
                 onBack = { stack.removeAt(stack.lastIndex) },
@@ -171,6 +201,19 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             ),
             snackbar = snackbar,
             onDismiss = { queueOpen = false },
+        )
+    }
+    if (lyricsConsent) {
+        AlertDialog(
+            onDismissRequest = { lyricsConsent = false },
+            title = { Text(stringResource(R.string.lyrics_consent_title)) },
+            text = { Text(stringResource(R.string.lyrics_consent_body)) },
+            confirmButton = {
+                TextButton(onClick = { vm.setLyricsEnabled(true); showLyrics = true; lyricsConsent = false }) {
+                    Text(stringResource(R.string.lyrics_consent_yes))
+                }
+            },
+            dismissButton = { TextButton(onClick = { lyricsConsent = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
     if (soundOpen) {

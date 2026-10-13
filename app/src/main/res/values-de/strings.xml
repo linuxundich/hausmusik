@@ -110,4 +110,19 @@
     <string name="rooms_drag_hint">Kachel gedrückt halten und auf einen anderen Raum ziehen, um gemeinsam zu spielen.</string>
     <string name="undo">Rückgängig</string>
     <string name="queue_move">Verschieben</string>
+    <string name="lyrics">Liedtext</string>
+    <string name="lyrics_none">Für diesen Titel gibt es keinen Liedtext.</string>
+    <string name="lyrics_failed">Der Liedtext ließ sich nicht laden. Ist das Handy online?</string>
+    <string name="lyrics_consent_title">Liedtexte zeigen?</string>
+    <string name="lyrics_consent_body">Liedtexte kommen von LRCLIB, einer freien Liedtext-Datenbank. Dafür gehen Titel, Interpret, Album und Länge des laufenden Titels an lrclib.net. Sonst verlässt nichts dein Heimnetz.</string>
+    <string name="lyrics_consent_yes">Liedtexte zeigen</string>
+    <string name="settings">Einstellungen</string>
+    <string name="settings_speakers">Lautsprecher</string>
+    <string name="settings_found_auto">Automatisch gefunden, verbunden mit %1$s.</string>
+    <string name="settings_found_manual">Feste Adresse, verbunden mit %1$s.</string>
+    <string name="settings_search_auto">Automatisch suchen</string>
+    <string name="settings_lyrics">Liedtexte von LRCLIB</string>
+    <string name="settings_about">Über</string>
+    <string name="settings_version">Hausmusik %1$s</string>
+    <string name="settings_license">Freie Software unter der GPL-3.0-or-later. Keine Verbindung zu Sonos, Inc.</string>
 </resources>

@@ -32,7 +32,7 @@ class StageScreenTest {
         onTimer = { calls += "timer" }, onPlayPause = { calls += "playPause" }, onNext = { calls += "next" },
         onPrevious = { calls += "previous" }, onSeek = { calls += "seek" }, onVolume = { calls += "volume" },
         onShuffle = { calls += "shuffle" }, onRepeat = { calls += "repeat" }, onAlarms = { calls += "alarms" },
-        onSound = { calls += "sound" }, timerLabel = timer,
+        onSound = { calls += "sound" }, onSettings = { calls += "settings" }, onLyrics = { calls += "lyrics" }, timerLabel = timer,
     )
 
     private fun show(group: GroupState, timer: String? = null) = compose.setContent {

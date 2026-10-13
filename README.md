@@ -19,6 +19,7 @@
 - **The Stage.** The app opens with what is playing, large and in the colors of the cover.
 - **Every room at a glance.** Each group with its own volume and play button. Tick a room to let it play along.
 - **Your library.** Sonos favorites, albums on your music share, radio stations and Sonos playlists.
+- **Lyrics.** Time-synced lyrics from LRCLIB fill the cover area; tap a line to jump there. Off until you switch them on.
 - **Alarms and sound.** Create and edit Sonos alarms, set bass, treble and loudness for every speaker, and a sleep timer that shows how long is left.
 - **No surprises.** Before anything replaces a queue that is not empty, Hausmusik asks: play now, play next or add to the queue.
 - **Part of Android.** Media notification and lock screen controls, a home screen widget and a Quick Settings tile. The volume buttons change the volume of your room, even outside the app.
@@ -30,7 +31,7 @@ What is planned next is in [BACKLOG.md](BACKLOG.md).
 
 1. Hausmusik finds your speakers with an SSDP search in your Wi-Fi network, or you enter the address of one speaker.
 2. It controls them with the same local UPnP interface the original Sonos apps used, on port 1400.
-3. Nothing leaves your home network.
+3. Nothing leaves your home network. The only exception is the optional lyrics lookup at LRCLIB, off until you switch it on.
 
 Streaming services such as Spotify can only be played through Sonos favorites and playlists that already exist in your Sonos system; their sign-in only works through the Sonos app.
 

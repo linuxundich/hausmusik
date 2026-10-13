@@ -7,6 +7,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.linuxundich.hausmusik.R
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.HouseholdRepository
+import de.linuxundich.hausmusik.data.LyricsRepository
+import de.linuxundich.hausmusik.data.Settings
+import de.linuxundich.hausmusik.sonos.NowPlaying
+import de.linuxundich.hausmusik.ui.stage.LyricsUi
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import de.linuxundich.hausmusik.data.QueueMode
 import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.sonos.PlayMode
@@ -20,7 +27,23 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val repo: HouseholdRepository,
+    private val settings: Settings,
+    private val lyricsRepo: LyricsRepository,
 ) : ViewModel() {
+
+    val lyricsEnabled: StateFlow<Boolean> = settings.lyricsEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val manualHost: StateFlow<String?> = settings.manualHost.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    fun setLyricsEnabled(on: Boolean) = viewModelScope.launch { settings.setLyricsEnabled(on) }
+
+    suspend fun lyrics(now: NowPlaying): LyricsUi =
+        lyricsRepo.find(now.title, now.artist, now.album, now.durationMs).fold(
+            { if (it == null) LyricsUi.None else LyricsUi.Found(it) },
+            { LyricsUi.Failed },
+        )
+
+    fun connectTo(host: String?) = viewModelScope.launch { repo.connectTo(host?.ifBlank { null }) }
+
 
     val household = repo.state
 
