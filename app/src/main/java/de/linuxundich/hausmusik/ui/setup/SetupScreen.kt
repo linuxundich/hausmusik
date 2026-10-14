@@ -179,3 +179,29 @@ fun ReconnectingBanner(modifier: Modifier = Modifier) {
         }
     }
 }
+
+/**
+ * The speakers stopped answering while the app was in use. The app keeps
+ * searching on its own; this says so instead of replacing everything with the
+ * setup screen. "Address" opens it for whoever wants to enter another one.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun LostBanner(onChangeAddress: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(color = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface, shape = MaterialTheme.shapes.large, modifier = modifier) {
+        androidx.compose.foundation.layout.Row(
+            Modifier.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LoadingIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.inverseOnSurface)
+            Spacer(Modifier.size(12.dp))
+            androidx.compose.foundation.layout.Column(Modifier.weight(1f, fill = false)) {
+                Text(stringResource(R.string.lost_title), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.lost_body), style = MaterialTheme.typography.bodySmall)
+            }
+            androidx.compose.material3.TextButton(onClick = onChangeAddress) {
+                Text(stringResource(R.string.lost_address), color = MaterialTheme.colorScheme.inversePrimary)
+            }
+        }
+    }
+}

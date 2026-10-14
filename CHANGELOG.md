@@ -8,6 +8,37 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Usability audit, first round (report in `captures/`, not in git):
+  - The stage shows when a room is muted: the speaker icon is crossed out,
+    the slider pales and a line says "Bathroom is muted · Tap to unmute"; in
+    a group, which rooms are muted ("Living room is muted · Tap for the
+    rooms").
+  - One tap on the speaker icon left of the slider mutes a single room. In a
+    group it opens the rooms' volumes, as before (a group mute would also
+    wake a room muted on purpose).
+  - The stage shows the volume as a number; with muted rooms, the volume of
+    the audible ones, as on the room tiles.
+  - "Play now" says at once what is starting ("Starting “Cardio” …" with a
+    spinner in the mini player); a Spotify playlist can take seconds.
+    Skipping shows a ring around the pressed button until the next title is
+    there.
+  - Removing a track from the queue can be undone for ten seconds; Sonos only
+    hears of it afterwards.
+  - Unlinking a service moved from the top bar into a menu, with a
+    confirmation.
+  - Room tiles: the selected room has an accent frame, group names take two
+    lines.
+  - Tracks without a known length (the S1 local library gives none) show no
+    "–:––" in the queue.
+  - Lists mark what plays now: a speaker icon and the accent color on the
+    track, album or station, a badge on grid covers. Sonos names the playing
+    track only by its title, artist and album, so those decide. The mini
+    player shows a radio icon for stations.
+  - When the speakers stop answering while the app is in use, the app stays
+    where it is and a banner says "No connection to the speakers · Hausmusik
+    keeps trying", with "Address" for entering another one. Before, the setup
+    screen replaced everything after about ten seconds, though the app found
+    the speakers again by itself.
 - Fixed: back from an album, artist or folder lands where the list was
   instead of at its top; every screen on the way keeps its scroll position,
   and each library tab its own.

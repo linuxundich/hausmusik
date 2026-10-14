@@ -42,7 +42,8 @@ class LandscapeTest {
         compose.onNodeWithContentDescription("Library").assertIsDisplayed()
         compose.onNodeWithText("23 min").assertIsDisplayed()
         compose.onNodeWithContentDescription("Pause").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Volume").assertIsDisplayed()
+        // The volume row of a group: its rooms on the left, the value on the right.
+        compose.onNodeWithContentDescription("Volume of each room").assertIsDisplayed()
     }
 
     @Test

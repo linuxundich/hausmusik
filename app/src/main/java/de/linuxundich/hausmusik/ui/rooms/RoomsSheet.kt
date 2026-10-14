@@ -284,7 +284,8 @@ private fun GroupTile(
             else -> colors.subtle.copy(alpha = 0.08f)
         },
         contentColor = colors.content,
-        border = if (dropTarget) BorderStroke(2.dp, colors.accent) else null,
+        // The room the stage controls stands out clearly, not only by a lighter fill.
+        border = if (dropTarget || selected) BorderStroke(2.dp, colors.accent) else null,
         modifier = modifier,
     ) {
         Column(Modifier.padding(10.dp)) {
@@ -304,7 +305,8 @@ private fun GroupTile(
                 }
             }
             Spacer(Modifier.height(6.dp))
-            Text(g.group.displayName, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Two lines: "Arbeitszimmer + Wohnzimmer" must not end in "Wohn…".
+            Text(g.group.displayName, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val state = when {
                 g.nowPlaying == null -> stringResource(R.string.rooms_idle)
                 !g.isPlaying -> "${g.nowPlaying.station ?: g.nowPlaying.title} · ${stringResource(R.string.rooms_paused)}"
@@ -312,7 +314,9 @@ private fun GroupTile(
             }
             Text(state, fontSize = 12.sp, color = colors.content.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             val allMuted = g.group.members.isNotEmpty() && g.group.members.all { g.memberMutes[it.uuid] == true }
-            VolumeSlider(g.groupVolume, colors, Modifier.fillMaxWidth(), muted = allMuted) { actions.onGroupVolume(g.id, it) }
+            // As on the stage: with muted rooms, the volume of the audible ones.
+            val volume = de.linuxundich.hausmusik.data.audibleVolume(g.memberVolumes, g.memberMutes) ?: g.groupVolume
+            VolumeSlider(volume, colors, Modifier.fillMaxWidth(), muted = allMuted) { actions.onGroupVolume(g.id, it) }
         }
     }
 }

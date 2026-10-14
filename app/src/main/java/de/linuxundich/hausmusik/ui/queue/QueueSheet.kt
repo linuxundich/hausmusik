@@ -113,6 +113,36 @@ fun QueueSheet(
     val scope = rememberCoroutineScope()
     LaunchedEffect(group.id, group.queueLength, version) { items = actions.load().getOrDefault(emptyList()) }
     fun edit(op: suspend () -> Result<Unit>) = scope.launch { op(); version++ }
+    // Removing waits for the undo: the row disappears at once, Sonos only hears of it
+    // when the message is gone (or the sheet closes). A removed streaming track could
+    // not be put back with its service data otherwise.
+    var hidden by remember { mutableStateOf(setOf<String>()) }
+    val res = androidx.compose.ui.platform.LocalContext.current.resources
+    // Queue IDs are positions ("Q:0/5") and shift; the URI and title stay with the track.
+    fun identity(t: DidlObject) = "${t.uri}|${t.title}"
+    fun removeWithUndo(t: DidlObject) {
+        val key = identity(t)
+        // A second swipe ends the first one's wait, so the two never overlap for long.
+        snackbar.currentSnackbarData?.dismiss()
+        hidden = hidden + key
+        scope.launch {
+            var undone = false
+            try {
+                undone = snackbar.showSnackbar(
+                    res.getString(R.string.queue_removed, t.title), res.getString(R.string.undo),
+                    duration = androidx.compose.material3.SnackbarDuration.Long,
+                ) == androidx.compose.material3.SnackbarResult.ActionPerformed
+            } finally {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    // Where it is now: an earlier removal may have moved it up.
+                    val position = items?.indexOfFirst { identity(it) == key }?.takeIf { it >= 0 }?.plus(1)
+                    if (!undone && position != null) actions.remove(position)
+                    hidden = hidden - key
+                    version++
+                }
+            }
+        }
+    }
 
     var menuOpen by remember { mutableStateOf(false) }
     var confirmClear by rememberSaveable { mutableStateOf(false) }
@@ -203,11 +233,13 @@ fun QueueSheet(
             modifier = Modifier.fillMaxWidth().onGloballyPositioned { listTop = it.positionInWindow().y },
         ) {
             itemsIndexed(order, key = { _, (nr, t) -> "$version/$nr/${t.id}" }) { index, (nr, t) ->
+                // Waiting for its undo: keeps its place (positions stay right), shows nothing.
+                if (identity(t) in hidden) return@itemsIndexed
                 val dragging = dragKey == nr
                 QueueRow(
                     t, index + 1, playing = nr == current, colors, artUrl,
                     onClick = { actions.playTrack(index + 1) },
-                    onRemove = { edit { actions.remove(index + 1) } },
+                    onRemove = { removeWithUndo(t) },
                     onPlayNext = { edit { actions.moveToNext(index + 1) } },
                     modifier = Modifier
                         .zIndex(if (dragging) 1f else 0f)
@@ -320,7 +352,8 @@ private fun QueueRow(
                     Text(t.title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(t.creator.orEmpty(), fontSize = 12.sp, color = colors.content.copy(alpha = 0.65f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Text(formatTime(t.durationMs), fontSize = 12.sp, color = colors.content.copy(alpha = 0.5f))
+                // The local library of an S1 gives no length; nothing beats a dash there.
+                t.durationMs?.let { Text(formatTime(it), fontSize = 12.sp, color = colors.content.copy(alpha = 0.5f)) }
                 Box(handle.size(40.dp), contentAlignment = Alignment.Center) {
                     Icon(AppIcons.DragHandle, stringResource(R.string.queue_move), tint = colors.content.copy(alpha = 0.6f))
                 }

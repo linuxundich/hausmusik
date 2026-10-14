@@ -126,6 +126,8 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
 
     val stack = rememberSaveable(saver = stackSaver) { mutableStateListOf<Screen>(Screen.Stage) }
     var roomsOpen by rememberSaveable { mutableStateOf(false) }
+    var connectOpen by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(household.connection) { if (household.connection !is Connection.NotFound) connectOpen = false }
     var queueOpen by rememberSaveable { mutableStateOf(false) }
     var timerOpen by rememberSaveable { mutableStateOf(false) }
     var soundOpen by rememberSaveable { mutableStateOf(false) }
@@ -177,7 +179,12 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         shownKeys = stackKeys
     }
 
-    androidx.compose.runtime.CompositionLocalProvider(LocalItemDetails provides { details = it }) {
+    val starting by vm.starting.collectAsStateWithLifecycle()
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalItemDetails provides { details = it },
+        de.linuxundich.hausmusik.ui.library.LocalStarting provides starting,
+        de.linuxundich.hausmusik.ui.library.LocalNowPlaying provides selected.nowPlaying,
+    ) {
     Box(Modifier.fillMaxSize()) {
     AnimatedContent(
         targetState = stack.last() to stackKeys.last(),
@@ -206,6 +213,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                     onAlarms = { stack.add(Screen.Alarms) },
                     onSound = { soundOpen = true },
                     onRoomVolumes = { volumeOpen = true },
+                    onMute = { m -> vm.setMemberMute(selected.id, selected.group.coordinator, m) },
                     onSettings = { stack.add(Screen.Settings) },
                     onDetails = { now?.let { details = DetailsTarget.of(it) } },
                     crossfadeOn = selected.crossfade,
@@ -265,6 +273,12 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     de.linuxundich.hausmusik.ui.common.MessageHost(snackbar, onDark = stack.last() is Screen.Stage)
     if (household.connection == Connection.Reconnecting || household.connection == Connection.Searching) {
         ReconnectingBanner(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 56.dp))
+    }
+    if (household.connection is Connection.NotFound) {
+        de.linuxundich.hausmusik.ui.setup.LostBanner(
+            onChangeAddress = { connectOpen = true },
+            modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 56.dp, start = 16.dp, end = 16.dp),
+        )
     }
     }
 
@@ -389,9 +403,11 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             onDismiss = { pendingPlay = null },
         )
     }
-    if (household.connection is Connection.NotFound) {
-        // Lost the household while running: fall back to the connect screen.
-        ConnectScreen(household.connection, vm::connect, vm::searchAgain)
+    // Lost the household while running: the app stays (it keeps trying, the banner says so);
+    // the connect screen only on request, to change the address.
+    if (connectOpen && household.connection is Connection.NotFound) {
+        BackHandler { connectOpen = false }
+        ConnectScreen(household.connection, { connectOpen = false; vm.connect(it) }, { connectOpen = false; vm.searchAgain() })
     }
     } // LocalItemDetails: sheets and dialogs open details too
 }

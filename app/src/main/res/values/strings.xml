@@ -295,4 +295,19 @@
     </plurals>
     <string name="night_stage_label">Hausmusik night stage</string>
     <string name="night_stage_idle">Nothing playing</string>
+    <string name="stage_muted_single">%1$s is muted · Tap to unmute</string>
+    <string name="stage_muted_all">All rooms of the group are muted · Tap for the rooms</string>
+    <plurals name="stage_muted_some">
+        <item quantity="one">%1$s is muted · Tap for the rooms</item>
+        <item quantity="other">%1$s are muted · Tap for the rooms</item>
+    </plurals>
+    <string name="service_unlink_menu">Unlink service from Hausmusik</string>
+    <string name="service_unlink_title">Unlink %1$s?</string>
+    <string name="service_unlink_body">Hausmusik forgets its link. Your Sonos account stays connected; to browse again you link once more.</string>
+    <string name="starting">Starting “%1$s” …</string>
+    <string name="queue_removed">Removed “%1$s”</string>
+    <string name="playing_now">Playing now</string>
+    <string name="lost_title">No connection to the speakers</string>
+    <string name="lost_body">Hausmusik keeps trying.</string>
+    <string name="lost_address">Address</string>
 </resources>

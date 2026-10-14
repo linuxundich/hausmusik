@@ -293,4 +293,19 @@
     </plurals>
     <string name="night_stage_label">Hausmusik Nachtbühne</string>
     <string name="night_stage_idle">Gerade läuft nichts</string>
+    <string name="stage_muted_single">%1$s ist stumm · Tippen zum Einschalten</string>
+    <string name="stage_muted_all">Alle Räume der Gruppe sind stumm · Tippen für die Räume</string>
+    <plurals name="stage_muted_some">
+        <item quantity="one">%1$s ist stumm · Tippen für die Räume</item>
+        <item quantity="other">%1$s sind stumm · Tippen für die Räume</item>
+    </plurals>
+    <string name="service_unlink_menu">Dienst in Hausmusik trennen</string>
+    <string name="service_unlink_title">%1$s trennen?</string>
+    <string name="service_unlink_body">Hausmusik vergisst seine Verknüpfung. Dein Sonos-Konto bleibt verbunden; zum Stöbern musst du dich danach neu verknüpfen.</string>
+    <string name="starting">„%1$s“ startet …</string>
+    <string name="queue_removed">„%1$s“ entfernt</string>
+    <string name="playing_now">Läuft gerade</string>
+    <string name="lost_title">Keine Verbindung zu den Lautsprechern</string>
+    <string name="lost_body">Hausmusik versucht es weiter.</string>
+    <string name="lost_address">Adresse</string>
 </resources>

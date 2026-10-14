@@ -50,6 +50,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -59,6 +60,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -105,6 +110,8 @@ data class StageActions(
     val timerLabel: String? = null,
     /** The speaker icon left of the slider: volume of each room. */
     val onRoomVolumes: () -> Unit = {},
+    /** Mutes or unmutes a single room (not used for groups: see VolumeRow). */
+    val onMute: (Boolean) -> Unit = {},
 )
 
 /** Commands the speakers have not confirmed yet: the play button, or anything else. */
@@ -314,7 +321,7 @@ private fun StageControls(group: GroupState, colors: CoverColors, actions: Stage
         Spacer(Modifier.height(8.dp))
         Transport(group, colors, actions, playBusy)
         Spacer(Modifier.height(12.dp))
-        VolumeRow(group.groupVolume, colors, actions.onVolume, actions.onRoomVolumes)
+        VolumeRow(group, colors, actions)
     }
 }
 
@@ -429,7 +436,10 @@ private fun Transport(group: GroupState, colors: CoverColors, actions: StageActi
     val isRadio = group.nowPlaying?.kind == SourceKind.Radio
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         SmallToggle(AppIcons.Shuffle, stringResource(R.string.shuffle), group.playMode.shuffle, colors, enabled = !isRadio, onClick = actions.onShuffle)
-        RoundButton(AppIcons.SkipPrevious, stringResource(R.string.previous), colors, enabled = !isRadio, onClick = actions.onPrevious)
+        // The pressed skip button waits until the next title is there, not only the room chip.
+        var skipping by remember(group.nowPlaying?.title) { mutableStateOf<Int?>(null) }
+        LaunchedEffect(skipping) { if (skipping != null) { kotlinx.coroutines.delay(10_000); skipping = null } }
+        RoundButton(AppIcons.SkipPrevious, stringResource(R.string.previous), colors, enabled = !isRadio, busy = skipping == -1) { skipping = -1; actions.onPrevious() }
         // Expressive: the play button morphs from a circle (paused) to a rounded square (playing).
         val corner by animateDpAsState(if (group.isPlaying) 26.dp else 36.dp, label = "corner")
         Surface(
@@ -455,7 +465,7 @@ private fun Transport(group: GroupState, colors: CoverColors, actions: StageActi
                 }
             }
         }
-        RoundButton(AppIcons.SkipNext, stringResource(R.string.next), colors, enabled = group.actions.canNext, onClick = actions.onNext)
+        RoundButton(AppIcons.SkipNext, stringResource(R.string.next), colors, enabled = group.actions.canNext, busy = skipping == 1) { skipping = 1; actions.onNext() }
         SmallToggle(
             if (group.playMode.repeat == RepeatMode.One) AppIcons.RepeatOne else AppIcons.Repeat,
             stringResource(R.string.repeat), group.playMode.repeat != RepeatMode.Off, colors, enabled = !isRadio, onClick = actions.onRepeat,
@@ -464,12 +474,16 @@ private fun Transport(group: GroupState, colors: CoverColors, actions: StageActi
 }
 
 @Composable
-private fun RoundButton(icon: ImageVector, label: String, colors: CoverColors, enabled: Boolean, onClick: () -> Unit) {
+private fun RoundButton(icon: ImageVector, label: String, colors: CoverColors, enabled: Boolean, busy: Boolean = false, onClick: () -> Unit) {
     Surface(
         onClick = onClick, enabled = enabled, shape = CircleShape, color = colors.subtle,
         contentColor = colors.content.copy(alpha = if (enabled) 1f else 0.35f), modifier = Modifier.size(56.dp),
     ) {
-        Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = label, modifier = Modifier.size(28.dp)) }
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(28.dp))
+            // A ring around the icon while the speakers have not changed the title yet.
+            if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.size(52.dp), color = colors.accent, strokeWidth = 2.5.dp)
+        }
     }
 }
 
@@ -488,29 +502,72 @@ private fun SmallToggle(icon: ImageVector, label: String, on: Boolean, colors: C
 }
 
 @Composable
-private fun VolumeRow(volume: Int, colors: CoverColors, onVolume: (Int) -> Unit, onRoomVolumes: () -> Unit) {
+private fun VolumeRow(group: GroupState, colors: CoverColors, actions: StageActions) {
+    val members = group.group.members
+    val single = members.size == 1
+    val muted = members.filter { group.memberMutes[it.uuid] == true }
+    val allMuted = muted.size == members.size
+    // With muted rooms in the group: the volume of the audible ones, as the slider moves them.
+    val volume = de.linuxundich.hausmusik.data.audibleVolume(group.memberVolumes, group.memberMutes) ?: group.groupVolume
     var dragging by remember { mutableStateOf<Float?>(null) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        // A tap opens the volume of each room.
-        IconButton(onClick = onRoomVolumes) {
-            Icon(AppIcons.VolumeDown, contentDescription = stringResource(R.string.volume_rooms), tint = colors.content.copy(alpha = 0.85f), modifier = Modifier.size(22.dp))
+    val shown = dragging?.toInt() ?: volume
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (single) {
+                // One tap mutes, as on any player; the state shows in the icon.
+                val name = group.group.coordinator.roomName
+                IconButton(onClick = { actions.onMute(!allMuted) }) {
+                    Icon(
+                        if (allMuted) AppIcons.VolumeOff else AppIcons.VolumeUp,
+                        contentDescription = stringResource(if (allMuted) R.string.volume_unmute else R.string.volume_mute, name),
+                        tint = if (allMuted) colors.accent else colors.content.copy(alpha = 0.85f), modifier = Modifier.size(22.dp),
+                    )
+                }
+            } else {
+                // A group: the rooms and their volumes. No group mute here: unmuting would
+                // wake a room muted on purpose.
+                IconButton(onClick = actions.onRoomVolumes) {
+                    Icon(
+                        if (allMuted) AppIcons.VolumeOff else AppIcons.Speaker, contentDescription = stringResource(R.string.volume_rooms),
+                        tint = if (muted.isNotEmpty()) colors.accent else colors.content.copy(alpha = 0.85f), modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Slider(
+                value = dragging ?: volume.toFloat(),
+                onValueChange = {
+                    dragging = it
+                    actions.onVolume(it.toInt())
+                },
+                onValueChangeFinished = { dragging = null },
+                valueRange = 0f..100f,
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp).alpha(if (allMuted) 0.4f else 1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = colors.accent,
+                    activeTrackColor = colors.accent,
+                    inactiveTrackColor = colors.subtle,
+                ),
+            )
+            Text(
+                "$shown", color = colors.content.copy(alpha = if (allMuted) 0.45f else 0.85f), fontSize = 15.sp,
+                textAlign = TextAlign.End, modifier = Modifier.width(34.dp),
+            )
         }
-        Slider(
-            value = dragging ?: volume.toFloat(),
-            onValueChange = {
-                dragging = it
-                onVolume(it.toInt())
-            },
-            onValueChangeFinished = { dragging = null },
-            valueRange = 0f..100f,
-            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = colors.accent,
-                activeTrackColor = colors.accent,
-                inactiveTrackColor = colors.subtle,
-            ),
-        )
-        Icon(AppIcons.VolumeUp, contentDescription = stringResource(R.string.volume), tint = colors.content.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+        // Silence must not look like music: say which rooms are muted, and undo it in one tap.
+        if (muted.isNotEmpty()) {
+            val text = when {
+                single -> stringResource(R.string.stage_muted_single, members.first().roomName)
+                allMuted -> stringResource(R.string.stage_muted_all)
+                else -> pluralStringResource(R.plurals.stage_muted_some, muted.size, muted.joinToString(", ") { it.roomName })
+            }
+            Text(
+                text, color = colors.accent, fontSize = 13.sp,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .clickable { if (single) actions.onMute(false) else actions.onRoomVolumes() }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 

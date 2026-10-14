@@ -10,6 +10,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
@@ -417,8 +420,32 @@ fun ContainerScreen(
                     actions = {
                         // Landscape: the play button lives up here, always in reach.
                         // Only a service Hausmusik linked can be unlinked; TuneIn needs no account.
+                    // In a menu and confirmed: up here it sat where other apps put "Done".
                     if (container.upnpClass == ServiceIds.LINKED_CLASS) {
-                        androidx.compose.material3.TextButton(onClick = { vm.unlink(container); onBack() }) { Text(stringResource(R.string.service_unlink)) }
+                        var menu by remember { mutableStateOf(false) }
+                        var confirm by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.queue_more)) }
+                            androidx.compose.material3.DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.service_unlink_menu)) },
+                                    onClick = { menu = false; confirm = true },
+                                )
+                            }
+                        }
+                        if (confirm) {
+                            androidx.compose.material3.AlertDialog(
+                                onDismissRequest = { confirm = false },
+                                title = { Text(stringResource(R.string.service_unlink_title, container.title)) },
+                                text = { Text(stringResource(R.string.service_unlink_body)) },
+                                confirmButton = {
+                                    androidx.compose.material3.TextButton(onClick = { confirm = false; vm.unlink(container); onBack() }) {
+                                        Text(stringResource(R.string.service_unlink))
+                                    }
+                                },
+                                dismissButton = { androidx.compose.material3.TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.cancel)) } },
+                            )
+                        }
                     }
                     val details = de.linuxundich.hausmusik.ui.details.LocalItemDetails.current
                     val target = remember(container) { de.linuxundich.hausmusik.ui.details.DetailsTarget.of(container) }
@@ -544,14 +571,26 @@ private fun ItemList(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(state.items, key = { it.id }) { item ->
+                    val playing = item.playsNow(LocalNowPlaying.current)
                     ItemMenuBox(item, null, { onClick(item) }) { menuModifier -> Column(menuModifier) {
-                        Cover(
-                            artUrl(item.albumArtUri), Modifier.fillMaxWidth().aspectRatio(1f), corner = 12.dp,
-                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            icon = if (item.isRadio) AppIcons.Radio else if (item.isContainer) AppIcons.Album else AppIcons.Playlist,
+                        Box {
+                            Cover(
+                                artUrl(item.albumArtUri), Modifier.fillMaxWidth().aspectRatio(1f), corner = 12.dp,
+                                placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                                iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                icon = if (item.isRadio) AppIcons.Radio else if (item.isContainer) AppIcons.Album else AppIcons.Playlist,
+                            )
+                            // A badge on what plays now.
+                            if (playing) Box(
+                                Modifier.align(Alignment.BottomStart).padding(6.dp).size(28.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) { Icon(AppIcons.VolumeUp, stringResource(R.string.playing_now), Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onPrimary) }
+                        }
+                        Text(
+                            item.title, style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp),
+                            color = if (playing) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Unspecified,
                         )
-                        Text(item.title, style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
                         (item.creator ?: item.description)?.let {
                             Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
@@ -576,8 +615,11 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val number = item.originalTrackNumber ?: position.takeIf { !item.isContainer }
+        // What plays now stands out, as in the queue.
+        val playing = item.playsNow(LocalNowPlaying.current)
         if (numbered && number != null) {
-            Text("$number", modifier = Modifier.width(28.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (playing) Icon(AppIcons.VolumeUp, stringResource(R.string.playing_now), Modifier.width(28.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            else Text("$number", modifier = Modifier.width(28.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             Cover(
                 picture ?: artUrl(item.albumArtUri), Modifier.size(44.dp), corner = if (person) 22.dp else 8.dp,
@@ -593,7 +635,16 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
             )
         }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(item.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (playing && !(numbered && number != null)) {
+                    Icon(AppIcons.VolumeUp, stringResource(R.string.playing_now), Modifier.padding(end = 6.dp).size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                }
+                Text(
+                    item.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    color = if (playing) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Unspecified,
+                    fontWeight = if (playing) FontWeight.SemiBold else null,
+                )
+            }
             (if (item.upnpClass == ServiceIds.LINK_CLASS) item.description
             else if (numbered) item.creator else listOfNotNull(item.creator, item.album).joinToString(" · ")).takeIf { !it.isNullOrEmpty() }?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
@@ -659,14 +710,17 @@ private fun CompactMiniPlayer(group: GroupState, onOpen: () -> Unit, onPlayPause
     ) {
         Row(Modifier.padding(start = 4.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Cover(group.artUrl, Modifier.size(32.dp), corner = 16.dp,
-                placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant, icon = AppIcons.Speaker)
+                placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                icon = if (group.nowPlaying?.kind == de.linuxundich.hausmusik.sonos.SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker)
+            val starting = LocalStarting.current
             Text(
-                group.nowPlaying?.title ?: stringResource(R.string.nothing_playing),
+                starting?.let { stringResource(R.string.starting, it) } ?: group.nowPlaying?.title ?: stringResource(R.string.nothing_playing),
                 fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false).padding(horizontal = 8.dp),
             )
-            IconButton(onClick = onPlayPause, enabled = group.nowPlaying != null) {
-                Icon(if (group.isPlaying) AppIcons.Pause else AppIcons.Play, stringResource(if (group.isPlaying) R.string.pause else R.string.play))
+            IconButton(onClick = { if (starting == null) onPlayPause() }, enabled = group.nowPlaying != null) {
+                if (starting != null) androidx.compose.material3.CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                else Icon(if (group.isPlaying) AppIcons.Pause else AppIcons.Play, stringResource(if (group.isPlaying) R.string.pause else R.string.play))
             }
         }
     }
@@ -680,14 +734,46 @@ private fun MiniPlayer(group: GroupState, onOpen: () -> Unit, onPlayPause: () ->
     ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Cover(group.artUrl, Modifier.size(44.dp), corner = 10.dp,
-                placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant, icon = AppIcons.Speaker)
+                placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                icon = if (group.nowPlaying?.kind == de.linuxundich.hausmusik.sonos.SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker)
+            // A started queue can take seconds: say so at once instead of showing the old title.
+            val starting = LocalStarting.current
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(group.nowPlaying?.title ?: stringResource(R.string.nothing_playing), fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    starting?.let { stringResource(R.string.starting, it) } ?: group.nowPlaying?.title ?: stringResource(R.string.nothing_playing),
+                    fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
                 Text(group.group.displayName, fontSize = 12.sp, maxLines = 1)
             }
-            FilledIconButton(onClick = onPlayPause, enabled = group.nowPlaying != null) {
-                Icon(if (group.isPlaying) AppIcons.Pause else AppIcons.Play, stringResource(if (group.isPlaying) R.string.pause else R.string.play))
+            // Full color while starting, so the spinner is seen; taps wait.
+            FilledIconButton(onClick = { if (starting == null) onPlayPause() }, enabled = group.nowPlaying != null) {
+                if (starting != null) androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.5.dp, color = MaterialTheme.colorScheme.onPrimary)
+                else Icon(if (group.isPlaying) AppIcons.Pause else AppIcons.Play, stringResource(if (group.isPlaying) R.string.pause else R.string.play))
             }
         }
+    }
+}
+
+/** The title "Play now" is starting, provided by the root; null when nothing is starting. */
+val LocalStarting = androidx.compose.runtime.compositionLocalOf<String?> { null }
+
+/** What plays in the selected room, for marking it in lists; provided by the root. */
+val LocalNowPlaying = androidx.compose.runtime.compositionLocalOf<de.linuxundich.hausmusik.sonos.NowPlaying?> { null }
+
+/**
+ * Whether this entry is what plays now. Sonos tells the playing track by its
+ * names only, so the names decide: a station by its name, an album by title
+ * and artist, a track by title and artist.
+ */
+internal fun DidlObject.playsNow(now: de.linuxundich.hausmusik.sonos.NowPlaying?): Boolean {
+    if (now == null) return false
+    fun n(s: String?) = s?.let(de.linuxundich.hausmusik.data.ArtistImages::normalize).orEmpty()
+    fun sameArtist() = creator == null || now.artist == null || n(creator) == n(now.artist)
+    return when {
+        isRadio || now.kind == de.linuxundich.hausmusik.sonos.SourceKind.Radio ->
+            isRadio && now.station != null && n(title) == n(now.station)
+        upnpClass.contains("musicAlbum") -> now.album != null && n(title) == n(now.album) && sameArtist()
+        !isContainer -> n(title) == n(now.title) && sameArtist()
+        else -> false
     }
 }

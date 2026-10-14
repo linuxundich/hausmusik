@@ -111,6 +111,28 @@ Mockups: https://claude.ai/artifact/PdgHiTGDm3G2L9rVokYJsJ
 - [ ] Night stage on the Pixel at night: brightness, burn-in wander, a whole night on the charger
 - [ ] A tap on the night stage cannot open the app (the system's dream overlay takes the touch); revisit if Android allows it
 
+## Usability audit 2026-10-14
+
+Report: `captures/ux-2026-10-14/BERICHT.md` (git-ignored).
+
+- [x] P1-1 Mute visible on the stage
+- [x] P1-2 One tap mutes a single room
+- [x] P1-3 Volume as a number on the stage
+- [x] P1-6 Unlink a service only through a menu, confirmed
+- [x] P1-7 Feedback on long starts and on skip
+- [x] P2-12 No "–:––" for tracks without a length
+- [x] P2-13 Undo after removing from the queue
+- [x] P2-8 Room tiles: selection framed, names on two lines
+- [ ] P1-4 Library by source first (Favorites · My music · Spotify · bonob · Radio), service logos
+- [x] P1-5 Mark what plays in lists (station logos: Sonos gives none for saved stations; radio icon instead)
+- [x] P1-8 Short outage: keep the banner ("trying again") instead of the full-screen setup
+- [ ] P2-7 Split the ⋮ menu by track / room / app; crossfade as a switch
+- [ ] P2-9 "Always replace" as an opt-in in the replace dialog
+- [ ] P2-10 Radio: inputs in their own section, logos, no dead buttons
+- [ ] P2-11 Landscape: library beside the stage
+- [ ] P2-14 bonob duplicates the local library
+- [ ] Room switch from the library (room in the mini player)
+
 ## Phase 5: Release
 
 - [ ] **P0** README screenshots and a demo video from the fake household

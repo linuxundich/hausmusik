@@ -211,8 +211,15 @@ class MainViewModel @Inject constructor(
     fun setTreble(player: SonosPlayer, v: Int) = run { repo.setTreble(player, v) }
     fun setLoudness(player: SonosPlayer, on: Boolean) = run { repo.setLoudness(player, on) }
 
+    private val _starting = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
+    /** What "Play now" is starting: a long queue can take seconds before music plays. */
+    val starting: StateFlow<String?> = _starting
+
     fun play(item: DidlObject, mode: QueueMode) = viewModelScope.launch {
+        if (mode == QueueMode.ReplaceAndPlay) _starting.value = item.title
         repo.play(item, mode)
+            .also { if (mode == QueueMode.ReplaceAndPlay) _starting.value = null }
             .onSuccess {
                 when (mode) {
                     QueueMode.PlayNext -> _messages.send(R.string.added_next)
