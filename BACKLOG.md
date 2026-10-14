@@ -137,7 +137,7 @@ Report: `captures/ux-2026-10-14/BERICHT.md` (git-ignored).
 
 - [ ] **P0** README screenshots and a demo video from the fake household
 - [x] **P0** Release signing (own key, from `~/.gradle/gradle.properties`); `bundleRelease` builds a signed AAB
-- [ ] **P0** GitHub release with APK
+- [x] **P0** GitHub release with APK (v0.1.0, 2026-10-14)
 - [ ] **P2** Check F-Droid
 
 ### Google Play (paid, stays GPL; checklist in `docs/play-store.md`)

@@ -12,7 +12,7 @@
 </p>
 
 > [!NOTE]
-> Hausmusik is in early development. Version 0.1.0 is the first public release; a Google Play release is being prepared.
+> Hausmusik is in early development. Version 0.1.0 is the first public release ([download the APK](https://github.com/linuxundich/hausmusik/releases/latest)); a Google Play release is being prepared.
 
 <p align="center">
   <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_stage.png" alt="The stage: the playing track in the colours of its cover" width="19%">
