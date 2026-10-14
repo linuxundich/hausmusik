@@ -93,16 +93,20 @@ class MainViewModel @Inject constructor(
     suspend fun artistDetails(name: String) = detailsRepo.artist(name)
     suspend fun albumDetails(title: String, artist: String?) = detailsRepo.album(title, artist)
 
+    val effects: StateFlow<de.linuxundich.hausmusik.data.Effects> =
+        settings.effects.stateIn(viewModelScope, SharingStarted.Eagerly, de.linuxundich.hausmusik.data.Effects())
+
+    /** Also switches the screensaver on or off in the system's list, so it only shows up there when wanted. */
+    fun setEffects(e: de.linuxundich.hausmusik.data.Effects) = viewModelScope.launch {
+        settings.setEffects(e)
+        de.linuxundich.hausmusik.system.NightStageDream.setAvailable(context, e.nightStage)
+    }
+
     val lyricsOffsets: StateFlow<Map<String, Int>> = settings.lyricsOffsets.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
     fun setLyricsOffset(track: String, ms: Int) = viewModelScope.launch { settings.setLyricsOffset(track, ms) }
 
     /** The track a lyrics offset belongs to: the same song on another album keeps its own. */
-    fun lyricsTrack(now: NowPlaying): String = listOf(
-        de.linuxundich.hausmusik.data.ArtistImages.normalize(now.title),
-        now.artist?.let(de.linuxundich.hausmusik.data.ArtistImages::normalize).orEmpty(),
-        now.album?.let(de.linuxundich.hausmusik.data.ArtistImages::normalize).orEmpty(),
-        ((now.durationMs ?: 0) / 1000).toString(),
-    ).joinToString("|")
+    fun lyricsTrack(now: NowPlaying): String = de.linuxundich.hausmusik.data.lyricsTrackKey(now)
 
     suspend fun lyrics(now: NowPlaying): LyricsUi =
         lyricsRepo.find(now.title, now.artist, now.album, now.durationMs).fold(

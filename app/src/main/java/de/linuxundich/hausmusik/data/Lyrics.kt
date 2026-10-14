@@ -176,3 +176,11 @@ class LyricsRepository(
         return Lyrics(lines, plainLyrics)
     }
 }
+
+/** The track a lyrics offset belongs to: the same song on another album keeps its own. */
+fun lyricsTrackKey(now: de.linuxundich.hausmusik.sonos.NowPlaying): String = listOf(
+    ArtistImages.normalize(now.title),
+    now.artist?.let(ArtistImages::normalize).orEmpty(),
+    now.album?.let(ArtistImages::normalize).orEmpty(),
+    ((now.durationMs ?: 0) / 1000).toString(),
+).joinToString("|")

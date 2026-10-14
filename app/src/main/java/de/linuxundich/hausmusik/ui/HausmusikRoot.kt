@@ -141,6 +141,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     val detailsWikipedia by vm.detailsWikipedia.collectAsStateWithLifecycle()
     val everywhereExcluded by vm.everywhereExcluded.collectAsStateWithLifecycle()
     val stageBusy by vm.stageBusy.collectAsStateWithLifecycle()
+    val effects by vm.effects.collectAsStateWithLifecycle()
     val artistImagesOn by vm.artistImagesEnabled.collectAsStateWithLifecycle()
     val now = selected.nowPlaying
     val lyricsKey = now?.let { listOf(it.title, it.artist, it.album, it.durationMs) }
@@ -206,6 +207,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 ),
                 lyrics = if (showLyrics && lyricsEnabled) lyrics ?: LyricsUi.Loading else null,
                 busy = stageBusy,
+                effects = effects,
             )
             Screen.Library -> LibraryScreen(
                 library, selected, snackbar,
@@ -220,7 +222,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 SettingsState(
                     manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn, detailsOn, detailsWikipedia,
                     rooms = household.allPlayers.filter { !it.isInvisible }.map { it.uuid to it.roomName }, everywhereExcluded = everywhereExcluded,
-                    musicVideos = videosOn, videoMode = videoMode,
+                    musicVideos = videosOn, videoMode = videoMode, effects = effects,
                 ),
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
@@ -230,6 +232,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onEverywhereExcluded = vm::setEverywhereExcluded,
                 onMusicVideos = vm::setMusicVideosEnabled,
                 onVideoMode = vm::setMusicVideoMode,
+                onEffects = { vm.setEffects(it) },
                 onLicenses = { stack.add(Screen.Licenses) },
                 onClearCache = vm::clearListCache,
                 onBack = { stack.removeAt(stack.lastIndex) },

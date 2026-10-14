@@ -59,6 +59,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -150,14 +152,29 @@ fun StageScreen(
     actions: StageActions,
     lyrics: LyricsUi? = null,
     busy: StageBusy = StageBusy(),
+    effects: de.linuxundich.hausmusik.data.Effects = de.linuxundich.hausmusik.data.Effects(),
 ) {
+    // The playful extras, each switchable, and all still with the system's "Remove animations".
+    val still = rememberAnimationsOff()
+    val lightOn = effects.stageLight && !still
+    val lit = rememberStageLit(group.isPlaying)
+    val house = if (lightOn) 1f - lit else 0f
+    val tempo = if (effects.tapAlong && !still) remember(group.nowPlaying?.title, group.nowPlaying?.artist) { TapTempo() } else null
+    val pulse = rememberPulse(tempo?.beatMs ?: 0L, group.isPlaying)
+    var lastTap by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+    val haptic = rememberTapHaptic()
+    val fx = CoverFx(
+        tempo = tempo, pulse = pulse, lastTap = lastTap,
+        turntable = effects.turntable && !still && turntableFits(group.nowPlaying?.kind),
+        onTap = { lastTap = System.currentTimeMillis(); haptic() },
+    )
     val playBusy = delayed(busy.play)
     val otherBusy = delayed(busy.other)
     val swipeThreshold = with(LocalDensity.current) { 80.dp.toPx() }
     Box(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(colors.backgroundTop, colors.backgroundBottom)))
+            .background(Brush.verticalGradient(listOf(lerp(colors.backgroundTop, HouseTop, house), lerp(colors.backgroundBottom, HouseBottom, house))))
             .pointerInput(Unit) {
                 var total = 0f
                 detectVerticalDragGestures(
@@ -166,6 +183,7 @@ fun StageScreen(
                 ) { _, dy -> total += dy }
             },
     ) {
+        if (lightOn) StageLights(colors, lit, pulse)
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             if (maxWidth > maxHeight) {
                 // Landscape: cover on the left, everything else on the right.
@@ -174,7 +192,7 @@ fun StageScreen(
                     if (lyrics != null) {
                         LyricsView(group, lyrics, colors, actions.onSeek, Modifier.fillMaxHeight().weight(0.85f))
                     } else {
-                        StageCover(group, colors, Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true))
+                        StageCover(group, colors, Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true), fx)
                     }
                     Spacer(Modifier.width(32.dp))
                     Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -215,7 +233,7 @@ fun StageScreen(
                     }
                     Spacer(Modifier.weight(0.4f))
                     val square = Modifier.fillMaxWidth().widthIn(max = 420.dp).aspectRatio(1f)
-                    if (lyrics != null) LyricsView(group, lyrics, colors, actions.onSeek, square) else StageCover(group, colors, square)
+                    if (lyrics != null) LyricsView(group, lyrics, colors, actions.onSeek, square) else StageCover(group, colors, square, fx)
                     Spacer(Modifier.height(24.dp))
                     StageControls(group, colors, actions, playBusy)
                     Spacer(Modifier.weight(0.6f))
@@ -227,17 +245,43 @@ fun StageScreen(
     }
 }
 
+/** What the cover does beyond showing itself: see StageEffects.kt. */
+private data class CoverFx(
+    val tempo: TapTempo? = null,
+    val pulse: Float = 0f,
+    val lastTap: Long = 0L,
+    val turntable: Boolean = false,
+    val onTap: () -> Unit = {},
+)
+
 @Composable
-private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifier) {
-    Cover(
-        url = group.artUrl,
-        modifier = modifier.shadow(24.dp, RoundedCornerShape(24.dp)),
-        corner = 24.dp,
-        placeholderColor = colors.subtle,
-        iconColor = colors.content.copy(alpha = 0.5f),
-        icon = if (group.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker,
-        keepPrevious = true,
-    )
+private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifier, fx: CoverFx = CoverFx()) {
+    val icon = if (group.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker
+    val cover = @Composable { m: Modifier ->
+        Cover(
+            url = group.artUrl,
+            modifier = m.tapAlong(fx.tempo, fx.onTap)
+                .graphicsLayer { val s = 1f + 0.03f * fx.pulse; scaleX = s; scaleY = s }
+                .shadow(24.dp, RoundedCornerShape(24.dp)),
+            corner = 24.dp,
+            placeholderColor = colors.subtle,
+            iconColor = colors.content.copy(alpha = 0.5f),
+            icon = icon,
+            keepPrevious = true,
+        )
+    }
+    Box(modifier, contentAlignment = Alignment.Center) {
+        if (fx.turntable) {
+            CoverOnTurntable(
+                group.isPlaying, colors, Modifier.fillMaxSize(),
+                label = { m -> Cover(group.artUrl, m, corner = 200.dp, placeholderColor = colors.accent, iconColor = colors.onAccent, icon = icon) },
+                cover = cover,
+            )
+        } else {
+            cover(Modifier.fillMaxSize())
+        }
+        if (fx.tempo != null) TapNote(fx.tempo, fx.lastTap, colors, Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp))
+    }
 }
 
 @Composable

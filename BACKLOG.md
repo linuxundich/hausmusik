@@ -103,6 +103,14 @@ Completed items stay checked.
   AppFunctions, once Google opens them to all apps; play-from-search in the
   media session for Android Auto.
 
+## Extras (2026-10-14)
+
+Mockups: https://claude.ai/artifact/PdgHiTGDm3G2L9rVokYJsJ
+
+- [x] Stage light with house lights, tap along, turntable, night stage; each switchable
+- [ ] Night stage on the Pixel at night: brightness, burn-in wander, a whole night on the charger
+- [ ] A tap on the night stage cannot open the app (the system's dream overlay takes the touch); revisit if Android allows it
+
 ## Phase 5: Release
 
 - [ ] **P0** README screenshots and a demo video from the fake household

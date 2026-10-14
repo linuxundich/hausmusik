@@ -45,6 +45,7 @@ data class SettingsState(val manualHost: String?, val connectedTo: String?, val 
     /** Visible rooms (UUID to name) and those "Everywhere" leaves out. */
     val rooms: List<Pair<String, String>> = emptyList(), val everywhereExcluded: Set<String> = emptySet(),
     val musicVideos: Boolean = false, val videoMode: de.linuxundich.hausmusik.data.VideoMode = de.linuxundich.hausmusik.data.VideoMode.Ask,
+    val effects: de.linuxundich.hausmusik.data.Effects = de.linuxundich.hausmusik.data.Effects(),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,6 +60,7 @@ fun SettingsScreen(
     onEverywhereExcluded: (Set<String>) -> Unit = {},
     onMusicVideos: (Boolean) -> Unit = {},
     onVideoMode: (de.linuxundich.hausmusik.data.VideoMode) -> Unit = {},
+    onEffects: (de.linuxundich.hausmusik.data.Effects) -> Unit = {},
     onLicenses: () -> Unit,
     onClearCache: () -> Unit,
     onBack: () -> Unit,
@@ -155,6 +157,20 @@ fun SettingsScreen(
                 }
             }
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            Text(stringResource(R.string.fx_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            val fx = state.effects
+            EffectSwitch(R.string.fx_stage_light, R.string.fx_stage_light_body, fx.stageLight) { onEffects(fx.copy(stageLight = it)) }
+            EffectSwitch(R.string.fx_tap_along, R.string.fx_tap_along_body, fx.tapAlong) { onEffects(fx.copy(tapAlong = it)) }
+            EffectSwitch(R.string.fx_turntable, R.string.fx_turntable_body, fx.turntable) { onEffects(fx.copy(turntable = it)) }
+            EffectSwitch(R.string.fx_night_stage, R.string.fx_night_stage_body, fx.nightStage) { onEffects(fx.copy(nightStage = it)) }
+            if (fx.nightStage) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                OutlinedButton(onClick = {
+                    runCatching { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_DREAM_SETTINGS)) }
+                }) { Text(stringResource(R.string.fx_night_stage_setup)) }
+            }
+            Text(stringResource(R.string.fx_still_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.settings_about), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)
             Text(stringResource(R.string.settings_copyright), style = MaterialTheme.typography.bodySmall)
@@ -163,5 +179,16 @@ fun SettingsScreen(
             OutlinedButton(onClick = onLicenses) { Text(stringResource(R.string.licenses)) }
         }
         }
+    }
+}
+
+@Composable
+private fun EffectSwitch(title: Int, body: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(title))
+            Text(stringResource(body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked = checked, onCheckedChange = onChange, modifier = Modifier.padding(start = 12.dp))
     }
 }

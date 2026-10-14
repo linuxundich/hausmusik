@@ -276,4 +276,22 @@
     <string name="music_video_no_app">No app opens YouTube links.</string>
     <string name="library_offline">No connection to the speakers</string>
     <string name="library_offline_hint">The list loads by itself as soon as they can be reached again.</string>
+    <string name="fx_title">Extras</string>
+    <string name="fx_stage_light">Stage light</string>
+    <string name="fx_stage_light_body">Beams in the cover\'s colors. In a pause the house lights come on.</string>
+    <string name="fx_tap_along">Tap along</string>
+    <string name="fx_tap_along_body">Tap the cover four times in time; light and cover pulse along. Until the next track.</string>
+    <string name="fx_turntable">Turntable</string>
+    <string name="fx_turntable_body">With albums and your own music a record turns beside the cover; not with radio.</string>
+    <string name="fx_night_stage">Night stage</string>
+    <string name="fx_night_stage_body">Screensaver while charging: cover, time, room and the line being sung.</string>
+    <string name="fx_night_stage_setup">Set up the screensaver</string>
+    <string name="fx_still_note">With Android\'s "Remove animations" everything stays still. The effects only run while the screen is on.</string>
+    <string name="fx_tap_bpm">Pulse at %1$d BPM</string>
+    <plurals name="fx_tap_more">
+        <item quantity="one">Tap %1$d more time in time</item>
+        <item quantity="other">Tap %1$d more times in time</item>
+    </plurals>
+    <string name="night_stage_label">Hausmusik night stage</string>
+    <string name="night_stage_idle">Nothing playing</string>
 </resources>

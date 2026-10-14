@@ -8,6 +8,15 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Extras, each switchable under Settings › Extras: stage light (two soft
+  lights and beams in the cover's colors behind the stage; in a pause the
+  house lights come on), tap along (four taps in time on the cover make
+  light and cover pulse at that tempo until the next track), turntable (for
+  albums and own music a record slides out beside the cover and turns, and
+  runs down and slides back in a pause) and night stage (an Android
+  screensaver while charging: cover, time, room and the line being sung;
+  dimmed and slowly wandering; only listed while switched on). With
+  Android's "Remove animations" everything stays still.
 - Room widget in the player's look: background and accent from the cover
   the room plays, the room above with a speaker or heart for a favorite,
   title and artist below; wider than two cells, the cover shows too. The

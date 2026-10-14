@@ -274,4 +274,22 @@
     <string name="music_video_no_app">Keine App öffnet YouTube-Links.</string>
     <string name="library_offline">Keine Verbindung zu den Lautsprechern</string>
     <string name="library_offline_hint">Die Liste lädt von selbst, sobald sie wieder erreichbar sind.</string>
+    <string name="fx_title">Spielereien</string>
+    <string name="fx_stage_light">Bühnenlicht</string>
+    <string name="fx_stage_light_body">Lichtkegel in den Farben des Covers. In der Pause geht das Saallicht an.</string>
+    <string name="fx_tap_along">Mitklopfen</string>
+    <string name="fx_tap_along_body">Viermal im Takt aufs Cover tippen, Licht und Cover pulsieren mit. Bis zum nächsten Titel.</string>
+    <string name="fx_turntable">Plattenteller</string>
+    <string name="fx_turntable_body">Bei Alben und eigener Musik dreht sich neben dem Cover eine Platte, nicht bei Radio.</string>
+    <string name="fx_night_stage">Nachtbühne</string>
+    <string name="fx_night_stage_body">Bildschirmschoner beim Laden: Cover, Uhrzeit, Raum und die aktuelle Liedzeile.</string>
+    <string name="fx_night_stage_setup">Bildschirmschoner einstellen</string>
+    <string name="fx_still_note">Mit der Android-Einstellung „Animationen entfernen“ bleibt alles ruhig. Die Effekte laufen nur, solange der Bildschirm an ist.</string>
+    <string name="fx_tap_bpm">Puls mit %1$d BPM</string>
+    <plurals name="fx_tap_more">
+        <item quantity="one">Noch %1$d-mal im Takt tippen</item>
+        <item quantity="other">Noch %1$d-mal im Takt tippen</item>
+    </plurals>
+    <string name="night_stage_label">Hausmusik Nachtbühne</string>
+    <string name="night_stage_idle">Gerade läuft nichts</string>
 </resources>

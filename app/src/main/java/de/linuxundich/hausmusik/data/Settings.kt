@@ -86,6 +86,20 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
     suspend fun setMusicVideosEnabled(on: Boolean) = store.edit { it[videosKey] = on }
     suspend fun setMusicVideoMode(mode: VideoMode) = store.edit { it[videoModeKey] = mode.name }
 
+    private val stageLightKey = booleanPreferencesKey("fx_stage_light")
+    private val tapAlongKey = booleanPreferencesKey("fx_tap_along")
+    private val turntableKey = booleanPreferencesKey("fx_turntable")
+    private val nightStageKey = booleanPreferencesKey("fx_night_stage")
+
+    /** The playful extras, each one switchable; the light and tapping along are on from the start. */
+    val effects: Flow<Effects> = store.data.map { p ->
+        Effects(p[stageLightKey] ?: true, p[tapAlongKey] ?: true, p[turntableKey] ?: false, p[nightStageKey] ?: false)
+    }
+
+    suspend fun setEffects(e: Effects) = store.edit {
+        it[stageLightKey] = e.stageLight; it[tapAlongKey] = e.tapAlong; it[turntableKey] = e.turntable; it[nightStageKey] = e.nightStage
+    }
+
     private val everywhereKey = androidx.datastore.preferences.core.stringSetPreferencesKey("everywhere_excluded")
 
     /** Rooms (player UUIDs) that "Everywhere" in the rooms sheet leaves out. */
@@ -136,3 +150,16 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
 
     suspend fun setLastRoom(uuid: String) = store.edit { it[lastGroupKey] = uuid }
 }
+
+/**
+ * The playful extras on the stage. [stageLight]: lights in the cover's colors,
+ * house lights in a pause. [tapAlong]: tapping the cover in time makes the light
+ * pulse. [turntable]: a record turns beside the cover. [nightStage]: the
+ * screensaver while charging.
+ */
+data class Effects(
+    val stageLight: Boolean = true,
+    val tapAlong: Boolean = true,
+    val turntable: Boolean = false,
+    val nightStage: Boolean = false,
+)

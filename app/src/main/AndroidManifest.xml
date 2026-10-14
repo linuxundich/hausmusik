@@ -72,6 +72,19 @@
             </intent-filter>
         </service>
 
+        <!-- The night stage: listed as a screensaver only while switched on in the app. -->
+        <service
+            android:name=".system.NightStageDream"
+            android:enabled="false"
+            android:exported="true"
+            android:label="@string/night_stage_label"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
         <service
             android:name=".system.RoomTileService"
             android:exported="true"
