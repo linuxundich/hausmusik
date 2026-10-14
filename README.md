@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://github.com/linuxundich/hausmusik/releases/latest"><strong>Download APK</strong></a>
-  &nbsp;·&nbsp; Google Play: coming soon &nbsp;·&nbsp;
+  &nbsp;·&nbsp; Google Play: coming soon &nbsp;·&nbsp; F-Droid: coming soon &nbsp;·&nbsp;
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -69,7 +69,7 @@ Hausmusik has no account, no ads and no analytics. It talks to your speakers ins
 1. Download `hausmusik-<version>.apk` from the [latest release](https://github.com/linuxundich/hausmusik/releases/latest) and open it on your phone (Android 8.0 or newer).
 2. Allow the "Nearby devices" permission when Android asks: Hausmusik needs it to find your speakers.
 
-Your phone needs to be in the same Wi-Fi as the speakers. A Google Play release is coming. Want to build it yourself? See [docs/development.md](docs/development.md).
+Your phone needs to be in the same Wi-Fi as the speakers. Hausmusik is coming to Google Play and F-Droid. Want to build it yourself? See [docs/development.md](docs/development.md).
 
 ## More
 

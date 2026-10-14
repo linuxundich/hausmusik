@@ -20,6 +20,7 @@ All notable changes to Hausmusik are documented here. The format follows
 
 - The README is a product page for users; the full feature list and the
   technical details moved to `docs/FEATURES.md` and `docs/development.md`.
+  It announces Google Play and F-Droid.
 
 ## [0.1.0] - 2026-10-14
 
