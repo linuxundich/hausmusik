@@ -145,12 +145,15 @@ fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, 
 private fun PlaysWith(household: Household, colors: CoverColors, actions: RoomActions) {
     val selected = household.selected ?: return
     Text(
-        stringResource(R.string.room_plays_with, selected.group.coordinator.roomName),
+        if (selected.group.members.size > 1) stringResource(R.string.rooms_play_together)
+        else stringResource(R.string.room_plays_with, selected.group.coordinator.roomName),
         fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
     )
     Text(stringResource(R.string.rooms_together_hint), fontSize = 12.sp, color = colors.content.copy(alpha = 0.6f))
     Spacer(Modifier.height(4.dp))
-    household.allPlayers.filter { it.uuid != selected.id }.forEach { p ->
+    // The leading room too while others play along: unticking it hands the music to them.
+    val leaderTickable = selected.group.members.size > 1
+    household.allPlayers.filter { leaderTickable || it.uuid != selected.id }.forEach { p ->
         val member = selected.group.members.any { it.uuid == p.uuid }
         Row(verticalAlignment = Alignment.CenterVertically) {
             // Box and name are one target: tapping the name ticks the box too.
@@ -172,14 +175,6 @@ private fun PlaysWith(household: Household, colors: CoverColors, actions: RoomAc
                 }
             } else {
                 Spacer(Modifier.weight(0.5f))
-            }
-        }
-    }
-    if (selected.group.members.size > 1) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 48.dp)) {
-            Text(selected.group.coordinator.roomName, modifier = Modifier.weight(0.5f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            VolumeSlider(selected.memberVolumes[selected.id] ?: 0, colors, Modifier.weight(0.5f), muted = selected.memberMutes[selected.id] == true) {
-                actions.onMemberVolume(selected.id, selected.group.coordinator, it)
             }
         }
     }

@@ -687,9 +687,21 @@ class HouseholdRepository @Inject constructor(
         }
     }
 
-    /** Lets [player] play along with the group [groupId], or leave it. */
-    suspend fun setMembership(player: SonosPlayer, groupId: String, member: Boolean): Result<Unit> =
-        topologyBusy { if (member) client(player).joinGroup(groupId) else client(player).leaveGroup() }
+    /**
+     * Lets [player] play along with the group [groupId], or leave it. The
+     * leading room leaves by handing the group to the next member first, so the
+     * music goes on there; the selection follows the music.
+     */
+    suspend fun setMembership(player: SonosPlayer, groupId: String, member: Boolean): Result<Unit> {
+        val group = _state.value.groups.firstOrNull { it.id == groupId }
+        val heir = group?.group?.members?.firstOrNull { it.uuid != player.uuid }
+        if (!member && player.uuid == groupId && heir != null) {
+            val result = topologyBusy { client(player).delegateCoordination(heir.uuid) }
+            if (result.isSuccess && _state.value.selectedId == groupId) select(heir.uuid)
+            return result
+        }
+        return topologyBusy { if (member) client(player).joinGroup(groupId) else client(player).leaveGroup() }
+    }
 
     /**
      * Lets every room of [source] play along with [target]. Returns the moved

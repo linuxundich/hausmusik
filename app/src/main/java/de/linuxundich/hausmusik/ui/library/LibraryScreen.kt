@@ -126,6 +126,7 @@ fun LibraryScreen(
     val query by vm.query.collectAsStateWithLifecycle()
     val search by vm.search.collectAsStateWithLifecycle()
     var searching by rememberSaveable { mutableStateOf(false) }
+    val tabStates = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     // Loaded on first display, not in the ViewModel's init: the ViewModel may
     // exist before any room is known.
     LaunchedEffect(Unit) { if (tab != LibraryTab.History) vm.load(tab.objectId) }
@@ -209,6 +210,8 @@ fun LibraryScreen(
                 }
                 if (tab == LibraryTab.Services) ServicesHint()
                 val reachable by vm.speakersReachable.collectAsStateWithLifecycle()
+                // Each tab keeps its own scroll position, also while another tab shows.
+                tabStates.SaveableStateProvider(tab.name) {
                 ItemList(
                     lists[tab.objectId], grid = tab.grid, artUrl = vm::artUrl,
                     offline = !reachable && !tab.objectId.startsWith(ServiceIds.OVERVIEW),
@@ -219,6 +222,7 @@ fun LibraryScreen(
                         item.isContainer && tab != LibraryTab.Favorites -> onOpenContainer(item)
                         else -> onPlay(item)
                     }
+                }
                 }
             }
         }

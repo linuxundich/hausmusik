@@ -8,6 +8,13 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Fixed: back from an album, artist or folder lands where the list was
+  instead of at its top; every screen on the way keeps its scroll position,
+  and each library tab its own.
+- Rooms: the leading room of a group can be unticked too. It hands the group
+  and its music to the next room (DelegateGroupCoordinationTo) and plays on
+  its own; the stage follows the music. Before, a group could only lose its
+  other rooms.
 - Extras, each switchable under Settings › Extras: stage light (two soft
   lights and beams in the cover's colors behind the stage; in a pause the
   house lights come on), tap along (four taps in time on the cover make

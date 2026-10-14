@@ -37,6 +37,7 @@
     <string name="rooms_together_hint">Häkchen setzen = mitspielen lassen</string>
     <string name="rooms_paused">pausiert</string>
     <string name="rooms_idle">ruht</string>
+    <string name="rooms_play_together">Spielen zusammen</string>
     <string name="room_plays_with">Spielt mit %1$s</string>
 
     <string name="library_favorites">Favoriten</string>

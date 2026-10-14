@@ -183,6 +183,15 @@ class SonosPlayerClient(val baseUrl: HttpUrl, private val soap: SoapClient) {
 
     suspend fun leaveGroup() { av("BecomeCoordinatorOfStandaloneGroup") }
 
+    /**
+     * Called on a group's coordinator: hands the group and what it plays to
+     * [newCoordinatorUuid], a member. Without [rejoin] this player then plays
+     * on its own (silent), as when the Sonos app unticks the leading room.
+     */
+    suspend fun delegateCoordination(newCoordinatorUuid: String, rejoin: Boolean = false) {
+        av("DelegateGroupCoordinationTo", "NewCoordinator" to newCoordinatorUuid, "RejoinGroup" to if (rejoin) 1 else 0)
+    }
+
     // Volume (per player)
 
     suspend fun volume(): Int = rc("GetVolume", "Channel" to "Master")["CurrentVolume"]?.toIntOrNull() ?: 0

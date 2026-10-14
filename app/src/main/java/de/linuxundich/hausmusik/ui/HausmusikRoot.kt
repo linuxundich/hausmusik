@@ -167,16 +167,27 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         else vm.play(item, QueueMode.ReplaceAndPlay)
     }
 
+    // Every screen on the stack keeps its state (scroll positions above all) until it is
+    // left for good: back from an album lands where the list was, not at its top.
+    val screenStates = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+    val stackKeys = stack.mapIndexed { i, s -> screenKey(i, s) }
+    var shownKeys by remember { mutableStateOf(stackKeys) }
+    LaunchedEffect(stackKeys) {
+        (shownKeys - stackKeys.toSet()).forEach(screenStates::removeState)
+        shownKeys = stackKeys
+    }
+
     androidx.compose.runtime.CompositionLocalProvider(LocalItemDetails provides { details = it }) {
     Box(Modifier.fillMaxSize()) {
     AnimatedContent(
-        targetState = stack.last(),
+        targetState = stack.last() to stackKeys.last(),
         transitionSpec = {
-            if (targetState is Screen.Stage) fadeIn() togetherWith slideOutVertically { it / 3 } + fadeOut()
+            if (targetState.first is Screen.Stage) fadeIn() togetherWith slideOutVertically { it / 3 } + fadeOut()
             else slideInVertically { it / 3 } + fadeIn() togetherWith fadeOut()
         },
         label = "screen",
-    ) { screen ->
+    ) { (screen, key) ->
+        screenStates.SaveableStateProvider(key) {
         when (screen) {
             Screen.Stage -> StageScreen(
                 selected, colors,
@@ -246,6 +257,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onMiniPlayer = { stack.removeRange(1, stack.size) },
                 onPlayPause = vm::playPause,
             )
+        }
         }
     }
 
@@ -382,4 +394,10 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         ConnectScreen(household.connection, vm::connect, vm::searchAgain)
     }
     } // LocalItemDetails: sheets and dialogs open details too
+}
+
+/** Where a screen sits on the stack and what it shows: the key its saved state lives under. */
+private fun screenKey(depth: Int, screen: Screen): String = "$depth:" + when (screen) {
+    is Screen.Container -> "container:" + screen.item.id
+    else -> screen::class.simpleName.orEmpty()
 }

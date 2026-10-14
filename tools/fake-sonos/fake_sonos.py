@@ -358,6 +358,22 @@ def act(p, service, action, a):
             p.radio = None
         p.position, p.started, p.state = 0.0, None, "STOPPED"
         return {}
+    if action == "DelegateGroupCoordinationTo":
+        # The group and its music move to NewCoordinator; with RejoinGroup 0 this player leaves.
+        m = next((x for x in players.values() if x.uuid == a.get("NewCoordinator") and x.coordinator == p.uuid and x is not p), None)
+        if m is None:
+            raise Fault(800)
+        for n in players.values():
+            if n.coordinator == p.uuid and n is not p:
+                n.coordinator = m.uuid
+        m.queue, m.media_uri, m.radio, m.track = p.queue[:], p.media_uri, p.radio, p.track
+        m.position, m.started, m.state = p.pos(), (time.time() if p.started else None), p.state
+        if a.get("RejoinGroup") == "1":
+            p.coordinator = m.uuid
+        else:
+            p.coordinator = p.uuid
+        p.state, p.started = "STOPPED", None
+        return {}
     if action == "BecomeCoordinatorOfStandaloneGroup":
         for m in players.values():
             if m.coordinator == p.uuid and m is not p:  # hand the group to the next member

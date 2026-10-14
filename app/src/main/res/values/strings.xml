@@ -39,6 +39,7 @@
     <string name="rooms_together_hint">Tick a room to let it play along</string>
     <string name="rooms_paused">paused</string>
     <string name="rooms_idle">idle</string>
+    <string name="rooms_play_together">Playing together</string>
     <string name="room_plays_with">Plays with %1$s</string>
 
     <string name="library_favorites">Favorites</string>
