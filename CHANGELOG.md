@@ -34,6 +34,22 @@ All notable changes to Hausmusik are documented here. The format follows
     track, album or station, a badge on grid covers. Sonos names the playing
     track only by its title, artist and album, so those decide. The mini
     player shows a radio icon for stations.
+  - The library starts with where the music comes from: Favorites, My music
+    (with Artists, Albums, Genres and Playlists below), each linked service
+    by name (bonob, Spotify, TuneIn), Radio, History and More services.
+    A service's start page shows right in the library. Before, the services
+    hid in the seventh of eight tabs.
+  - The mini player in the library names the room; a tap on it opens the
+    rooms, so another room can be chosen without going back to the stage.
+  - The stage menu is grouped by what it acts on: this track (details, music
+    video), this room (sound, crossfade as a switch), Hausmusik (alarms,
+    settings).
+  - The play dialog offers "Always replace, don't ask again"; Settings ›
+    Playing brings the question back. Without asking, a message says whose
+    queue was replaced.
+  - Radio: the analog inputs stand below the stations under "Inputs"
+    ("Input · Living room"); the stage shows no shuffle, repeat or skip
+    buttons for radio instead of greying them out.
   - When the speakers stop answering while the app is in use, the app stays
     where it is and a banner says "No connection to the speakers · Hausmusik
     keeps trying", with "Address" for entering another one. Before, the setup

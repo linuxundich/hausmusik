@@ -26,7 +26,7 @@ import de.linuxundich.hausmusik.data.QueueMode
  * once wiped a streaming queue that could not be restored.
  */
 @Composable
-fun PlayDialog(title: String, room: String, queueLength: Int, onChoose: (QueueMode) -> Unit, onDismiss: () -> Unit) {
+fun PlayDialog(title: String, room: String, queueLength: Int, onChoose: (QueueMode) -> Unit, onDismiss: () -> Unit, onAlwaysReplace: (() -> Unit)? = null) {
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(AppIcons.Play, null) },
@@ -41,6 +41,10 @@ fun PlayDialog(title: String, room: String, queueLength: Int, onChoose: (QueueMo
                         Choice(AppIcons.PlaylistAdd, stringResource(R.string.play_append)) { onChoose(QueueMode.Append) },
                     ),
                 )
+                // For those who always replace: one tap less from now on (Settings bring the question back).
+                if (onAlwaysReplace != null) {
+                    TextButton(onClick = onAlwaysReplace) { Text(stringResource(R.string.play_always_replace)) }
+                }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },

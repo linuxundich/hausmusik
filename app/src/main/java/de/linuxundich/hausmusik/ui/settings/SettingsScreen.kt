@@ -46,6 +46,7 @@ data class SettingsState(val manualHost: String?, val connectedTo: String?, val 
     val rooms: List<Pair<String, String>> = emptyList(), val everywhereExcluded: Set<String> = emptySet(),
     val musicVideos: Boolean = false, val videoMode: de.linuxundich.hausmusik.data.VideoMode = de.linuxundich.hausmusik.data.VideoMode.Ask,
     val effects: de.linuxundich.hausmusik.data.Effects = de.linuxundich.hausmusik.data.Effects(),
+    val askBeforeReplace: Boolean = true,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,6 +62,7 @@ fun SettingsScreen(
     onMusicVideos: (Boolean) -> Unit = {},
     onVideoMode: (de.linuxundich.hausmusik.data.VideoMode) -> Unit = {},
     onEffects: (de.linuxundich.hausmusik.data.Effects) -> Unit = {},
+    onAskBeforeReplace: (Boolean) -> Unit = {},
     onLicenses: () -> Unit,
     onClearCache: () -> Unit,
     onBack: () -> Unit,
@@ -111,6 +113,9 @@ fun SettingsScreen(
                     }
                 }
             }
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            Text(stringResource(R.string.settings_playing), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            EffectSwitch(R.string.settings_ask_replace, R.string.settings_ask_replace_body, state.askBeforeReplace, onAskBeforeReplace)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.cache), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.cache_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -4,6 +4,7 @@
 package de.linuxundich.hausmusik.ui.library
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -89,6 +90,25 @@ import de.linuxundich.hausmusik.ui.common.isWide
 import de.linuxundich.hausmusik.ui.common.formatTime
 import de.linuxundich.hausmusik.ui.theme.AppIcons
 
+/**
+ * Where music comes from, as one row: favorites, the own collection, each
+ * linked service by name, radio, the history, and "More services" for linking
+ * others. Before, the services hid in the seventh of eight tabs.
+ */
+@Composable
+private fun SourceChips(vm: LibraryViewModel, tab: LibraryTab, service: DidlObject?, services: List<DidlObject>, padding: PaddingValues) {
+    LazyRow(contentPadding = padding, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { FilterChip(selected = service == null && tab == LibraryTab.Favorites, onClick = { vm.select(LibraryTab.Favorites) }, label = { Text(stringResource(R.string.library_favorites)) }) }
+        item { FilterChip(selected = service == null && tab in MUSIC_TABS, onClick = { vm.selectMusic() }, label = { Text(stringResource(R.string.library_my_music)) }) }
+        items(services, key = { it.id }) { s ->
+            FilterChip(selected = service?.id == s.id, onClick = { vm.selectService(s) }, label = { Text(s.title) })
+        }
+        item { FilterChip(selected = service == null && tab == LibraryTab.Radio, onClick = { vm.select(LibraryTab.Radio) }, label = { Text(stringResource(R.string.library_radio)) }) }
+        item { FilterChip(selected = service == null && tab == LibraryTab.History, onClick = { vm.select(LibraryTab.History) }, label = { Text(stringResource(R.string.library_history)) }) }
+        item { FilterChip(selected = service == null && tab == LibraryTab.Services, onClick = { vm.select(LibraryTab.Services) }, label = { Text(stringResource(R.string.library_more_services)) }) }
+    }
+}
+
 private fun LibraryTab.label() = when (this) {
     LibraryTab.Favorites -> R.string.library_favorites
     LibraryTab.Artists -> R.string.library_artists
@@ -125,7 +145,12 @@ fun LibraryScreen(
     onPlayPause: () -> Unit,
 ) {
     val tab by vm.tab.collectAsStateWithLifecycle()
+    val service by vm.service.collectAsStateWithLifecycle()
     val lists by vm.lists.collectAsStateWithLifecycle()
+    // The linked services become sources of their own beside "My music".
+    LaunchedEffect(Unit) { vm.load(LibraryTab.Services.objectId) }
+    val services = (lists[LibraryTab.Services.objectId] as? ListState.Loaded)?.items.orEmpty()
+        .filter { it.isContainer && it.id != ServiceIds.MORE && it.upnpClass != ServiceIds.LINK_CLASS }
     val query by vm.query.collectAsStateWithLifecycle()
     val search by vm.search.collectAsStateWithLifecycle()
     var searching by rememberSaveable { mutableStateOf(false) }
@@ -161,11 +186,7 @@ fun LibraryScreen(
                         // Landscape: the tabs share the bar with the title to save a row.
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(stringResource(R.string.library))
-                            LazyRow(contentPadding = PaddingValues(start = 16.dp, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(LibraryTab.entries) { t ->
-                                    FilterChip(selected = t == tab, onClick = { vm.select(t) }, label = { Text(stringResource(t.label())) })
-                                }
-                            }
+                            SourceChips(vm, tab, service, services, PaddingValues(start = 16.dp, end = 8.dp))
                         }
                     } else {
                         Text(stringResource(R.string.library))
@@ -193,10 +214,30 @@ fun LibraryScreen(
                     SearchResults(search, vm::artUrl, onOpenContainer, onPlay)
                     return@Column
                 }
-                if (!wide) LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(LibraryTab.entries) { t ->
-                        FilterChip(selected = t == tab, onClick = { vm.select(t) }, label = { Text(stringResource(t.label())) })
+                if (!wide) SourceChips(vm, tab, service, services, PaddingValues(horizontal = 16.dp))
+                // The parts of "My music" as a second, smaller row.
+                if (service == null && tab in MUSIC_TABS) {
+                    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(MUSIC_TABS.toList()) { t ->
+                            androidx.compose.material3.InputChip(
+                                selected = t == tab, onClick = { vm.select(t) }, label = { Text(stringResource(t.label()), style = MaterialTheme.typography.labelMedium) },
+                            )
+                        }
                     }
+                }
+                val shownService = service
+                if (shownService != null) {
+                    // A service's start page, right here; deeper folders open as their own screen.
+                    tabStates.SaveableStateProvider("svc/" + shownService.id) {
+                        ItemList(lists[shownService.id], grid = true, artUrl = vm::artUrl, onRetry = { vm.load(shownService.id, force = true) }) { item ->
+                            when {
+                                item.upnpClass == ServiceIds.LINK_CLASS -> vm.startLink(item)
+                                item.isContainer -> onOpenContainer(item)
+                                else -> onPlay(item)
+                            }
+                        }
+                    }
+                    return@Column
                 }
                 val imagesOn by vm.artistImagesEnabled.collectAsStateWithLifecycle()
                 val hintDone by vm.artistHintDone.collectAsStateWithLifecycle()
@@ -599,7 +640,17 @@ private fun ItemList(
             }
             else -> LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
                 // Services often send no track numbers; then the position in the album stands in.
-                itemsIndexed(state.items, key = { _, it -> it.id }) { i, item -> ItemRow(item, artUrl, numbered, i + 1) { onClick(item) } }
+                // Analog inputs (radio tab) get their own heading: they are not stations.
+                val firstInput = state.items.indexOfFirst { it.id.startsWith("linein:") }
+                itemsIndexed(state.items, key = { _, it -> it.id }) { i, item ->
+                    if (i == firstInput) {
+                        Text(
+                            stringResource(R.string.line_in_section), style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+                        )
+                    }
+                    ItemRow(item, artUrl, numbered, i + 1) { onClick(item) }
+                }
             }
         }
     }
@@ -646,6 +697,7 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
                 )
             }
             (if (item.upnpClass == ServiceIds.LINK_CLASS) item.description
+            else if (item.id.startsWith("linein:")) stringResource(R.string.line_in_of, item.creator.orEmpty())
             else if (numbered) item.creator else listOfNotNull(item.creator, item.album).joinToString(" · ")).takeIf { !it.isNullOrEmpty() }?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
@@ -743,7 +795,16 @@ private fun MiniPlayer(group: GroupState, onOpen: () -> Unit, onPlayPause: () ->
                     starting?.let { stringResource(R.string.starting, it) } ?: group.nowPlaying?.title ?: stringResource(R.string.nothing_playing),
                     fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
-                Text(group.group.displayName, fontSize = 12.sp, maxLines = 1)
+                // The room: a tap opens the rooms, so another room can be chosen without leaving the library.
+                val openRooms = LocalOpenRooms.current
+                Row(
+                    Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = stringResource(R.string.rooms)) { openRooms() },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(AppIcons.Speaker, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+                    Text(group.group.displayName, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp))
+                    Text(" ▾", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                }
             }
             // Full color while starting, so the spinner is seen; taps wait.
             FilledIconButton(onClick = { if (starting == null) onPlayPause() }, enabled = group.nowPlaying != null) {
@@ -777,3 +838,6 @@ internal fun DidlObject.playsNow(now: de.linuxundich.hausmusik.sonos.NowPlaying?
         else -> false
     }
 }
+
+/** Opens the rooms sheet; provided by the root. */
+val LocalOpenRooms = androidx.compose.runtime.compositionLocalOf<() -> Unit> { {} }

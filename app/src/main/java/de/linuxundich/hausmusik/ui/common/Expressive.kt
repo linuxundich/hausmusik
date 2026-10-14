@@ -57,6 +57,29 @@ fun AppMenu(expanded: Boolean, onDismiss: () -> Unit, colors: MenuColors = menuC
 }
 
 class AppMenuScope(private val colors: MenuColors) {
+    /** A small heading that says what the next items act on ("This room"). */
+    @Composable
+    fun Header(label: String) {
+        Text(
+            label, style = MaterialTheme.typography.labelMedium, color = colors.icon.copy(alpha = 0.75f),
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 2.dp),
+        )
+    }
+
+    /** An item that switches something on or off, with its state as a switch. */
+    @Composable
+    fun Toggle(icon: ImageVector, label: String, checked: Boolean, onClick: () -> Unit) {
+        DropdownMenuItem(
+            text = { Text(label, style = MaterialTheme.typography.bodyLarge) },
+            leadingIcon = { Icon(icon, null) },
+            trailingIcon = { androidx.compose.material3.Switch(checked = checked, onCheckedChange = null, modifier = Modifier.padding(start = 8.dp)) },
+            onClick = onClick,
+            colors = MenuDefaults.itemColors(textColor = colors.content, leadingIconColor = colors.icon),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            modifier = Modifier.widthIn(min = 200.dp),
+        )
+    }
+
     @Composable
     fun Item(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit) {
         DropdownMenuItem(

@@ -164,9 +164,14 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
 
     val colors = rememberCoverColors(selected.artUrl)
 
+    val askBeforeReplace by vm.askBeforeReplace.collectAsStateWithLifecycle()
     fun requestPlay(item: DidlObject) {
-        if (!item.playsDirectly && selected.queueLength > 0) pendingPlay = item
-        else vm.play(item, QueueMode.ReplaceAndPlay)
+        if (!item.playsDirectly && selected.queueLength > 0) {
+            if (askBeforeReplace) { pendingPlay = item; return }
+            // Not asked any more: say what happened, the queue is gone.
+            scope.launch { snackbar.showSnackbar(resources.getString(R.string.queue_replaced, selected.group.displayName)) }
+        }
+        vm.play(item, QueueMode.ReplaceAndPlay)
     }
 
     // Every screen on the stack keeps its state (scroll positions above all) until it is
@@ -184,6 +189,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         LocalItemDetails provides { details = it },
         de.linuxundich.hausmusik.ui.library.LocalStarting provides starting,
         de.linuxundich.hausmusik.ui.library.LocalNowPlaying provides selected.nowPlaying,
+        de.linuxundich.hausmusik.ui.library.LocalOpenRooms provides { roomsOpen = true },
     ) {
     Box(Modifier.fillMaxSize()) {
     AnimatedContent(
@@ -241,7 +247,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 SettingsState(
                     manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn, detailsOn, detailsWikipedia,
                     rooms = household.allPlayers.filter { !it.isInvisible }.map { it.uuid to it.roomName }, everywhereExcluded = everywhereExcluded,
-                    musicVideos = videosOn, videoMode = videoMode, effects = effects,
+                    musicVideos = videosOn, videoMode = videoMode, effects = effects, askBeforeReplace = askBeforeReplace,
                 ),
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
@@ -252,6 +258,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onMusicVideos = vm::setMusicVideosEnabled,
                 onVideoMode = vm::setMusicVideoMode,
                 onEffects = { vm.setEffects(it) },
+                onAskBeforeReplace = { vm.setAskBeforeReplace(it) },
                 onLicenses = { stack.add(Screen.Licenses) },
                 onClearCache = vm::clearListCache,
                 onBack = { stack.removeAt(stack.lastIndex) },
@@ -401,6 +408,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
             item.title, selected.group.displayName, selected.queueLength,
             onChoose = { vm.play(item, it); pendingPlay = null },
             onDismiss = { pendingPlay = null },
+            onAlwaysReplace = { vm.setAskBeforeReplace(false); vm.play(item, QueueMode.ReplaceAndPlay); pendingPlay = null },
         )
     }
     // Lost the household while running: the app stays (it keeps trying, the banner says so);

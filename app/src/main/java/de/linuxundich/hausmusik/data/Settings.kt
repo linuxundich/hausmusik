@@ -86,6 +86,13 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
     suspend fun setMusicVideosEnabled(on: Boolean) = store.edit { it[videosKey] = on }
     suspend fun setMusicVideoMode(mode: VideoMode) = store.edit { it[videoModeKey] = mode.name }
 
+    private val askReplaceKey = booleanPreferencesKey("ask_before_replace")
+
+    /** Ask before "Play now" replaces a queue; the user can turn it off in the dialog. */
+    val askBeforeReplace: Flow<Boolean> = store.data.map { it[askReplaceKey] ?: true }
+
+    suspend fun setAskBeforeReplace(on: Boolean) = store.edit { it[askReplaceKey] = on }
+
     private val stageLightKey = booleanPreferencesKey("fx_stage_light")
     private val tapAlongKey = booleanPreferencesKey("fx_tap_along")
     private val turntableKey = booleanPreferencesKey("fx_turntable")

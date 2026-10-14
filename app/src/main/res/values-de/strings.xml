@@ -308,4 +308,16 @@
     <string name="lost_title">Keine Verbindung zu den Lautsprechern</string>
     <string name="lost_body">Hausmusik versucht es weiter.</string>
     <string name="lost_address">Adresse</string>
+    <string name="line_in_section">Eingänge</string>
+    <string name="line_in_of">Eingang · %1$s</string>
+    <string name="play_always_replace">Immer ersetzen, nicht mehr fragen</string>
+    <string name="queue_replaced">Warteschlange von %1$s ersetzt</string>
+    <string name="settings_playing">Abspielen</string>
+    <string name="settings_ask_replace">Vor dem Ersetzen fragen</string>
+    <string name="settings_ask_replace_body">„Jetzt abspielen“ ersetzt die Warteschlange des Raums. Ohne Nachfrage geht das sofort; eine Streaming-Warteschlange lässt sich nicht zurückholen.</string>
+    <string name="menu_track">Dieser Titel</string>
+    <string name="menu_room">Dieser Raum</string>
+    <string name="menu_app">Hausmusik</string>
+    <string name="library_my_music">Meine Musik</string>
+    <string name="library_more_services">Mehr Dienste</string>
 </resources>

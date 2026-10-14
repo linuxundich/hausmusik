@@ -93,6 +93,9 @@ class MainViewModel @Inject constructor(
     suspend fun artistDetails(name: String) = detailsRepo.artist(name)
     suspend fun albumDetails(title: String, artist: String?) = detailsRepo.album(title, artist)
 
+    val askBeforeReplace: StateFlow<Boolean> = settings.askBeforeReplace.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    fun setAskBeforeReplace(on: Boolean) = viewModelScope.launch { settings.setAskBeforeReplace(on) }
+
     val effects: StateFlow<de.linuxundich.hausmusik.data.Effects> =
         settings.effects.stateIn(viewModelScope, SharingStarted.Eagerly, de.linuxundich.hausmusik.data.Effects())
 

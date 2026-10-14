@@ -310,4 +310,16 @@
     <string name="lost_title">No connection to the speakers</string>
     <string name="lost_body">Hausmusik keeps trying.</string>
     <string name="lost_address">Address</string>
+    <string name="line_in_section">Inputs</string>
+    <string name="line_in_of">Input · %1$s</string>
+    <string name="play_always_replace">Always replace, don\'t ask again</string>
+    <string name="queue_replaced">Replaced the queue of %1$s</string>
+    <string name="settings_playing">Playing</string>
+    <string name="settings_ask_replace">Ask before replacing</string>
+    <string name="settings_ask_replace_body">"Play now" replaces the room\'s queue. Without asking it happens at once; a streaming queue cannot be brought back.</string>
+    <string name="menu_track">This track</string>
+    <string name="menu_room">This room</string>
+    <string name="menu_app">Hausmusik</string>
+    <string name="library_my_music">My music</string>
+    <string name="library_more_services">More services</string>
 </resources>

@@ -330,15 +330,16 @@ private fun StageMenu(colors: CoverColors, actions: StageActions) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.queue_more), tint = colors.content.copy(alpha = 0.85f)) }
+        // Grouped by what they act on: the track, the room, the app.
         AppMenu(open, { open = false }, menuColors(colors)) {
-            Item(
-                if (actions.crossfadeOn) Icons.Filled.Check else AppIcons.Crossfade,
-                stringResource(if (actions.crossfadeOn) R.string.crossfade_on else R.string.crossfade),
-            ) { open = false; actions.onCrossfade() }
-            Item(AppIcons.Video, stringResource(R.string.music_video)) { open = false; actions.onMusicVideo() }
+            Header(stringResource(R.string.menu_track))
             Item(AppIcons.Info, stringResource(R.string.details)) { open = false; actions.onDetails() }
-            Item(AppIcons.Alarm, stringResource(R.string.alarms)) { open = false; actions.onAlarms() }
+            Item(AppIcons.Video, stringResource(R.string.music_video)) { open = false; actions.onMusicVideo() }
+            Header(stringResource(R.string.menu_room))
             Item(AppIcons.Tune, stringResource(R.string.sound)) { open = false; actions.onSound() }
+            Toggle(AppIcons.Crossfade, stringResource(R.string.crossfade), actions.crossfadeOn) { open = false; actions.onCrossfade() }
+            Header(stringResource(R.string.menu_app))
+            Item(AppIcons.Alarm, stringResource(R.string.alarms)) { open = false; actions.onAlarms() }
             Item(Icons.Filled.Settings, stringResource(R.string.settings)) { open = false; actions.onSettings() }
         }
     }
@@ -435,11 +436,15 @@ private fun Transport(group: GroupState, colors: CoverColors, actions: StageActi
     val waitingLabel = stringResource(R.string.waiting_for_speakers)
     val isRadio = group.nowPlaying?.kind == SourceKind.Radio
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        SmallToggle(AppIcons.Shuffle, stringResource(R.string.shuffle), group.playMode.shuffle, colors, enabled = !isRadio, onClick = actions.onShuffle)
+        // Radio has no shuffle, repeat or tracks to skip: those buttons give way (their
+        // places stay, so play keeps the middle) instead of standing there greyed out.
+        if (isRadio) Spacer(Modifier.size(48.dp))
+        else SmallToggle(AppIcons.Shuffle, stringResource(R.string.shuffle), group.playMode.shuffle, colors, enabled = true, onClick = actions.onShuffle)
         // The pressed skip button waits until the next title is there, not only the room chip.
         var skipping by remember(group.nowPlaying?.title) { mutableStateOf<Int?>(null) }
         LaunchedEffect(skipping) { if (skipping != null) { kotlinx.coroutines.delay(10_000); skipping = null } }
-        RoundButton(AppIcons.SkipPrevious, stringResource(R.string.previous), colors, enabled = !isRadio, busy = skipping == -1) { skipping = -1; actions.onPrevious() }
+        if (isRadio) Spacer(Modifier.size(56.dp))
+        else RoundButton(AppIcons.SkipPrevious, stringResource(R.string.previous), colors, enabled = true, busy = skipping == -1) { skipping = -1; actions.onPrevious() }
         // Expressive: the play button morphs from a circle (paused) to a rounded square (playing).
         val corner by animateDpAsState(if (group.isPlaying) 26.dp else 36.dp, label = "corner")
         Surface(
@@ -465,10 +470,12 @@ private fun Transport(group: GroupState, colors: CoverColors, actions: StageActi
                 }
             }
         }
-        RoundButton(AppIcons.SkipNext, stringResource(R.string.next), colors, enabled = group.actions.canNext, busy = skipping == 1) { skipping = 1; actions.onNext() }
-        SmallToggle(
+        if (isRadio) Spacer(Modifier.size(56.dp))
+        else RoundButton(AppIcons.SkipNext, stringResource(R.string.next), colors, enabled = group.actions.canNext, busy = skipping == 1) { skipping = 1; actions.onNext() }
+        if (isRadio) Spacer(Modifier.size(48.dp))
+        else SmallToggle(
             if (group.playMode.repeat == RepeatMode.One) AppIcons.RepeatOne else AppIcons.Repeat,
-            stringResource(R.string.repeat), group.playMode.repeat != RepeatMode.Off, colors, enabled = !isRadio, onClick = actions.onRepeat,
+            stringResource(R.string.repeat), group.playMode.repeat != RepeatMode.Off, colors, enabled = true, onClick = actions.onRepeat,
         )
     }
 }

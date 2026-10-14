@@ -214,7 +214,23 @@ class LibraryViewModel @Inject constructor(
         _query.value = q
     }
 
+    private val _service = MutableStateFlow<DidlObject?>(null)
+
+    /** A linked service picked as the source: its start page shows in the library itself. */
+    val service: StateFlow<DidlObject?> = _service.asStateFlow()
+    private var lastMusicTab = LibraryTab.Albums
+
+    fun selectService(item: DidlObject) {
+        _service.value = item
+        if (_lists.value[item.id] !is ListState.Loaded) load(item.id)
+    }
+
+    /** "My music": back to the part of the own collection shown last. */
+    fun selectMusic() = select(lastMusicTab)
+
     fun select(tab: LibraryTab) {
+        _service.value = null
+        if (tab in MUSIC_TABS) lastMusicTab = tab
         _tab.value = tab
         if (tab != LibraryTab.History && _lists.value[tab.objectId] !is ListState.Loaded) load(tab.objectId)
     }
@@ -281,12 +297,12 @@ class LibraryViewModel @Inject constructor(
         load(LibraryTab.Playlists.objectId, force = true)
     }
 
-    // Analog inputs show at the top of the radio tab; they are asked live, not cached.
+    // Analog inputs show below the stations of the radio tab, in their own section; asked live, not cached.
     private var lineIns: List<DidlObject>? = null
     private suspend fun withInputs(objectId: String, items: List<DidlObject>): List<DidlObject> {
         if (objectId != LibraryTab.Radio.objectId) return items
         val inputs = lineIns ?: repo.lineIns().also { lineIns = it }
-        return inputs + items
+        return items + inputs
     }
 
     fun load(objectId: String, force: Boolean = false) {
@@ -353,3 +369,6 @@ class LibraryViewModel @Inject constructor(
 
     fun artUrl(uri: String?): String? = repo.artUrl(uri)
 }
+
+/** The parts of the own collection, shown together as "My music". */
+val MUSIC_TABS = setOf(LibraryTab.Artists, LibraryTab.Albums, LibraryTab.Genres, LibraryTab.Playlists)

@@ -64,8 +64,10 @@ class StageScreenTest {
     fun `radio cannot skip`() {
         show(TestData.radioGroup())
         compose.onNodeWithText("Radio Tuxfunk · Penny Guin").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Next").assertIsNotEnabled()
-        compose.onNodeWithContentDescription("Previous").assertIsNotEnabled()
+        // No skip buttons at all for radio (they gave way instead of standing there greyed out).
+        compose.onNodeWithContentDescription("Next").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Previous").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Pause").assertIsDisplayed()
     }
 
     @Test
