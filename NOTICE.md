@@ -73,8 +73,11 @@ only after the user switches them on. Hausmusik is not affiliated with Deezer;
 the pictures belong to their respective rights holders.
 
 Station logos come from [radio-browser.info](https://www.radio-browser.info), a
-free community directory of radio stations, only after the user switches them
-on. The logos belong to the stations.
+free community directory of radio stations, from
+[Wikimedia Commons](https://commons.wikimedia.org) through Wikidata (each file
+under the license stated on its Commons page), or from the icons a station
+publishes on its own homepage, only after the user switches them on. The
+logos are shown to identify the station and belong to the stations.
 
 Artist and album details come from [MusicBrainz](https://musicbrainz.org), whose
 core data is in the public domain (CC0), and optionally from

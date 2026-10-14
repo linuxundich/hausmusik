@@ -326,6 +326,6 @@
     <string name="library_more_services">More services</string>
     <string name="settings_local_music">My music (music share)</string>
     <string name="settings_local_music_body">Your Sonos system\'s music share in the library and the search. Off if you only listen through services or browse your collection through bonob.</string>
-    <string name="station_logos_setting">Station logos from radio-browser.info</string>
-    <string name="station_logos_body">Sonos has no logo for saved stations. The stream address and station name go to radio-browser.info, a free station directory; the logos stay stored on this phone.</string>
+    <string name="station_logos_setting">Station logos</string>
+    <string name="station_logos_body">Sonos has no logo for saved stations. Hausmusik asks radio-browser.info (stream address, station name), then Wikidata for the logo on Wikimedia Commons (the station\'s homepage), and otherwise reads the icons the station publishes on its homepage for apps. The logos stay stored on this phone.</string>
 </resources>
