@@ -22,6 +22,8 @@ except ImportError:  # covers are optional
 # --english: English room, album and playlist names, for screenshots on the
 # English README and store page. The tests use the German default.
 EN = "--english" in sys.argv
+# --shots: invented music only and singable lyrics, for German screenshots (--english implies it).
+SHOTS = EN or "--shots" in sys.argv
 
 
 def L(de, en):
@@ -52,7 +54,7 @@ ALBUMS = [  # invented artists and albums
     ("Breadcrumbs", "Josh Woodward", ["#c9d6e8", "#5d7391", "#1f2a3a"],
      ["Border Blaster"]),
 ]
-if EN:  # screenshots show invented music only, not the real CC album
+if SHOTS:  # screenshots show invented music only, not the real CC album
     ALBUMS.pop()
 GENRES = ["Rock", "Folk", "Folk", "Rock", "Pop", "Jazz", "Folk"]  # per album
 RADIO = [("Radio Tuxfunk", "x-rincon-mp3radio://radio.example/tuxfunk", ["#ff5f6d", "#7b2ff7"]),
@@ -850,6 +852,15 @@ LYRICS_EN = [  # invented lines for English screenshots
 ]
 
 
+LYRICS_DE = [
+    "Ich boote langsam an einem Sonntagmorgen", "der Kernel summt ein Lied für mich", "jeder Prozess findet sein Zuhause",
+    "und jedes Paket findet das Meer", "Oh, Pinguin, watschel durch mein Fenster", "bring das Licht aus dem Serverraum",
+    "wir rollen, rollen, niemals stabil", "doch mein Herz hat Langzeitsupport", "grep die Sonne, pipe sie zu mir",
+    "sudo koch mir einen Tee", "die Uptime zählt die Nächte, die wir tanzen", "heute Nacht bootet keiner neu",
+]
+LYRICS = LYRICS_EN if EN else LYRICS_DE
+
+
 LINKS = {}  # linkCode -> confirmed
 SMAPI_TOKEN = "fake-bonob-token"
 
@@ -976,7 +987,7 @@ class Handler(BaseHTTPRequestHandler):
         def entry(t):
             short = t["title"] == "Grep the Sun"
             end = t["dur"] * (1.3 if short else 0.9)
-            lines = [f"[{int(s // 60):02d}:{s % 60:05.2f}] " + (LYRICS_EN[n % len(LYRICS_EN)] if EN else f"{t['title']}, Zeile {n + 1}")
+            lines = [f"[{int(s // 60):02d}:{s % 60:05.2f}] " + (LYRICS[n % len(LYRICS)] if SHOTS else f"{t['title']}, Zeile {n + 1}")
                      for n, s in enumerate(range(8, int(end), 6))]
             return dict(trackName=t["title"], artistName=t["artist"], albumName=t["album"], duration=t["dur"], instrumental=False,
                         plainLyrics="\n".join(l.split("] ", 1)[1] for l in lines), syncedLyrics="\n".join(lines))
@@ -1126,6 +1137,7 @@ if __name__ == "__main__":
     ap.add_argument("--port-base", type=int, default=1401, help="port of the first room; the others follow")
     ap.add_argument("--slow", type=float, default=0, help="seconds every command waits, like a busy S1 (Get/Browse stay fast)")
     ap.add_argument("--english", action="store_true", help="English names for screenshots")
+    ap.add_argument("--shots", action="store_true", help="screenshot mode: invented music only, singable lyrics")
     ap.add_argument("-v", "--verbose", action="store_true")
     ARGS = ap.parse_args()
     ADVERTISE = ARGS.advertise

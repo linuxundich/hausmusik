@@ -1,5 +1,25 @@
 # Development
 
+## Build
+
+Requirements: JDK 21, Android SDK 37.
+
+```sh
+./gradlew :sonos:test :app:assembleDebug
+```
+
+Store texts, graphics and the Google Play checklist are in
+[play-store.md](play-store.md) and `fastlane/metadata/android/`.
+
+### Screenshots
+
+Screenshots come from the fake household, never from real speakers:
+`fake_sonos.py --advertise 10.0.2.2 --english` for English (`--shots` for
+German), the app locale set with
+`adb shell cmd locale set-app-locales de.linuxundich.hausmusik.debug --locales en-US`
+and the status bar in demo mode. Crop to 1080 × 2160 (pixel rows 160 to 2320):
+Google Play accepts at most 2:1.
+
 ## Emulator and the fake household
 
 The emulator sits behind NAT, so the SSDP search cannot reach speakers in the

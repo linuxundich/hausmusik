@@ -13,6 +13,13 @@ All notable changes to Hausmusik are documented here. The format follows
 - Fake household: `--english` for English rooms, albums, playlists and
   invented lyrics, and generated album covers with penguins, sunsets and
   terminals instead of plain circles.
+- Store icon (512 px), feature graphic and screenshots in English and German;
+  `--shots` puts the fake household into screenshot mode in German.
+
+### Changed
+
+- The README is a product page for users; the full feature list and the
+  technical details moved to `docs/FEATURES.md` and `docs/development.md`.
 
 ## [0.1.0] - 2026-10-14
 

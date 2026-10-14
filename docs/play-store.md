@@ -107,14 +107,14 @@ Vollständige Beschreibung:
 
 ### Graphics
 
-- [ ] Icon 512×512 PNG (from the icon geometry, see `docs/icon.png`)
-- [ ] Feature graphic 1024×500
+- [x] Icon 512×512 PNG, full square (Play rounds it), `fastlane/metadata/android/en-US/images/icon.png`
+- [x] Feature graphic 1024×500 per language, `fastlane/metadata/android/<locale>/images/featureGraphic.png`
 - [x] Five phone screenshots, 1080 × 2160 (Play allows at most 2:1), in
       `fastlane/metadata/android/en-US/images/phoneScreenshots/`. Taken from
       the fake household with `fake_sonos.py --english` (invented artists,
       generated covers, English names and lyrics), the app set to English with
       `cmd locale set-app-locales`, the status bar in demo mode
-- [ ] German screenshots (same steps without `--english`, app locale de-DE)
+- [x] German screenshots (`--shots` instead of `--english`, app locale de-DE)
 
 Store texts also live in `fastlane/metadata/android/<locale>/` (title, short
 and full description), the layout F-Droid and `fastlane supply` read.

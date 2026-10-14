@@ -149,8 +149,8 @@ Report: `captures/ux-2026-10-14/BERICHT.md` (git-ignored).
 - [ ] **P0** Closed test with 12 testers for 14 days (new personal accounts)
 - [ ] **P0** Decide the price before the first production release (free cannot become paid)
 - [x] **P0** English screenshots from the fake household (`--english`, generated tux covers), README and fastlane
-- [ ] **P0** Store graphics: icon 512 px, feature graphic
-- [ ] **P1** German screenshots for the store
+- [x] **P0** Store graphics: icon 512 px, feature graphic (EN/DE), in `fastlane/metadata/android/`
+- [x] **P1** German screenshots for the store (`fake_sonos.py --shots`)
 - [ ] **P0** Short video of the notification controls for the foreground service declaration
 - [ ] **P1** Check the Deezer API terms for a paid app
 

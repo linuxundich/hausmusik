@@ -4,79 +4,82 @@
 
 <h1 align="center">Hausmusik</h1>
 
-<p align="center"><strong>Music in every room. A fast, local Sonos controller for Android.</strong></p>
+<p align="center"><strong>Music in every room. Your Sonos speakers, on your Android phone.</strong></p>
 
 <p align="center">
-  Hausmusik talks to your Sonos speakers directly over your home network.
-  No Sonos account, no cloud, no tracking. It also keeps first-generation (S1) players going.
+  Play music, group rooms and set the volume everywhere in the house from one fast, good-looking app.
+  Hausmusik talks to your speakers directly over your home network. No Sonos account, no cloud, no tracking.
 </p>
-
-> [!NOTE]
-> Hausmusik is in early development. Version 0.1.0 is the first public release ([download the APK](https://github.com/linuxundich/hausmusik/releases/latest)); a Google Play release is being prepared.
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_stage.png" alt="The stage: the playing track in the colours of its cover" width="19%">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_rooms.png" alt="Rooms and groups with one volume per room" width="19%">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_queue.png" alt="The queue" width="19%">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_library.png" alt="The library with albums" width="19%">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5_lyrics.png" alt="Synced lyrics" width="19%">
+  <a href="https://github.com/linuxundich/hausmusik/releases/latest"><strong>Download APK</strong></a>
+  &nbsp;·&nbsp; Google Play: coming soon &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
-<p align="center"><sub>Screenshots from the built-in fake household: invented artists and covers.</sub></p>
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_stage.png" alt="The stage: the playing track, large and in the colors of its cover" width="19%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_rooms.png" alt="Every room with its own volume; tick a room to let it play along" width="19%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_queue.png" alt="The queue with covers" width="19%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_library.png" alt="Albums from the music share as a cover grid" width="19%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5_lyrics.png" alt="Synced lyrics over the stage" width="19%">
+</p>
+
+<p align="center"><sub>The artists and covers in the screenshots are invented.</sub></p>
 
 ## What it does
 
-- **The Stage.** The app opens with what is playing, large and in the colors of the cover.
-- **Every room at a glance.** Each group with its own volume and play button. Tick a room to let it play along.
-- **Your library.** Sonos favorites, albums on your music share, radio stations and Sonos playlists.
-- **Details.** Facts, a short Wikipedia text and a picture for the playing artist and album, from MusicBrainz, Wikipedia and the Cover Art Archive, all free sources. Also from the library (long press, or the info button on an album page) and the queue. Off until you switch them on.
-- **Your Sonos, kept tidy.** Add albums, tracks and stations to the Sonos favorites or remove them, add anything to a Sonos playlist, rename and delete playlists, remove tracks from them: a long press in the library.
-- **Line-in.** A speaker's analog input (a record player on a Connect:Amp) shows under Radio and plays in any room.
-- **Everywhere.** One tap lets every room play along, except those you keep out in the settings. Crossfade is a switch in the stage menu.
-- **Shortcuts, widgets, automation.** Long press the app icon for "pause everywhere" and favorites; a small widget plays or pauses one room or starts a favorite there; Tasker and Home Assistant can send the same commands as intents (see [docs/development.md](docs/development.md#commands-from-outside)).
-- **Music video.** For many songs Wikidata knows the official YouTube video; Hausmusik opens it in the YouTube app at the point the speakers play (no ads with YouTube Premium). Otherwise a YouTube search. Off until you switch it on.
-- **Lyrics.** Time-synced lyrics from LRCLIB fill the cover area; tap a line to jump there. When a live version runs off the stored times, press and hold the line being sung and the lyrics follow; the shift is remembered per track. Off until you switch them on.
-- **Extras, each switchable.** Stage light in the cover's colors that dims to house lights in a pause; tap the cover four times in time and light and cover pulse along (the app cannot hear the music, so the beat is yours); a record turning beside the cover for albums; and the night stage, a screensaver while charging with cover, time and the line being sung. Android's "Remove animations" keeps everything still.
-- **Alarms and sound.** Create and edit Sonos alarms, set bass, treble and loudness for every speaker, and a sleep timer that shows how long is left.
-- **No surprises.** Before anything replaces a queue that is not empty, Hausmusik asks: play now, play next or add to the queue.
-- **Part of Android.** Media notification and lock screen controls, a home screen widget and a Quick Settings tile. The volume buttons change the volume of your room, even outside the app.
-- **Built for Android 17.** Jetpack Compose with Material 3 Expressive, English and German.
+### The stage
 
-What is planned next is in [BACKLOG.md](BACKLOG.md).
+Open the app and the music is right there: the playing track, large and in the colors of its cover. Play, skip, seek and set the volume with your thumb. If you like, a stage light glows in the cover's colors, a record turns beside the cover, and while your phone charges it becomes a night screen with cover, time and the line being sung.
 
-## How it works
+### Every room in one place
 
-1. Hausmusik finds your speakers with an SSDP search in your Wi-Fi network, or you enter the address of one speaker.
-2. It controls them with the same local UPnP interface the original Sonos apps used, on port 1400.
-3. Nothing leaves your home network unless you ask for it: lyrics from LRCLIB, artist pictures from Deezer and artist and album details from MusicBrainz and Wikipedia and music videos through Wikidata are off until you switch them on, and a music service you link is asked for its catalogue.
+See at a glance what plays where. Drag one room onto another to play together, tick a room to let it join, give every speaker its own volume or mute a single room. One tap lets the whole house play along, and one tap pauses everything.
 
-The Sonos implementation is based on [noson](https://github.com/janbar/noson) by Jean-Luc Barrière, the library behind [noson-app](https://github.com/janbar/noson-app) and behind [Gnomos](https://github.com/linuxundich/gnomos), Hausmusik's sibling for the GNOME desktop.
+### All your music
 
-Music services that link through a web page (AppLink or DeviceLink, such as [bonob](https://github.com/simojenki/bonob) and Spotify) can be linked under *Library → Services*: Hausmusik opens the service's sign-in page and receives its own token, the way noson does. Browsing and searching use that token; playing goes through the speakers with the account the Sonos system already has, so the service must be set up in the Sonos app first. Services with a user name and password form are not supported.
+Your Sonos favorites, the music share on your network, internet radio, Sonos playlists and the record player on a speaker's line-in. Linked music services such as Spotify can be browsed and searched right in the app. Search finds artists, albums and tracks in your music share and your services at once.
 
-## Build
+### Lyrics and background
 
-Requirements: JDK 21, Android SDK 37.
+Time-synced lyrics fill the stage; tap a line to jump there. For the playing artist and album, Hausmusik shows facts, a short Wikipedia text and a picture, and it can open the official music video in the YouTube app. Each of these is off until you switch it on.
 
-```sh
-./gradlew :sonos:test :app:assembleDebug
-```
+### Queue, alarms and sound
 
-For development without real speakers, `tools/fake-sonos/fake_sonos.py` provides an invented household. See [docs/development.md](docs/development.md).
+- Reorder the queue by dragging, swipe a track away and undo it if you change your mind, or save the queue as a Sonos playlist.
+- Hausmusik asks before anything replaces your queue: play now, play next or add to the queue.
+- Create and edit Sonos alarms, set a sleep timer, adjust bass, treble and loudness for every speaker, and turn on crossfade.
+- Keep your Sonos favorites and playlists tidy without the Sonos app.
 
-Release notes for Google Play, store texts and the console forms are in
-[docs/play-store.md](docs/play-store.md); the privacy policy is
-[PRIVACY.md](PRIVACY.md).
+### Part of your phone
+
+Control the music from the notification and the lock screen, and change the volume of your room with the phone's volume buttons, even outside the app. Home screen widgets, a Quick Settings tile, shortcuts on the app icon and Android's output switcher are included. Tasker and Home Assistant can send commands too.
+
+### A second life for older speakers
+
+Hausmusik works with current Sonos systems and keeps first-generation (S1) players going, which the current Sonos app no longer supports.
+
+## Your privacy
+
+Hausmusik has no account, no ads and no analytics. It talks to your speakers inside your home network. Lyrics, artist pictures, background and music videos come from free online sources only after you switch them on. Details are in the [privacy policy](PRIVACY.md).
+
+## Install
+
+1. Download `hausmusik-<version>.apk` from the [latest release](https://github.com/linuxundich/hausmusik/releases/latest) and open it on your phone (Android 8.0 or newer).
+2. Allow the "Nearby devices" permission when Android asks: Hausmusik needs it to find your speakers.
+
+Your phone needs to be in the same Wi-Fi as the speakers. A Google Play release is coming. Want to build it yourself? See [docs/development.md](docs/development.md).
+
+## More
+
+- [All features](docs/FEATURES.md), including how Hausmusik talks to the speakers · [Changelog](CHANGELOG.md) · [Planned](BACKLOG.md)
+- Found a bug or tested other Sonos hardware? [Open an issue](https://github.com/linuxundich/hausmusik/issues)
+- [Gnomos](https://github.com/linuxundich/gnomos), Hausmusik's sibling for the GNOME desktop
 
 ## Credits
 
-- [noson](https://github.com/janbar/noson) by Jean-Luc Barrière (GPL-3.0-or-later): the Sonos implementation is based on it; it was written anew in Kotlin, no noson source files are included.
-- [SoCo](https://github.com/SoCo/SoCo) (MIT) as a second reference for protocol details.
-- Jetpack libraries, Material Icons, OkHttp, Coil, Dagger/Hilt and Kotlin (Apache-2.0).
-- Lyrics from [LRCLIB](https://lrclib.net), only when switched on.
-- Artist and album facts from [MusicBrainz](https://musicbrainz.org) (CC0) and texts from [Wikipedia](https://www.wikipedia.org) (CC BY-SA), only when switched on.
-
-The full list with licenses is in [NOTICE.md](NOTICE.md) and in the app under Settings, Open source licenses.
+Hausmusik's Sonos support is based on [noson](https://github.com/janbar/noson) by Jean-Luc Barrière, the library behind noson-app and Gnomos. Lyrics come from [LRCLIB](https://lrclib.net), artist and album facts from [MusicBrainz](https://musicbrainz.org) and [Wikipedia](https://www.wikipedia.org). The full list with licenses is in [NOTICE.md](NOTICE.md) and in the app under *Settings → Open source licenses*.
 
 ## Use of AI
 
