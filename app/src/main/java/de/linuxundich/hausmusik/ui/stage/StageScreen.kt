@@ -265,13 +265,11 @@ private data class CoverFx(
 @Composable
 private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifier, fx: CoverFx = CoverFx()) {
     val icon = if (group.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker
-    // A station without a logo: its name on a color of its own, not the same radio for every station.
-    val station = group.nowPlaying?.takeIf { it.kind == SourceKind.Radio && group.artUrl == null }?.station
+    // A station: its named placeholder until (and unless) its logo is there.
+    val station = group.nowPlaying?.takeIf { it.kind == SourceKind.Radio }?.station
     val cover = @Composable { m: Modifier ->
-        if (station != null) {
-            StationPlaceholder(station, m.tapAlong(fx.tempo, fx.onTap).shadow(24.dp, RoundedCornerShape(24.dp)), 24.dp)
-        } else Cover(
-            url = group.artUrl,
+        de.linuxundich.hausmusik.ui.common.NowPlayingCover(
+            url = group.artUrl, station = station,
             modifier = m.tapAlong(fx.tempo, fx.onTap)
                 .graphicsLayer { val s = 1f + 0.03f * fx.pulse; scaleX = s; scaleY = s }
                 .shadow(24.dp, RoundedCornerShape(24.dp)),
@@ -611,12 +609,11 @@ fun StageSidePanel(group: GroupState, colors: CoverColors, actions: StageActions
                 .padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val station = group.nowPlaying?.takeIf { it.kind == SourceKind.Radio && group.artUrl == null }?.station
-                if (station != null) StationPlaceholder(station, Modifier.size(64.dp).shadow(12.dp, RoundedCornerShape(14.dp)), 14.dp, small = true)
-                else Cover(
-                    url = group.artUrl, modifier = Modifier.size(64.dp).shadow(12.dp, RoundedCornerShape(14.dp)), corner = 14.dp,
+                de.linuxundich.hausmusik.ui.common.NowPlayingCover(
+                    url = group.artUrl, station = group.nowPlaying?.takeIf { it.kind == SourceKind.Radio }?.station,
+                    modifier = Modifier.size(64.dp).shadow(12.dp, RoundedCornerShape(14.dp)), corner = 14.dp,
                     placeholderColor = colors.subtle, iconColor = colors.content.copy(alpha = 0.5f),
-                    icon = if (group.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker, keepPrevious = true,
+                    icon = AppIcons.Speaker, small = true, keepPrevious = true,
                 )
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -636,7 +633,8 @@ fun StageSidePanel(group: GroupState, colors: CoverColors, actions: StageActions
  * initials only.
  */
 @Composable
-fun StationPlaceholder(name: String, modifier: Modifier, corner: androidx.compose.ui.unit.Dp, small: Boolean = false) {
+fun StationPlaceholder(fullName: String, modifier: Modifier, corner: androidx.compose.ui.unit.Dp, small: Boolean = false, nameShown: Boolean = true) {
+    val name = stationDisplayName(fullName)
     val hue = (Math.floorMod(name.trim().lowercase().hashCode(), 360)).toFloat()
     val top = Color.hsv(hue, 0.55f, 0.62f)
     val bottom = Color.hsv((hue + 35f) % 360f, 0.65f, 0.32f)
@@ -644,9 +642,14 @@ fun StationPlaceholder(name: String, modifier: Modifier, corner: androidx.compos
         modifier.clip(RoundedCornerShape(corner)).background(Brush.linearGradient(listOf(top, bottom))),
         contentAlignment = Alignment.Center,
     ) {
-        if (small) {
+        if (!nameShown) {
+            // Only the colors: a logo lies on top.
+        } else if (small) {
             val initials = name.split(' ', '-').filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1) }.uppercase()
-            Text(initials, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
+            // Initials sized to the box: 32 dp in the mini player, 64 dp beside the library.
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(initials, color = Color.White, fontSize = (maxWidth.value * 0.34f).sp, fontWeight = FontWeight.Black, maxLines = 1)
+            }
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
                 Icon(AppIcons.Radio, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(40.dp))
@@ -658,4 +661,12 @@ fun StationPlaceholder(name: String, modifier: Modifier, corner: androidx.compos
             }
         }
     }
+}
+
+/** "afk M94.5 (MP3 HQ )" → "afk M94.5", "SWR3 - 128 kbit/s" → "SWR3": no stream details on a placeholder. */
+internal fun stationDisplayName(name: String): String {
+    val tech = Regex("(?i)\\b(mp3|aac\\+?|ogg|opus|flac|hq|lq|hd|kbit|kbps|\\d{2,3}\\s*k(bit)?(/s)?|stream|low|high)\\b")
+    var s = name.replace(Regex("\\s*[(\\[][^)\\]]*[)\\]]")) { m -> if (tech.containsMatchIn(m.value)) "" else m.value }
+    s = s.replace(Regex("\\s+[-|–]\\s+[^-|–]*$")) { m -> if (tech.containsMatchIn(m.value)) "" else m.value }
+    return s.trim().ifEmpty { name.trim() }
 }

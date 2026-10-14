@@ -770,9 +770,11 @@ private fun CompactMiniPlayer(group: GroupState, onOpen: () -> Unit, onPlayPause
         modifier = Modifier.padding(horizontal = 4.dp).widthIn(max = 260.dp),
     ) {
         Row(Modifier.padding(start = 4.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-            Cover(group.artUrl, Modifier.size(32.dp), corner = 16.dp,
+            de.linuxundich.hausmusik.ui.common.NowPlayingCover(
+                group.artUrl, group.nowPlaying?.takeIf { it.kind == de.linuxundich.hausmusik.sonos.SourceKind.Radio }?.station,
+                Modifier.size(32.dp), corner = 16.dp,
                 placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                icon = if (group.nowPlaying?.kind == de.linuxundich.hausmusik.sonos.SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker)
+                icon = AppIcons.Speaker, small = true)
             val starting = LocalStarting.current
             Text(
                 starting?.let { stringResource(R.string.starting, it) } ?: group.nowPlaying?.title ?: stringResource(R.string.nothing_playing),
@@ -794,9 +796,11 @@ private fun MiniPlayer(group: GroupState, onOpen: () -> Unit, onPlayPause: () ->
         modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Cover(group.artUrl, Modifier.size(44.dp), corner = 10.dp,
+            de.linuxundich.hausmusik.ui.common.NowPlayingCover(
+                group.artUrl, group.nowPlaying?.takeIf { it.kind == de.linuxundich.hausmusik.sonos.SourceKind.Radio }?.station,
+                Modifier.size(44.dp), corner = 10.dp,
                 placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                icon = if (group.nowPlaying?.kind == de.linuxundich.hausmusik.sonos.SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker)
+                icon = AppIcons.Speaker, small = true)
             // A started queue can take seconds: say so at once instead of showing the old title.
             val starting = LocalStarting.current
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {

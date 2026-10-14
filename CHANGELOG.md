@@ -15,7 +15,13 @@ All notable changes to Hausmusik are documented here. The format follows
   logo Wikidata keeps on Wikimedia Commons comes first (only for the item
   whose official website is the station's homepage; vector logos render
   sharp at 512 px), then the icons the station publishes on its homepage
-  for apps (96 px and more), and only then the directory's own picture. Off until switched on in Settings; logos are
+  for apps (96 px and more), and only then the directory's own picture.
+  Logos show whole and centered on the station's colors (wide or
+  transparent wordmarks are not cropped). Until a logo is there, and when
+  none is found or it does not load, the station's named placeholder shows
+  everywhere (stage, mini player, room tiles), without stream details such
+  as "(MP3 HQ)". Fixed: Wikimedia refused the logos with HTTP 403, as the
+  picture loader sent no User-Agent of its own. Off until switched on in Settings; logos are
   kept on the phone for a month. Without a logo the stage shows the station's
   name on a gradient in a color drawn from the name (initials beside the
   library), instead of the same radio icon for every station. The stage takes its colors from the logo, as from a

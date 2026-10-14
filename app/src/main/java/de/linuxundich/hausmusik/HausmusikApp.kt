@@ -48,6 +48,11 @@ class HausmusikApp : Application(), SingletonImageLoader.Factory {
             .callTimeout(45, java.util.concurrent.TimeUnit.SECONDS)
             .dispatcher(okhttp3.Dispatcher().apply { maxRequestsPerHost = 3 })
             .addInterceptor(de.linuxundich.hausmusik.data.covers.SingleFlight())
+            // Wikimedia (station logos) refuses okhttp's own User-Agent with 403.
+            .addInterceptor { chain ->
+                val r = chain.request()
+                chain.proceed(if (r.header("User-Agent") != null) r else r.newBuilder().header("User-Agent", USER_AGENT).build())
+            }
             .build()
         return ImageLoader.Builder(context)
             .components { add(OkHttpNetworkFetcherFactory(callFactory = { covers })) }
@@ -58,5 +63,9 @@ class HausmusikApp : Application(), SingletonImageLoader.Factory {
                     .build()
             }
             .build()
+    }
+
+    private companion object {
+        val USER_AGENT = "Hausmusik/${BuildConfig.VERSION_NAME} (https://github.com/linuxundich/hausmusik)"
     }
 }

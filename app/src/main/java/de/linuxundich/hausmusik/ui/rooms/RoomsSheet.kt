@@ -290,10 +290,9 @@ private fun GroupTile(
     ) {
         Column(Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Cover(
-                    g.artUrl, Modifier.size(44.dp), corner = 10.dp, placeholderColor = colors.subtle,
-                    iconColor = colors.content.copy(alpha = 0.5f),
-                    icon = if (g.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker,
+                de.linuxundich.hausmusik.ui.common.NowPlayingCover(
+                    g.artUrl, g.nowPlaying?.takeIf { it.kind == SourceKind.Radio }?.station, Modifier.size(44.dp), corner = 10.dp,
+                    placeholderColor = colors.subtle, iconColor = colors.content.copy(alpha = 0.5f), icon = AppIcons.Speaker, small = true,
                 )
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { actions.onPlayPause(g.id) }, enabled = g.nowPlaying != null) {
