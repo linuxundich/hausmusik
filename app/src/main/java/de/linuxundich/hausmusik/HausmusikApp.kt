@@ -23,6 +23,8 @@ class HausmusikApp : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var covers: de.linuxundich.hausmusik.data.covers.CoverPrefetcher
     // Created at start so its cover lookup is in place before the first read.
     @Inject lateinit var services: de.linuxundich.hausmusik.data.services.MusicServices
+    // Likewise the station logos, for the stage, the widget and the notification.
+    @Inject lateinit var stationLogos: de.linuxundich.hausmusik.data.StationLogos
 
     override fun onCreate() {
         super.onCreate()

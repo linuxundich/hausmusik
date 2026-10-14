@@ -113,6 +113,8 @@ data class StageActions(
     val onRoomVolumes: () -> Unit = {},
     /** Mutes or unmutes a single room (not used for groups: see VolumeRow). */
     val onMute: (Boolean) -> Unit = {},
+    /** Set while station logos are off: a station without a cover offers to switch them on. */
+    val onEnableStationLogos: (() -> Unit)? = null,
 )
 
 /** Commands the speakers have not confirmed yet: the play button, or anything else. */
@@ -175,6 +177,7 @@ fun StageScreen(
         tempo = tempo, pulse = pulse, lastTap = lastTap,
         turntable = effects.turntable && !still && turntableFits(group.nowPlaying?.kind),
         onTap = { lastTap = System.currentTimeMillis(); haptic() },
+        onEnableStationLogos = actions.onEnableStationLogos,
     )
     val playBusy = delayed(busy.play)
     val otherBusy = delayed(busy.other)
@@ -260,6 +263,7 @@ private data class CoverFx(
     val lastTap: Long = 0L,
     val turntable: Boolean = false,
     val onTap: () -> Unit = {},
+    val onEnableStationLogos: (() -> Unit)? = null,
 )
 
 @Composable
@@ -289,6 +293,13 @@ private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifie
             cover(Modifier.fillMaxSize())
         }
         if (fx.tempo != null) TapNote(fx.tempo, fx.lastTap, colors, Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp))
+        // A station without a logo: offer to look it up (off until asked: it goes to radio-browser.info).
+        val enableLogos = fx.onEnableStationLogos
+        if (enableLogos != null && group.artUrl == null && group.nowPlaying?.kind == SourceKind.Radio) {
+            androidx.compose.material3.TextButton(onClick = enableLogos, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp)) {
+                Text(stringResource(R.string.station_logo_offer), color = colors.content.copy(alpha = 0.85f), fontSize = 13.sp)
+            }
+        }
     }
 }
 

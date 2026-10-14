@@ -38,6 +38,7 @@ class MainViewModel @Inject constructor(
     private val lyricsRepo: LyricsRepository,
     private val detailsRepo: DetailsRepository,
     private val videos: de.linuxundich.hausmusik.data.MusicVideos,
+    private val stationLogos: de.linuxundich.hausmusik.data.StationLogos,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
 
@@ -93,6 +94,12 @@ class MainViewModel @Inject constructor(
     suspend fun artistDetails(name: String) = detailsRepo.artist(name)
     suspend fun albumDetails(title: String, artist: String?) = detailsRepo.album(title, artist)
 
+    val stationLogosEnabled: StateFlow<Boolean> = settings.stationLogosEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    fun setStationLogosEnabled(on: Boolean) = viewModelScope.launch {
+        settings.setStationLogosEnabled(on)
+        if (on) repo.refreshAll()
+    }
+
     val localMusic: StateFlow<Boolean> = settings.localMusicEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     fun setLocalMusic(on: Boolean) = viewModelScope.launch { settings.setLocalMusicEnabled(on) }
 
@@ -124,6 +131,7 @@ class MainViewModel @Inject constructor(
         repo.clearListCache()
         detailsRepo.clear()
         videos.clear()
+        stationLogos.clear()
         _messages.send(R.string.cache_cleared)
     }
 

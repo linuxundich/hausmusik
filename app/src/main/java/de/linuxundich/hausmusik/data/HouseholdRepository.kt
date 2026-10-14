@@ -91,9 +91,18 @@ class HouseholdRepository @Inject constructor(
      */
     @Volatile var coverResolver: ((String) -> String?)? = null
 
+    /** A radio station's logo by stream address and name, when Sonos gives no cover (StationLogos). */
+    @Volatile var stationLogo: ((String, String?) -> String?)? = null
+
     /** The best cover URL known right now: the service's own, else the speaker's. Never waits. */
     fun coverFor(c: SonosPlayerClient, albumArtUri: String?): String? =
         albumArtUri?.let { uri -> coverResolver?.invoke(uri) } ?: c.absoluteArtUrl(albumArtUri)
+
+    /** Reads every group again soon: a station logo turned up, and any room may play that station. */
+    fun refreshAll() {
+        pendingGroups += _state.value.groups.map { it.id }
+        refreshNow()
+    }
 
     /** Reads the selected room again soon, e.g. when a better cover turned up. */
     fun refreshSelected() {
@@ -505,7 +514,9 @@ class HouseholdRepository @Inject constructor(
         var next = gs.copy(
             transport = transport.await(),
             nowPlaying = now,
-            artUrl = coverFor(c, now?.albumArtUri),
+            artUrl = coverFor(c, now?.albumArtUri)
+                ?: now?.takeIf { it.kind == de.linuxundich.hausmusik.sonos.SourceKind.Radio }
+                    ?.let { n -> media.await().currentUri?.let { stationLogo?.invoke(it, n.station) } },
             queueLength = media.await().numberOfTracks,
             positionReadAt = System.currentTimeMillis(),
         )

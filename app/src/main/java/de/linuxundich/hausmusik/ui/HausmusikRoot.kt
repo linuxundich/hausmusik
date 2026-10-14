@@ -139,6 +139,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var details by rememberSaveable(saver = detailsSaver) { mutableStateOf<DetailsTarget?>(null) }
     var videoOpen by rememberSaveable { mutableStateOf(false) }
     val videosOn by vm.musicVideosEnabled.collectAsStateWithLifecycle()
+    val stationLogosOn by vm.stationLogosEnabled.collectAsStateWithLifecycle()
     val videoMode by vm.musicVideoMode.collectAsStateWithLifecycle()
     var lyricsConsent by rememberSaveable { mutableStateOf(false) }
     val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
@@ -204,6 +205,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         onSound = { soundOpen = true },
         onRoomVolumes = { volumeOpen = true },
         onMute = { m -> vm.setMemberMute(selected.id, selected.group.coordinator, m) },
+        onEnableStationLogos = if (stationLogosOn) null else ({ vm.setStationLogosEnabled(true) }),
         onSettings = { stack.add(Screen.Settings) },
         onDetails = { now?.let { details = DetailsTarget.of(it) } },
         crossfadeOn = selected.crossfade,
@@ -257,7 +259,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 SettingsState(
                     manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn, detailsOn, detailsWikipedia,
                     rooms = household.allPlayers.filter { !it.isInvisible }.map { it.uuid to it.roomName }, everywhereExcluded = everywhereExcluded,
-                    musicVideos = videosOn, videoMode = videoMode, effects = effects, askBeforeReplace = askBeforeReplace, localMusic = localMusic,
+                    musicVideos = videosOn, videoMode = videoMode, effects = effects, askBeforeReplace = askBeforeReplace, localMusic = localMusic, stationLogos = stationLogosOn,
                 ),
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
@@ -270,6 +272,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onEffects = { vm.setEffects(it) },
                 onAskBeforeReplace = { vm.setAskBeforeReplace(it) },
                 onLocalMusic = { vm.setLocalMusic(it) },
+                onStationLogos = { vm.setStationLogosEnabled(it) },
                 onLicenses = { stack.add(Screen.Licenses) },
                 onClearCache = vm::clearListCache,
                 onBack = { stack.removeAt(stack.lastIndex) },

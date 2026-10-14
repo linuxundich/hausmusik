@@ -49,6 +49,7 @@ data class SettingsState(val manualHost: String?, val connectedTo: String?, val 
     val effects: de.linuxundich.hausmusik.data.Effects = de.linuxundich.hausmusik.data.Effects(),
     val askBeforeReplace: Boolean = true,
     val localMusic: Boolean = true,
+    val stationLogos: Boolean = false,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,6 +67,7 @@ fun SettingsScreen(
     onEffects: (de.linuxundich.hausmusik.data.Effects) -> Unit = {},
     onAskBeforeReplace: (Boolean) -> Unit = {},
     onLocalMusic: (Boolean) -> Unit = {},
+    onStationLogos: (Boolean) -> Unit = {},
     onLicenses: () -> Unit,
     onClearCache: () -> Unit,
     onBack: () -> Unit,
@@ -136,6 +138,7 @@ fun SettingsScreen(
                 Switch(checked = state.artistImagesEnabled, onCheckedChange = onArtistImages)
             }
             Text(stringResource(R.string.artist_images_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            EffectSwitch(R.string.station_logos_setting, R.string.station_logos_body, state.stationLogos, onStationLogos)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.details_setting), Modifier.weight(1f))
                 Switch(checked = state.detailsEnabled, onCheckedChange = onDetails)

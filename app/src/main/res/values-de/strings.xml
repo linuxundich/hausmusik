@@ -324,4 +324,7 @@
     <string name="library_more_services">Mehr Dienste</string>
     <string name="settings_local_music">Meine Musik (Musikfreigabe)</string>
     <string name="settings_local_music_body">Die Musikfreigabe deines Sonos-Systems in Bibliothek und Suche. Aus, wenn du nur über Dienste hörst oder deine Sammlung über bonob durchsuchst.</string>
+    <string name="station_logo_offer">Senderlogo von radio-browser.info laden</string>
+    <string name="station_logos_setting">Senderlogos von radio-browser.info</string>
+    <string name="station_logos_body">Sonos kennt für gespeicherte Sender kein Logo. Dafür gehen Streamadresse und Sendername an radio-browser.info, ein freies Senderverzeichnis; die Logos bleiben auf diesem Handy gespeichert.</string>
 </resources>

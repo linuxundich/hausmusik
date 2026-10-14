@@ -62,7 +62,7 @@ Hausmusik works with current Sonos systems and keeps first-generation (S1) playe
 
 ## Your privacy
 
-Hausmusik has no account, no ads and no analytics. It talks to your speakers inside your home network. Lyrics, artist pictures, background and music videos come from free online sources only after you switch them on. Details are in the [privacy policy](PRIVACY.md).
+Hausmusik has no account, no ads and no analytics. It talks to your speakers inside your home network. Lyrics, artist pictures, background, music videos and station logos come from free online sources only after you switch them on. Details are in the [privacy policy](PRIVACY.md).
 
 ## Install
 

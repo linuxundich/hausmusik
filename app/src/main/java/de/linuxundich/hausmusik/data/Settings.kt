@@ -86,6 +86,13 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
     suspend fun setMusicVideosEnabled(on: Boolean) = store.edit { it[videosKey] = on }
     suspend fun setMusicVideoMode(mode: VideoMode) = store.edit { it[videoModeKey] = mode.name }
 
+    private val stationLogosKey = booleanPreferencesKey("station_logos_enabled")
+
+    /** Logos of radio stations from radio-browser.info; off until the user agrees (stream addresses go there). */
+    val stationLogosEnabled: Flow<Boolean> = store.data.map { it[stationLogosKey] ?: false }
+
+    suspend fun setStationLogosEnabled(on: Boolean) = store.edit { it[stationLogosKey] = on }
+
     private val localMusicKey = booleanPreferencesKey("local_music_enabled")
 
     /**

@@ -37,6 +37,7 @@ it sees your IP address.
 | Artist and album details | MusicBrainz (musicbrainz.org), Cover Art Archive (coverartarchive.org) | Artist and album name, MusicBrainz IDs |
 | Wikipedia text and pictures | Wikidata, Wikipedia, Wikimedia Commons | Wikidata and Wikipedia page IDs |
 | Music videos | Wikidata (query.wikidata.org) | Title and artist; the video then opens in the YouTube app or your browser |
+| Station logos | radio-browser.info | Stream address and name of the playing station; the logo is then loaded from the station's own site |
 | Music services (e.g. Spotify, bonob) | The music service you link | The sign-in runs on the service's own web page in your browser; afterwards the app uses the service's token to browse and search |
 
 ## Children
