@@ -8,3 +8,4 @@ local.properties
 .idea/
 captures/
 CLAUDE.md
+__pycache__/

@@ -11,41 +11,52 @@ generated album covers. Nothing here talks to real speakers.
 
 Then point the app at 10.0.2.2:1401 (debug settings).
 """
-import argparse, html, io, json, re, threading, time, urllib.parse, uuid
+import argparse, html, io, json, re, sys, threading, time, urllib.parse, uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 try:
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
 except ImportError:  # covers are optional
     Image = None
 
+# --english: English room, album and playlist names, for screenshots on the
+# English README and store page. The tests use the German default.
+EN = "--english" in sys.argv
+
+
+def L(de, en):
+    return en if EN else de
+
+
 ROOMS = [  # port, uuid, room, model, icon
-    (1401, "RINCON_FAKE000000101400", "Wohnzimmer", "Five", "living"),
-    (1402, "RINCON_FAKE000000201400", "Küche", "Era 100", "kitchen"),
-    (1403, "RINCON_FAKE000000301400", "Arbeitszimmer", "Play:3", "office"),
-    (1404, "RINCON_FAKE000000401400", "Bad", "Play:1", "bathroom"),
+    (1401, "RINCON_FAKE000000101400", L("Wohnzimmer", "Living Room"), "Five", "living"),
+    (1402, "RINCON_FAKE000000201400", L("Küche", "Kitchen"), "Era 100", "kitchen"),
+    (1403, "RINCON_FAKE000000301400", L("Arbeitszimmer", "Office"), "Play:3", "office"),
+    (1404, "RINCON_FAKE000000401400", L("Bad", "Bathroom"), "Play:1", "bathroom"),
 ]
 
 ALBUMS = [  # invented artists and albums
-    ("Kernel Panic Ballads", "Penny Guin", ["#e2a84b", "#b2462e", "#3a1f2b"],
+    ("Kernel Panic Ballads", "Penny Guin", ["#ffb347", "#ff3d7f", "#2b0b4a"],
      ["Border of the Stack", "Segfault Serenade", "Uptime", "Swap on Me", "Init 0"]),
-    ("Rolling Release", "Arch Ibald Trio", ["#5fa3a8", "#1d4e6b", "#0f2233"],
+    ("Rolling Release", "Arch Ibald Trio", ["#38f9d7", "#2a5bd7", "#0b1240"],
      ["Pacman Syncs", "Bleeding Edge", "AUR Lullaby", "Rebase Blues"]),
-    ("Long Term Support", "Debby Ann & The Packages", ["#a6c27a", "#4b7a3d", "#1c2e1a"],
+    ("Long Term Support", "Debby Ann & The Packages", ["#ffd23f", "#3bceac", "#0e2a47"],
      ["Stable", "Backports", "Five Years", "Point Release"]),
-    ("Hutmacher", "Fedora Hutmacher", ["#c58fd6", "#6a3d8f", "#24143a"],
+    (L("Hutmacher", "Hat Trick"), "Fedora Hutmacher", ["#ffe14d", "#ff4fa3", "#3d1a78"],
      ["Red Hat Rag", "Rawhide", "Silverblue", "Spin"]),
-    ("Pinguinzoo", "Tina Tux", ["#f2d06b", "#e07a3a", "#7c2a2a"],
+    (L("Pinguinzoo", "Penguin Parade"), "Tina Tux", ["#ffcf70", "#ff7a59", "#5b2a86"],
      ["Ice Floe", "Waddle", "Fish Supper", "Colony", "Snow Crash"]),
-    ("Frühstück im Terminal", "Pac Mann", ["#d9d2c3", "#8f8a7c", "#3f3b35"],
-     ["Kaffee und Cron", "Bashrc", "Grep the Sun"]),
+    (L("Frühstück im Terminal", "Breakfast in the Terminal"), "Pac Mann", ["#ff9f43", "#e8573d", "#2b1d1a"],
+     [L("Kaffee und Cron", "Coffee and Cron"), "Bashrc", "Grep the Sun"]),
     # Real and CC BY 4.0 (joshwoodward.com), so lyrics can be tested against LRCLIB.
     ("Breadcrumbs", "Josh Woodward", ["#c9d6e8", "#5d7391", "#1f2a3a"],
      ["Border Blaster"]),
 ]
+if EN:  # screenshots show invented music only, not the real CC album
+    ALBUMS.pop()
 GENRES = ["Rock", "Folk", "Folk", "Rock", "Pop", "Jazz", "Folk"]  # per album
-RADIO = [("Radio Tuxfunk", "x-rincon-mp3radio://radio.example/tuxfunk", ["#4f7c93", "#1f3a4a"]),
-         ("Kernel FM", "x-rincon-mp3radio://radio.example/kernelfm", ["#9c7b2c", "#3a2c10"])]
+RADIO = [("Radio Tuxfunk", "x-rincon-mp3radio://radio.example/tuxfunk", ["#ff5f6d", "#7b2ff7"]),
+         ("Kernel FM", "x-rincon-mp3radio://radio.example/kernelfm", ["#00c6ff", "#0a3d91"])]
 
 ALARMS = {"1": {"StartTime": "06:45:00", "Duration": "01:00:00", "Recurrence": "WEEKDAYS", "Enabled": "1",
                "RoomUUID": "RINCON_FAKE000000301400", "ProgramURI": "x-rincon-mp3radio://radio.example/kernelfm",
@@ -53,9 +64,9 @@ ALARMS = {"1": {"StartTime": "06:45:00", "Duration": "01:00:00", "Recurrence": "
           "2": {"StartTime": "09:30:00", "Duration": "00:30:00", "Recurrence": "WEEKENDS", "Enabled": "0",
                "RoomUUID": "RINCON_FAKE000000101400", "ProgramURI": "x-rincon-buzzer:0",
                "ProgramMetaData": "", "PlayMode": "NORMAL", "Volume": "20", "IncludeLinkedZones": "1"}}
-SAVED = [("Morgens", [])]  # Sonos playlists: (title, tracks); a deleted one becomes None so the IDs stay
+SAVED = [(L("Morgens", "Mornings"), [])]  # Sonos playlists: (title, tracks); a deleted one becomes None so the IDs stay
 FAVS_EXTRA, FAVS_REMOVED = [], set()  # favorites added and removed through CreateObject/DestroyObject
-LINE_IN = {"Wohnzimmer": "Plattenspieler"}  # rooms with an analog input and its name
+LINE_IN = {L("Wohnzimmer", "Living Room"): L("Plattenspieler", "Turntable")}  # rooms with an analog input and its name
 TRACKS = []
 for ai, (album, artist, colors, titles) in enumerate(ALBUMS):
     for ti, t in enumerate(titles):
@@ -64,7 +75,7 @@ for ai, (album, artist, colors, titles) in enumerate(ALBUMS):
                            uri=f"x-file-cifs://nas/music/{ai}/{ti}.mp3", nr=ti + 1))
 
 lock = threading.Lock()
-SAVED[0] = ("Morgens", TRACKS[14:20])
+SAVED[0] = (SAVED[0][0], TRACKS[14:20])
 ADVERTISE = "127.0.0.1"
 
 
@@ -545,29 +556,298 @@ class Fault(Exception):
 COVERS = {}
 
 
+FONT_DIRS = ["/usr/share/fonts/noto/", "/usr/share/fonts/TTF/", "/usr/share/fonts/truetype/noto/"]
+
+
+def font(name, size):
+    """A system font if there is one, else Pillow's built-in font."""
+    for d in FONT_DIRS:
+        try:
+            return ImageFont.truetype(d + name, size)
+        except OSError:
+            pass
+    return ImageFont.load_default(size)
+
+
+def rgb(c):
+    return tuple(int(c[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def mix(a, b, f):
+    return tuple(int(a[i] + (b[i] - a[i]) * f) for i in range(3))
+
+
+def gradient(d, size, cols, top=0, bottom=None):
+    bottom = size if bottom is None else bottom
+    for y in range(top, bottom):
+        f = (y - top) / max(1, bottom - top - 1) * (len(cols) - 1)
+        seg = min(int(f), len(cols) - 2)
+        d.line([(0, y), (size, y)], fill=mix(cols[seg], cols[seg + 1], f - seg))
+
+
+def caption(d, size, title, artist, color, title_font, y=None, align="left"):
+    """Title and artist at the bottom (or at y), like a printed sleeve."""
+    tf, af = font(title_font, 46), font("NotoSans-Medium.ttf", 24)
+    for size_ in range(46, 24, -2):  # shrink long titles to fit the sleeve
+        tf = font(title_font, size_)
+        if d.textlength(title, font=tf) <= size - 80:
+            break
+    y = size - 110 if y is None else y
+    x = 40
+    if align == "center":
+        x = (size - d.textlength(title, font=tf)) / 2
+    d.text((x, y), title, font=tf, fill=color)
+    ax = 40 if align == "left" else (size - d.textlength(artist.upper(), font=af)) / 2
+    d.text((ax, y + 58), artist.upper(), font=af, fill=color)
+
+
+def glow(img, draw_fn, radius=18, strength=1.0):
+    """Draws a shape twice: blurred underneath for a neon glow, sharp on top."""
+    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    draw_fn(ImageDraw.Draw(layer))
+    blurred = layer.filter(ImageFilter.GaussianBlur(radius))
+    for _ in range(int(strength * 2)):
+        img.alpha_composite(blurred)
+    img.alpha_composite(layer)
+
+
+TUX_CACHE = {}
+
+
+def tux_sprite(w, body=(22, 22, 30)):
+    """A Tux-like penguin, drawn four times larger and scaled down for smooth edges."""
+    key = (w, body)
+    if key in TUX_CACHE:
+        return TUX_CACHE[key]
+    k = 4 * w / 200  # design box 200 x 240
+    big = Image.new("RGBA", (int(200 * k), int(240 * k)), (0, 0, 0, 0))
+    g = ImageDraw.Draw(big)
+    E = lambda box, fill: g.ellipse([v * k for v in box], fill=fill)
+    for side, box in ((-1, (8, 95, 62, 200)), (1, (138, 95, 192, 200))):  # flippers
+        fl = Image.new("RGBA", big.size, (0, 0, 0, 0))
+        ImageDraw.Draw(fl).ellipse([v * k for v in box], fill=body)
+        cx, cy = (box[0] + box[2]) / 2 * k, box[1] * k
+        big.alpha_composite(fl.rotate(side * -22, center=(cx, cy), resample=Image.BICUBIC))
+    belly, beak, beak2 = (246, 242, 232), (255, 176, 30), (226, 128, 10)
+    E((48, 205, 102, 236), beak2); E((98, 205, 152, 236), beak2)  # feet
+    E((34, 62, 166, 226), body)  # body
+    E((52, 8, 148, 104), body)  # head
+    E((56, 92, 144, 222), belly)
+    E((66, 34, 102, 84), belly); E((98, 34, 134, 84), belly); E((64, 58, 136, 112), belly)  # face
+    for ex in (80, 104):
+        E((ex, 50, ex + 15, 68), (20, 20, 26)); E((ex + 3, 53, ex + 8, 59), (255, 255, 255))
+    E((80, 68, 120, 86), beak); E((86, 79, 114, 94), beak2)
+    sprite = big.resize((w, int(240 * w / 200)), Image.LANCZOS)
+    TUX_CACHE[key] = sprite
+    return sprite
+
+
+def penguin(img, x, y, s, body=(22, 22, 30)):
+    """A penguin about 70*s px wide with its top-left corner at x, y, with a soft shadow."""
+    sp = tux_sprite(int(70 * s), body)
+    sh = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).ellipse([x + 6 * s, y + sp.height - 8 * s, x + sp.width - 6 * s, y + sp.height + 6 * s], fill=(0, 0, 0, 90))
+    img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(4)))
+    img.alpha_composite(sp, (int(x), int(y)))
+
+
+def cover_sunset(img, d, n, c, title, artist):
+    gradient(d, n, [c[2], c[1], c[0]], 0, int(n * .6))
+    d.rectangle([0, int(n * .6), n, n], fill=(20, 4, 40))
+    cx, cy, r = n // 2, int(n * .48), 140
+    def sun(g):
+        for y in range(cy - r, cy + r):
+            f = (y - cy + r) / (2 * r)
+            half = int((r * r - (y - cy) ** 2) ** .5)
+            g.line([(cx - half, y), (cx + half, y)], fill=mix((255, 236, 110), (255, 60, 140), f) + (255,))
+        for i, y in enumerate(range(cy + 10, cy + r, 20)):
+            g.rectangle([0, y, n, y + 3 + i * 2], fill=(0, 0, 0, 0))
+    glow(img, sun, 30)
+    def grid(g):
+        hz = int(n * .6)
+        for i in range(-12, 13):
+            g.line([(cx, hz), (cx + i * 80, n)], fill=(255, 61, 200, 255), width=2)
+        for k in range(1, 9):
+            y = hz + int((k / 8) ** 2 * (n - hz))
+            g.line([(0, y), (n, y)], fill=(255, 61, 200, 255), width=2)
+    glow(img, grid, 6)
+    d = ImageDraw.Draw(img)
+    penguin(img, 440, 300, .9, body=(10, 2, 24))
+    for size_ in range(56, 30, -2):
+        tf = font("NotoSerif-BoldItalic.ttf", size_)
+        if d.textlength(title, font=tf) <= n - 60:
+            break
+    def title_(g):
+        w = g.textlength(title, font=tf)
+        g.text(((n - w) / 2, 470), title, font=tf, fill=(120, 255, 240, 255))
+    glow(img, title_, 10)
+    d = ImageDraw.Draw(img)
+    af = font("NotoSans-Bold.ttf", 22)
+    w = d.textlength(artist.upper(), font=af)
+    d.text(((n - w) / 2, 545), artist.upper(), font=af, fill=(255, 220, 240))
+
+
+def cover_waves(img, d, n, c, title, artist):
+    import math
+    gradient(d, n, [c[2], mix(c[2], c[1], .5)])
+    def waves(g):
+        for k in range(16):
+            y0 = 200 + k * 20
+            col = mix(c[0], (255, 80, 200), k / 15) + (255,)
+            pts = [(x, y0 + 34 * math.sin(x / 65 + k * .4) * (1 - k / 40)) for x in range(-10, n + 10, 8)]
+            g.line(pts, fill=col, width=3)
+    glow(img, waves, 12)
+    d = ImageDraw.Draw(img)
+    d.text((38, 40), title.upper(), font=font("NotoSans-Black.ttf", 58), fill=(255, 255, 255))
+    d.text((42, 110), artist.upper(), font=font("NotoSans-Bold.ttf", 22), fill=c[0])
+    d.text((42, n - 52), "STEREO  ·  TUX RECORDS", font=font("NotoSans-Bold.ttf", 16), fill=(180, 200, 255))
+
+
+def cover_boxes(img, d, n, c, title, artist):
+    gradient(d, n, [c[2], (30, 20, 70)])
+    pal = [(255, 210, 63), (59, 206, 172), (255, 90, 120), (90, 140, 255), (255, 150, 60), (190, 110, 255)]
+    import random
+    rnd = random.Random(3)
+    for row in range(5):
+        for col in range(5):
+            x, y = 40 + col * 106, 40 + row * 78
+            fill = pal[rnd.randrange(len(pal))]
+            d.rounded_rectangle([x + 4, y + 6, x + 96, y + 70], 10, fill=(0, 0, 0))  # shadow
+            d.rounded_rectangle([x, y, x + 92, y + 64], 10, fill=fill)
+            d.rectangle([x + 40, y, x + 52, y + 64], fill=mix(fill, (255, 255, 255), .45))  # tape
+    penguin(img, 255, 300, 1.0)
+    d.text((40, n - 120), title, font=font("NotoSans-Black.ttf", 50), fill=(255, 255, 255))
+    d.text((42, n - 60), artist.upper(), font=font("NotoSans-Bold.ttf", 22), fill=(255, 210, 63))
+
+
+def cover_hat(img, d, n, c, title, artist):
+    d.rectangle([0, 0, n, n], fill=c[0])
+    for yy in range(0, n, 22):  # pop-art halftone
+        for xx in range(0, n, 22):
+            r = 2 + 8 * ((xx + yy) / (2 * n))
+            d.ellipse([xx - r, yy - r, xx + r, yy + r], fill=c[1])
+    cx = n // 2
+    penguin(img, cx - 75, 250, 2.5)
+    d.ellipse([cx - 160, 250, cx + 160, 300], fill=(25, 12, 40))
+    d.rounded_rectangle([cx - 90, 140, cx + 90, 280], 40, fill=(25, 12, 40))
+    d.rectangle([cx - 90, 240, cx + 90, 262], fill=c[0])
+    tf = font("NotoSans-Black.ttf", 64)
+    for off, col in ((6, (25, 12, 40)), (0, (255, 255, 255))):
+        d.text((40 + off, 40 + off), title.upper(), font=tf, fill=col)
+    d.text((44, 118), artist.upper(), font=font("NotoSans-Bold.ttf", 22), fill=(25, 12, 40))
+
+
+def cover_penguins(img, d, n, c, title, artist):
+    gradient(d, n, [c[2], c[1], c[0]], 0, int(n * .66))
+    d.ellipse([200, 250, 400, 450], fill=(255, 236, 170))
+    d.rectangle([0, int(n * .66), n, n], fill=(70, 150, 220))
+    for i in range(6):  # sun reflection
+        d.rectangle([260 - i * 6, 400 + i * 16, 340 + i * 6, 404 + i * 16], fill=(255, 220, 160))
+    d.polygon([(0, 420), (180, 390), (330, 420), (330, 470), (0, 480)], fill=(240, 248, 255))
+    d.polygon([(330, 410), (520, 380), (n, 400), (n, 460), (330, 470)], fill=(222, 238, 252))
+    for x, y, s in [(40, 318, 1.25), (140, 342, 1.0), (380, 290, 1.4), (500, 322, .95)]:
+        penguin(img, x, y, s)
+    d.text((40, 40), title, font=font("NotoSans-Black.ttf", 58), fill=(255, 255, 255))
+    d.text((44, 108), artist.upper(), font=font("NotoSans-Bold.ttf", 22), fill=(255, 236, 170))
+
+
+def cover_terminal(img, d, n, c, title, artist):
+    gradient(d, n, [c[0], c[1]])
+    d.rounded_rectangle([46, 76, 416, 384], 18, fill=(0, 0, 0))  # shadow
+    d.rounded_rectangle([40, 66, 410, 376], 18, fill=(28, 26, 34))
+    for i, col in enumerate([(255, 95, 86), (255, 189, 46), (39, 201, 63)]):
+        d.ellipse([64 + i * 30, 86, 82 + i * 30, 104], fill=col)
+    mono = font("NotoSansMono-Bold.ttf", 25)
+    lines = [("$ ", "brew --coffee"), ("", "Brewing... done."), ("$ ", "crontab -e"), ("", "0 7 * * * toast"), ("$ ", "")]
+    for i, (pr, txt) in enumerate(lines):
+        y = 130 + i * 44
+        d.text((66, y), pr, font=mono, fill=(120, 230, 120))
+        d.text((66 + d.textlength(pr, font=mono), y), txt, font=mono, fill=(235, 230, 220))
+    d.rectangle([98, 310, 112, 336], fill=(235, 230, 220))
+    mx, my = 436, 250  # mug
+    d.rounded_rectangle([mx, my, mx + 110, my + 120], 16, fill=(255, 255, 255))
+    d.ellipse([mx + 95, my + 30, mx + 145, my + 85], outline=(255, 255, 255), width=12)
+    penguin(img, mx + 30, my + 30, .7)
+    for k in range(3):
+        d.arc([mx + 20 + k * 25, my - 70, mx + 50 + k * 25, my - 10], 200, 340, fill=(255, 255, 255), width=5)
+    caption(d, n, title, artist, (255, 255, 255), "NotoSansMono-Bold.ttf")
+
+
+def cover_crumbs(img, d, n, c, title, artist):
+    gradient(d, n, c)
+    import random
+    rnd = random.Random(7)
+    for i in range(40):
+        x, y = 60 + i * 12 + rnd.randint(-8, 8), 380 - i * 7 + rnd.randint(-10, 10)
+        r = rnd.randint(4, 9)
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(245, 240, 228))
+    caption(d, n, title, artist, (245, 240, 228), "NotoSerif-Regular.ttf")
+
+
+def finish(img):
+    """Grain, vignette and a sleeve shine so the covers read as printed records."""
+    n = img.width
+    noise = Image.effect_noise((n, n), 28).convert("RGBA")
+    noise.putalpha(22)
+    img.alpha_composite(noise)
+    vig = Image.new("L", (n, n), 0)
+    ImageDraw.Draw(vig).ellipse([-n * .25, -n * .25, n * 1.25, n * 1.25], fill=255)
+    vig = vig.filter(ImageFilter.GaussianBlur(n // 6))
+    dark = Image.new("RGBA", (n, n), (0, 0, 0, 120))
+    dark.putalpha(Image.eval(vig, lambda v: int((255 - v) * .5)))
+    img.alpha_composite(dark)
+    shine = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    ImageDraw.Draw(shine).polygon([(0, 0), (n * .55, 0), (0, n * .55)], fill=(255, 255, 255, 18))
+    img.alpha_composite(shine.filter(ImageFilter.GaussianBlur(40)))
+
+
+ALBUM_STYLES = [cover_sunset, cover_waves, cover_boxes, cover_hat, cover_penguins, cover_terminal, cover_crumbs]
+
+
+def radio_logo(d, n, c, name):
+    gradient(d, n, c)
+    d.rounded_rectangle([60, 60, n - 60, n - 60], 60, outline=(255, 255, 255), width=10)
+    words = name.split()
+    big = font("NotoSans-Black.ttf", 92)
+    small = font("NotoSans-Bold.ttf", 44)
+    w = d.textlength(words[-1].upper(), font=big)
+    d.text(((n - w) / 2, 220), words[-1].upper(), font=big, fill=(255, 255, 255))
+    if len(words) > 1:
+        w = d.textlength(" ".join(words[:-1]).upper(), font=small)
+        d.text(((n - w) / 2, 160), " ".join(words[:-1]).upper(), font=small, fill=(255, 255, 255))
+    for i in range(3):  # on-air waves
+        r = 30 + i * 22
+        d.arc([n // 2 - r, 470 - r, n // 2 + r, 470 + r], 220, 320, fill=(255, 255, 255), width=6)
+
+
 def cover(key):
     if key in COVERS:
         return COVERS[key]
-    colors = None
     m = re.match(r"(album|radio)(\d+)", key)
-    if m:
-        colors = (ALBUMS if m.group(1) == "album" else RADIO)[int(m.group(2))][2]
-    if not colors or Image is None:
+    if not m or Image is None:
         return None
-    size = 300
-    img = Image.new("RGB", (size, size))
+    n = 600
+    img = Image.new("RGBA", (n, n), (0, 0, 0, 255))
     d = ImageDraw.Draw(img)
-    rgb = [tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in colors]
-    for y in range(size):
-        f = y / size
-        seg = min(int(f * (len(rgb) - 1)), len(rgb) - 2)
-        lf = f * (len(rgb) - 1) - seg
-        col = tuple(int(rgb[seg][i] + (rgb[seg + 1][i] - rgb[seg][i]) * lf) for i in range(3))
-        d.line([(0, y), (size, y)], fill=col)
-    d.ellipse([60, 60, 240, 240], outline=(255, 255, 255), width=3)
-    buf = io.BytesIO(); img.save(buf, "PNG")
+    i = int(m.group(2))
+    if m.group(1) == "album":
+        title, artist, colors, _ = ALBUMS[i]
+        ALBUM_STYLES[i % len(ALBUM_STYLES)](img, d, n, [rgb(x) for x in colors], title, artist)
+    else:
+        name, _, colors = RADIO[i]
+        radio_logo(d, n, [rgb(x) for x in colors], name)
+    finish(img)
+    buf = io.BytesIO(); img.convert("RGB").save(buf, "PNG")
     COVERS[key] = buf.getvalue()
     return COVERS[key]
+
+
+LYRICS_EN = [  # invented lines for English screenshots
+    "I boot up slow on a Sunday morning", "the kernel hums a song for me", "every process finds its home",
+    "and every packet finds the sea", "Oh, penguin, waddle through my window", "bring the light from the server room",
+    "we're rolling, rolling, never stable", "but my heart is long-term support", "grep the sun and pipe it to me",
+    "sudo make me a cup of tea", "the uptime counts the nights we're dancing", "nobody reboots tonight",
+]
 
 
 LINKS = {}  # linkCode -> confirmed
@@ -696,7 +976,8 @@ class Handler(BaseHTTPRequestHandler):
         def entry(t):
             short = t["title"] == "Grep the Sun"
             end = t["dur"] * (1.3 if short else 0.9)
-            lines = [f"[{int(s // 60):02d}:{s % 60:05.2f}] {t['title']}, Zeile {n + 1}" for n, s in enumerate(range(8, int(end), 6))]
+            lines = [f"[{int(s // 60):02d}:{s % 60:05.2f}] " + (LYRICS_EN[n % len(LYRICS_EN)] if EN else f"{t['title']}, Zeile {n + 1}")
+                     for n, s in enumerate(range(8, int(end), 6))]
             return dict(trackName=t["title"], artistName=t["artist"], albumName=t["album"], duration=t["dur"], instrumental=False,
                         plainLyrics="\n".join(l.split("] ", 1)[1] for l in lines), syncedLyrics="\n".join(lines))
         # Josh Woodward's real lines are on lrclib.net: nothing invented for him.
@@ -844,6 +1125,7 @@ if __name__ == "__main__":
     ap.add_argument("--bind", default="0.0.0.0")
     ap.add_argument("--port-base", type=int, default=1401, help="port of the first room; the others follow")
     ap.add_argument("--slow", type=float, default=0, help="seconds every command waits, like a busy S1 (Get/Browse stay fast)")
+    ap.add_argument("--english", action="store_true", help="English names for screenshots")
     ap.add_argument("-v", "--verbose", action="store_true")
     ARGS = ap.parse_args()
     ADVERTISE = ARGS.advertise

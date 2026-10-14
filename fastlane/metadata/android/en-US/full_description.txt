@@ -1,0 +1,14 @@
+Hausmusik controls your Sonos speakers directly in your home network, without a cloud account. It also works with older S1 systems.
+
+- Rooms and groups: group by dragging, one volume per room, mute single rooms
+- Stage: the playing track in the colours of its cover
+- Queue: reorder, remove with undo, play next, save as Sonos playlist
+- Library: favourites, music share, artists, albums, genres, radio, line-in
+- Linked music services such as Spotify and bonob: browse and search
+- Alarms, sleep timer, sound, crossfade
+- Notification, lock screen and volume buttons, widget, quick settings tile, system output switcher
+- Optional: synced lyrics, artist pictures and background from MusicBrainz and Wikipedia
+
+No ads, no tracking, no account. Hausmusik is free software under the GNU GPL 3.0 or later; the source is at github.com/linuxundich/hausmusik.
+
+Hausmusik is not affiliated with Sonos, Inc. Sonos is a trademark of Sonos, Inc.

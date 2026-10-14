@@ -1,0 +1,1 @@
+Control your Sonos speakers locally: rooms, groups, queue, library, widget.

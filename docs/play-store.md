@@ -44,7 +44,7 @@ same licence. Others may build and share the app for free.
 
 ## Store listing
 
-App name (30): `Hausmusik – Sonos remote` / `Hausmusik – Sonos-Fernbedienung`
+App name (30): `Hausmusik – Sonos remote` / `Hausmusik – Sonos-Steuerung`
 ("Sonos" only as a description; the policy forbids implying a connection.)
 
 ### English
@@ -109,8 +109,15 @@ Vollständige Beschreibung:
 
 - [ ] Icon 512×512 PNG (from the icon geometry, see `docs/icon.png`)
 - [ ] Feature graphic 1024×500
-- [ ] 2–8 phone screenshots per language, from the fake household only
-      (invented artists; no real covers, no private notifications)
+- [x] Five phone screenshots, 1080 × 2160 (Play allows at most 2:1), in
+      `fastlane/metadata/android/en-US/images/phoneScreenshots/`. Taken from
+      the fake household with `fake_sonos.py --english` (invented artists,
+      generated covers, English names and lyrics), the app set to English with
+      `cmd locale set-app-locales`, the status bar in demo mode
+- [ ] German screenshots (same steps without `--english`, app locale de-DE)
+
+Store texts also live in `fastlane/metadata/android/<locale>/` (title, short
+and full description), the layout F-Droid and `fastlane supply` read.
 
 ## Build
 

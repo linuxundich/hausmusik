@@ -14,6 +14,16 @@
 > [!NOTE]
 > Hausmusik is in early development. Version 0.1.0 is the first public release; a Google Play release is being prepared.
 
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_stage.png" alt="The stage: the playing track in the colours of its cover" width="19%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_rooms.png" alt="Rooms and groups with one volume per room" width="19%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_queue.png" alt="The queue" width="19%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_library.png" alt="The library with albums" width="19%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5_lyrics.png" alt="Synced lyrics" width="19%">
+</p>
+
+<p align="center"><sub>Screenshots from the built-in fake household: invented artists and covers.</sub></p>
+
 ## What it does
 
 - **The Stage.** The app opens with what is playing, large and in the colors of the cover.

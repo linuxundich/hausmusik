@@ -6,6 +6,14 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Screenshots in the README and in `fastlane/metadata/android/`, together
+  with the store texts in English and German.
+- Fake household: `--english` for English rooms, albums, playlists and
+  invented lyrics, and generated album covers with penguins, sunsets and
+  terminals instead of plain circles.
+
 ## [0.1.0] - 2026-10-14
 
 First public release.

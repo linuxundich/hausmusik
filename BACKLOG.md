@@ -148,7 +148,9 @@ Report: `captures/ux-2026-10-14/BERICHT.md` (git-ignored).
 - [ ] **P0** Play Console: account, identity, payments profile, Play App Signing (Christoph)
 - [ ] **P0** Closed test with 12 testers for 14 days (new personal accounts)
 - [ ] **P0** Decide the price before the first production release (free cannot become paid)
-- [ ] **P0** Store graphics: icon 512 px, feature graphic, screenshots from the fake household
+- [x] **P0** English screenshots from the fake household (`--english`, generated tux covers), README and fastlane
+- [ ] **P0** Store graphics: icon 512 px, feature graphic
+- [ ] **P1** German screenshots for the store
 - [ ] **P0** Short video of the notification controls for the foreground service declaration
 - [ ] **P1** Check the Deezer API terms for a paid app
 
