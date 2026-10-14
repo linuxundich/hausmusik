@@ -48,6 +48,9 @@ import de.linuxundich.hausmusik.ui.settings.LicensesScreen
 import de.linuxundich.hausmusik.ui.settings.SettingsScreen
 import de.linuxundich.hausmusik.ui.settings.SettingsState
 import de.linuxundich.hausmusik.ui.stage.LyricsUi
+import de.linuxundich.hausmusik.ui.stage.StageSidePanel
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import de.linuxundich.hausmusik.ui.sound.SoundActions
 import de.linuxundich.hausmusik.ui.sound.SoundSheet
 import androidx.compose.ui.res.stringResource
@@ -185,6 +188,35 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         shownKeys = stackKeys
     }
 
+    val stageActions = StageActions(
+        onRooms = { roomsOpen = true },
+        onLibrary = { stack.add(Screen.Library) },
+        onQueue = { queueOpen = true },
+        onTimer = { timerOpen = true },
+        onPlayPause = vm::playPause,
+        onNext = vm::next,
+        onPrevious = vm::previous,
+        onSeek = vm::seek,
+        onVolume = { vm.setGroupVolume(selected.id, it) },
+        onShuffle = vm::toggleShuffle,
+        onRepeat = vm::cycleRepeat,
+        onAlarms = { stack.add(Screen.Alarms) },
+        onSound = { soundOpen = true },
+        onRoomVolumes = { volumeOpen = true },
+        onMute = { m -> vm.setMemberMute(selected.id, selected.group.coordinator, m) },
+        onSettings = { stack.add(Screen.Settings) },
+        onDetails = { now?.let { details = DetailsTarget.of(it) } },
+        crossfadeOn = selected.crossfade,
+        onMusicVideo = { videoOpen = true },
+        onCrossfade = { vm.setCrossfade(!selected.crossfade) },
+        onLyrics = { if (lyricsEnabled) showLyrics = !showLyrics else lyricsConsent = true },
+        timerLabel = selected.sleepRemainingMs?.let { ms ->
+            stringResource(R.string.sleep_minutes, ((ms + 59_999) / 60_000).toInt())
+        },
+    )
+    // Landscape on a wide screen: the library opens beside a slim stage, so choosing
+    // music and seeing it play need no switch between screens.
+    val beside = de.linuxundich.hausmusik.ui.common.isWide() && androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 700
     val starting by vm.starting.collectAsStateWithLifecycle()
     androidx.compose.runtime.CompositionLocalProvider(
         LocalItemDetails provides { details = it },
@@ -205,44 +237,21 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         when (screen) {
             Screen.Stage -> StageScreen(
                 selected, colors,
-                StageActions(
-                    onRooms = { roomsOpen = true },
-                    onLibrary = { stack.add(Screen.Library) },
-                    onQueue = { queueOpen = true },
-                    onTimer = { timerOpen = true },
-                    onPlayPause = vm::playPause,
-                    onNext = vm::next,
-                    onPrevious = vm::previous,
-                    onSeek = vm::seek,
-                    onVolume = { vm.setGroupVolume(selected.id, it) },
-                    onShuffle = vm::toggleShuffle,
-                    onRepeat = vm::cycleRepeat,
-                    onAlarms = { stack.add(Screen.Alarms) },
-                    onSound = { soundOpen = true },
-                    onRoomVolumes = { volumeOpen = true },
-                    onMute = { m -> vm.setMemberMute(selected.id, selected.group.coordinator, m) },
-                    onSettings = { stack.add(Screen.Settings) },
-                    onDetails = { now?.let { details = DetailsTarget.of(it) } },
-                    crossfadeOn = selected.crossfade,
-                    onMusicVideo = { videoOpen = true },
-                    onCrossfade = { vm.setCrossfade(!selected.crossfade) },
-                    onLyrics = { if (lyricsEnabled) showLyrics = !showLyrics else lyricsConsent = true },
-                    timerLabel = selected.sleepRemainingMs?.let { ms ->
-                        stringResource(R.string.sleep_minutes, ((ms + 59_999) / 60_000).toInt())
-                    },
-                ),
+                stageActions,
                 lyrics = if (showLyrics && lyricsEnabled) lyrics ?: LyricsUi.Loading else null,
                 busy = stageBusy,
                 effects = effects,
             )
-            Screen.Library -> LibraryScreen(
-                library, selected, snackbar,
-                onBack = { stack.removeAt(stack.lastIndex) },
-                onOpenContainer = { stack.add(Screen.Container(it)) },
-                onPlay = ::requestPlay,
-                onMiniPlayer = { stack.removeRange(1, stack.size) },
-                onPlayPause = vm::playPause,
-            )
+            Screen.Library -> BesideStage(beside, { StageSidePanel(selected, colors, stageActions, stageBusy) }) {
+                LibraryScreen(
+                    library, selected, snackbar,
+                    onBack = { stack.removeAt(stack.lastIndex) },
+                    onOpenContainer = { stack.add(Screen.Container(it)) },
+                    onPlay = ::requestPlay,
+                    onMiniPlayer = { stack.removeRange(1, stack.size) },
+                    onPlayPause = vm::playPause,
+                )
+            }
             Screen.Alarms -> AlarmsScreen(hiltViewModel(), onBack = { stack.removeAt(stack.lastIndex) })
             Screen.Settings -> SettingsScreen(
                 SettingsState(
@@ -266,14 +275,16 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onBack = { stack.removeAt(stack.lastIndex) },
             )
             Screen.Licenses -> LicensesScreen(onBack = { stack.removeAt(stack.lastIndex) })
-            is Screen.Container -> ContainerScreen(
-                library, screen.item, selected, snackbar,
-                onBack = { stack.removeAt(stack.lastIndex) },
-                onOpenContainer = { stack.add(Screen.Container(it)) },
-                onPlay = ::requestPlay,
-                onMiniPlayer = { stack.removeRange(1, stack.size) },
-                onPlayPause = vm::playPause,
-            )
+            is Screen.Container -> BesideStage(beside, { StageSidePanel(selected, colors, stageActions, stageBusy) }) {
+                ContainerScreen(
+                    library, screen.item, selected, snackbar,
+                    onBack = { stack.removeAt(stack.lastIndex) },
+                    onOpenContainer = { stack.add(Screen.Container(it)) },
+                    onPlay = ::requestPlay,
+                    onMiniPlayer = { stack.removeRange(1, stack.size) },
+                    onPlayPause = vm::playPause,
+                )
+            }
         }
         }
     }
@@ -426,4 +437,16 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
 private fun screenKey(depth: Int, screen: Screen): String = "$depth:" + when (screen) {
     is Screen.Container -> "container:" + screen.item.id
     else -> screen::class.simpleName.orEmpty()
+}
+
+/** The slim stage on the left, [content] (library, album) on the right; or only [content]. */
+@Composable
+private fun BesideStage(beside: Boolean, stage: @Composable () -> Unit, content: @Composable () -> Unit) {
+    if (!beside) { content(); return }
+    androidx.compose.foundation.layout.Row(Modifier.fillMaxSize()) {
+        Box(Modifier.width(360.dp).fillMaxHeight()) { stage() }
+        Box(Modifier.weight(1f).fillMaxHeight()) {
+            androidx.compose.runtime.CompositionLocalProvider(de.linuxundich.hausmusik.ui.library.LocalStageBeside provides true) { content() }
+        }
+    }
 }

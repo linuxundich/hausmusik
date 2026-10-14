@@ -131,7 +131,7 @@ Report: `captures/ux-2026-10-14/BERICHT.md` (git-ignored).
 - [x] P2-7 Split the ⋮ menu by track / room / app; crossfade as a switch
 - [x] P2-9 "Always replace" as an opt-in in the replace dialog
 - [x] P2-10 Radio: inputs in their own section, no dead buttons (station logos: Sonos gives none)
-- [ ] P2-11 Landscape: library beside the stage
+- [x] P2-11 Landscape: library beside the stage
 - [x] P2-14 bonob duplicates the local library: stays, it is the user's choice which way to browse (Christoph, 2026-10-14)
 - [x] Room switch from the library (room in the mini player)
 

@@ -165,7 +165,9 @@ fun LibraryScreen(
     val history by vm.history.collectAsStateWithLifecycle()
     BackHandler(searching) { searching = false; vm.setQuery("") }
     val focus = remember { FocusRequester() }
-    val wide = isWide()
+    // Beside the stage the stage plays the mini player's part, and the pane is narrow: tabs below the bar.
+    val beside = LocalStageBeside.current
+    val wide = isWide() && !beside
     val linkState by vm.link.collectAsStateWithLifecycle()
     linkState?.let { LinkDialog(it, onRestart = vm::restartLink, onDismiss = vm::dismissLink) }
     Scaffold(
@@ -209,7 +211,7 @@ fun LibraryScreen(
             )
         },
         // Landscape: height is scarce, so the player sits in the top bar instead (CompactMiniPlayer).
-        bottomBar = { if (group != null && !wide) MiniPlayer(group, onMiniPlayer, onPlayPause) },
+        bottomBar = { if (group != null && !wide && !beside) MiniPlayer(group, onMiniPlayer, onPlayPause) },
         // Messages show as the app-wide pill at the top (MessageHost in the root).
     ) { padding ->
         ProvideArtistImages(vm, snackbar) {
@@ -450,7 +452,8 @@ fun ContainerScreen(
     onPlayPause: () -> Unit,
 ) {
     val lists by vm.lists.collectAsStateWithLifecycle()
-    val wideBar = isWide()
+    val beside = LocalStageBeside.current
+    val wideBar = isWide() && !beside
     // Local containers play by their ID; a service's own folders (its root, "Albums") cannot be played.
     val playable = container.uri != null || !container.id.startsWith(ServiceIds.OVERVIEW)
     val linkState by vm.link.collectAsStateWithLifecycle()
@@ -503,7 +506,7 @@ fun ContainerScreen(
                     },
                 )
             },
-            bottomBar = { if (group != null && !wideBar) MiniPlayer(group, onMiniPlayer, onPlayPause) },
+            bottomBar = { if (group != null && !wideBar && !beside) MiniPlayer(group, onMiniPlayer, onPlayPause) },
             // Messages show as the app-wide pill at the top (MessageHost in the root).
         ) { padding ->
             val person = container.upnpClass.contains("person")
@@ -864,3 +867,6 @@ fun ServiceBadge(name: String, size: androidx.compose.ui.unit.Dp, corner: androi
         )
     }
 }
+
+/** True while the library shows beside the stage (wide landscape). */
+val LocalStageBeside = androidx.compose.runtime.compositionLocalOf { false }

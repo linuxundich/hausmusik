@@ -46,6 +46,9 @@ All notable changes to Hausmusik are documented here. The format follows
     share off: the library and the search leave it out, for households that
     listen through services or browse their collection through bonob.
   - Settings switches react on the whole row, not only on the small switch.
+  - Landscape on a wide screen: the library and albums open beside a slim
+    stage (room, cover, title, progress, controls and volume), so choosing
+    music and watching it play need no switch between screens.
   - The mini player in the library names the room; a tap on it opens the
     rooms, so another room can be chosen without going back to the stage.
   - The stage menu is grouped by what it acts on: this track (details, music

@@ -60,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -292,13 +293,13 @@ private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifie
 }
 
 @Composable
-private fun StageControls(group: GroupState, colors: CoverColors, actions: StageActions, playBusy: Boolean) {
+private fun StageControls(group: GroupState, colors: CoverColors, actions: StageActions, playBusy: Boolean, compact: Boolean = false) {
     val now = group.nowPlaying
     Column(Modifier.fillMaxWidth()) {
         Text(
             now?.title ?: stringResource(R.string.nothing_playing),
-            color = colors.content, fontSize = 24.sp, fontWeight = FontWeight.Bold,
-            maxLines = 2, overflow = TextOverflow.Ellipsis,
+            color = colors.content, fontSize = if (compact) 19.sp else 24.sp, fontWeight = FontWeight.Bold,
+            maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis,
         )
         val sub = when {
             now == null -> stringResource(R.string.queue_empty_hint)
@@ -312,15 +313,15 @@ private fun StageControls(group: GroupState, colors: CoverColors, actions: Stage
                 Modifier.clickable(onClickLabel = stringResource(R.string.details), onClick = actions.onDetails)
             } else Modifier,
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(if (compact) 6.dp else 16.dp))
         if (now?.durationMs != null && now.durationMs!! > 0) {
             Progress(group, colors, actions.onSeek)
         } else {
-            Spacer(Modifier.height(36.dp))
+            Spacer(Modifier.height(if (compact) 12.dp else 36.dp))
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(if (compact) 2.dp else 8.dp))
         Transport(group, colors, actions, playBusy)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(if (compact) 4.dp else 12.dp))
         VolumeRow(group, colors, actions)
     }
 }
@@ -589,3 +590,36 @@ private fun BottomAction(icon: ImageVector, label: String, colors: CoverColors, 
     }
 }
 
+
+/**
+ * The stage beside the library (wide landscape): room, a small cover and the
+ * full controls in a slim column. Scrolls when the height is short.
+ */
+@Composable
+fun StageSidePanel(group: GroupState, colors: CoverColors, actions: StageActions, busy: StageBusy = StageBusy()) {
+    val playBusy = delayed(busy.play)
+    val otherBusy = delayed(busy.other)
+    Box(
+        Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(colors.backgroundTop, colors.backgroundBottom))),
+    ) {
+        Column(
+            Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(androidx.compose.foundation.rememberScrollState())
+                .padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Cover(
+                    url = group.artUrl, modifier = Modifier.size(64.dp).shadow(12.dp, RoundedCornerShape(14.dp)), corner = 14.dp,
+                    placeholderColor = colors.subtle, iconColor = colors.content.copy(alpha = 0.5f),
+                    icon = if (group.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker, keepPrevious = true,
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    RoomChip(group.group.displayName, colors, actions.onRooms)
+                    WaitingWave(otherBusy, colors, Modifier.padding(start = 16.dp, top = 4.dp))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            StageControls(group, colors, actions, playBusy, compact = true)
+        }
+    }
+}
