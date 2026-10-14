@@ -151,7 +151,8 @@ Report: `captures/ux-2026-10-14/BERICHT.md` (git-ignored).
 - [x] **P0** English screenshots from the fake household (`--english`, generated tux covers), README and fastlane
 - [x] **P0** Store graphics: icon 512 px, feature graphic (EN/DE), in `fastlane/metadata/android/`
 - [x] **P1** German screenshots for the store (`fake_sonos.py --shots`)
-- [ ] **P0** Short video of the notification controls for the foreground service declaration
+- [x] **P0** Short video of the notification controls for the foreground service declaration (`captures/play-store/`)
+- [ ] **P0** Upload it as an unlisted YouTube video and link it in the declaration (Christoph)
 - [ ] **P1** Check the Deezer API terms for a paid app
 
 ## QA findings 2026-10-13

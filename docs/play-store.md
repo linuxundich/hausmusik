@@ -39,7 +39,7 @@ same licence. Others may build and share the app for free.
 | Target audience | 18+ (not directed at children) |
 | Content rating (IARC) | Utility/music, no user content, no sharing |
 | Data safety | **No data collected, no data shared.** No SDKs that collect data. Opt-in requests to LRCLIB, Deezer, MusicBrainz and Wikimedia are user-initiated lookups the user expects, carry no identifiers and reach no service of the developer. Data in transit is encrypted (HTTPS); speaker traffic is local HTTP. Users can delete data by clearing app storage or uninstalling. |
-| Foreground service | `FOREGROUND_SERVICE_MEDIA_PLAYBACK`: media session that controls playback on the Sonos speakers (notification, lock screen, volume buttons) while music plays. Needs a short screen recording of the notification controls. |
+| Foreground service | `FOREGROUND_SERVICE_MEDIA_PLAYBACK`: media session that controls playback on the Sonos speakers (notification, lock screen, volume buttons) while music plays. Video: `captures/play-store/foreground-service-media-playback.mp4` (git-ignored, 38 s, fake household: controls in the app, the notification, the volume buttons and the widget), uploaded as an unlisted YouTube video. |
 | News / health / finance / government | No |
 
 ## Store listing
