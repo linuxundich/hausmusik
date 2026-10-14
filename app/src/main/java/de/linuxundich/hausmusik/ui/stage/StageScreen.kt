@@ -113,8 +113,6 @@ data class StageActions(
     val onRoomVolumes: () -> Unit = {},
     /** Mutes or unmutes a single room (not used for groups: see VolumeRow). */
     val onMute: (Boolean) -> Unit = {},
-    /** Set while station logos are off: a station without a cover offers to switch them on. */
-    val onEnableStationLogos: (() -> Unit)? = null,
 )
 
 /** Commands the speakers have not confirmed yet: the play button, or anything else. */
@@ -177,7 +175,6 @@ fun StageScreen(
         tempo = tempo, pulse = pulse, lastTap = lastTap,
         turntable = effects.turntable && !still && turntableFits(group.nowPlaying?.kind),
         onTap = { lastTap = System.currentTimeMillis(); haptic() },
-        onEnableStationLogos = actions.onEnableStationLogos,
     )
     val playBusy = delayed(busy.play)
     val otherBusy = delayed(busy.other)
@@ -263,14 +260,17 @@ private data class CoverFx(
     val lastTap: Long = 0L,
     val turntable: Boolean = false,
     val onTap: () -> Unit = {},
-    val onEnableStationLogos: (() -> Unit)? = null,
 )
 
 @Composable
 private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifier, fx: CoverFx = CoverFx()) {
     val icon = if (group.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker
+    // A station without a logo: its name on a color of its own, not the same radio for every station.
+    val station = group.nowPlaying?.takeIf { it.kind == SourceKind.Radio && group.artUrl == null }?.station
     val cover = @Composable { m: Modifier ->
-        Cover(
+        if (station != null) {
+            StationPlaceholder(station, m.tapAlong(fx.tempo, fx.onTap).shadow(24.dp, RoundedCornerShape(24.dp)), 24.dp)
+        } else Cover(
             url = group.artUrl,
             modifier = m.tapAlong(fx.tempo, fx.onTap)
                 .graphicsLayer { val s = 1f + 0.03f * fx.pulse; scaleX = s; scaleY = s }
@@ -293,13 +293,6 @@ private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifie
             cover(Modifier.fillMaxSize())
         }
         if (fx.tempo != null) TapNote(fx.tempo, fx.lastTap, colors, Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp))
-        // A station without a logo: offer to look it up (off until asked: it goes to radio-browser.info).
-        val enableLogos = fx.onEnableStationLogos
-        if (enableLogos != null && group.artUrl == null && group.nowPlaying?.kind == SourceKind.Radio) {
-            androidx.compose.material3.TextButton(onClick = enableLogos, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp)) {
-                Text(stringResource(R.string.station_logo_offer), color = colors.content.copy(alpha = 0.85f), fontSize = 13.sp)
-            }
-        }
     }
 }
 
@@ -618,7 +611,9 @@ fun StageSidePanel(group: GroupState, colors: CoverColors, actions: StageActions
                 .padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Cover(
+                val station = group.nowPlaying?.takeIf { it.kind == SourceKind.Radio && group.artUrl == null }?.station
+                if (station != null) StationPlaceholder(station, Modifier.size(64.dp).shadow(12.dp, RoundedCornerShape(14.dp)), 14.dp, small = true)
+                else Cover(
                     url = group.artUrl, modifier = Modifier.size(64.dp).shadow(12.dp, RoundedCornerShape(14.dp)), corner = 14.dp,
                     placeholderColor = colors.subtle, iconColor = colors.content.copy(alpha = 0.5f),
                     icon = if (group.nowPlaying?.kind == SourceKind.Radio) AppIcons.Radio else AppIcons.Speaker, keepPrevious = true,
@@ -631,6 +626,36 @@ fun StageSidePanel(group: GroupState, colors: CoverColors, actions: StageActions
             }
             Spacer(Modifier.height(8.dp))
             StageControls(group, colors, actions, playBusy, compact = true)
+        }
+    }
+}
+
+/**
+ * A station without a logo: its name, large, on a gradient in a color drawn
+ * from the name, so each station looks like itself. A small one shows the
+ * initials only.
+ */
+@Composable
+fun StationPlaceholder(name: String, modifier: Modifier, corner: androidx.compose.ui.unit.Dp, small: Boolean = false) {
+    val hue = (Math.floorMod(name.trim().lowercase().hashCode(), 360)).toFloat()
+    val top = Color.hsv(hue, 0.55f, 0.62f)
+    val bottom = Color.hsv((hue + 35f) % 360f, 0.65f, 0.32f)
+    Box(
+        modifier.clip(RoundedCornerShape(corner)).background(Brush.linearGradient(listOf(top, bottom))),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (small) {
+            val initials = name.split(' ', '-').filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1) }.uppercase()
+            Text(initials, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                Icon(AppIcons.Radio, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(40.dp))
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    name, color = Color.White, fontSize = 44.sp, lineHeight = 48.sp, fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

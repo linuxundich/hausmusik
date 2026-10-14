@@ -205,7 +205,6 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         onSound = { soundOpen = true },
         onRoomVolumes = { volumeOpen = true },
         onMute = { m -> vm.setMemberMute(selected.id, selected.group.coordinator, m) },
-        onEnableStationLogos = if (stationLogosOn) null else ({ vm.setStationLogosEnabled(true) }),
         onSettings = { stack.add(Screen.Settings) },
         onDetails = { now?.let { details = DetailsTarget.of(it) } },
         crossfadeOn = selected.crossfade,

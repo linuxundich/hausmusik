@@ -15,7 +15,6 @@ import javax.inject.Singleton
 import javax.net.SocketFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -55,18 +54,28 @@ class StationLogos(
     private val memory = ConcurrentHashMap<String, String>() // stream -> logo, "" for none
     private val asking = ConcurrentHashMap.newKeySet<String>()
 
+    @Volatile private var enabled = false
+
     init {
         // The household asks while it reads a station; a miss is looked up in the background.
         repo.stationLogo = ::logoFor
+        // Switched off: no logo at all, not even a stored one; every room is read again either way.
+        scope.launch {
+            settings.stationLogosEnabled.collect { on ->
+                val changed = on != enabled
+                enabled = on
+                if (changed) repo.refreshAll()
+            }
+        }
     }
 
     /** The logo if known now; otherwise null, and the household is read again once it is found. */
     private fun logoFor(streamUri: String, name: String?): String? {
+        if (!enabled) return null
         val key = streamKey(streamUri) ?: return null
         memory[key]?.let { return it.ifEmpty { null } }
         if (asking.add(key)) scope.launch {
             try {
-                if (!settings.stationLogosEnabled.first()) return@launch
                 val found = fromDisk(key) ?: runCatching { withContext(Dispatchers.IO) { lookup(key, name) } }
                     .onFailure { Log.w(TAG, "logo lookup failed", it) }
                     .getOrNull()?.let { CachedLogo(System.currentTimeMillis(), it).also { c -> toDisk(key, c) } }

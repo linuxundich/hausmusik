@@ -11,9 +11,10 @@ All notable changes to Hausmusik are documented here. The format follows
 - Station logos: a radio station without a cover (Sonos has none for
   stations saved by their stream address) gets its logo from
   radio-browser.info, a free station directory, looked up by the stream
-  address and the station name. Off until switched on, from a button under
-  the radio placeholder on the stage or in Settings; logos are kept on the
-  phone for a month. The stage takes its colors from the logo, as from a
+  address and the station name. Off until switched on in Settings; logos are
+  kept on the phone for a month. Without a logo the stage shows the station's
+  name on a gradient in a color drawn from the name (initials beside the
+  library), instead of the same radio icon for every station. The stage takes its colors from the logo, as from a
   cover; the widget and the notification show it too.
 - Screenshots in the README and in `fastlane/metadata/android/`, together
   with the store texts in English and German.
