@@ -157,6 +157,8 @@
     <string name="reconnecting">Speakers gone for a moment, reconnecting…</string>
     <string name="settings_copyright">© 2026 Christoph Langner</string>
     <string name="settings_noson">The Sonos implementation is based on noson by Jean-Luc Barrière (GPL-3.0-or-later).</string>
+    <string name="settings_source">Source code</string>
+    <string name="settings_privacy">Privacy policy</string>
     <string name="licenses">Open source licenses</string>
     <string name="licenses_intro">Hausmusik is built on these projects. Thank you to everyone who works on them.</string>
     <string name="licenses_apache">Apache License 2.0: apache.org/licenses/LICENSE-2.0. GNU GPL 3.0: gnu.org/licenses/gpl-3.0. The full list is in NOTICE.md in the source code.</string>

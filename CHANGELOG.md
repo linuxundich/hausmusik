@@ -8,6 +8,10 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- *Settings → About* links to the source code and the privacy policy
+  (`PRIVACY.md`), as the GPL and Google Play require for the store build.
+- `docs/play-store.md`: Google Play checklist, store texts in English and
+  German, data safety and foreground service answers.
 - Usability audit, first round (report in `captures/`, not in git):
   - The stage shows when a room is muted: the speaker icon is crossed out,
     the slider pales and a line says "Bathroom is muted · Tap to unmute"; in

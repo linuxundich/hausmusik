@@ -138,8 +138,21 @@ Report: `captures/ux-2026-10-14/BERICHT.md` (git-ignored).
 ## Phase 5: Release
 
 - [ ] **P0** README screenshots and a demo video from the fake household
-- [ ] **P0** Release signing, GitHub release with APK
+- [x] **P0** Release signing (own key, from `~/.gradle/gradle.properties`); `bundleRelease` builds a signed AAB
+- [ ] **P0** GitHub release with APK
 - [ ] **P2** Check F-Droid
+
+### Google Play (paid, stays GPL; checklist in `docs/play-store.md`)
+
+- [x] **P0** *About* links to source code and privacy policy; `PRIVACY.md`
+- [x] **P0** Store texts (DE/EN), data safety and foreground service answers drafted
+- [ ] **P0** Make `github.com/linuxundich/hausmusik` public, tag `v0.1.0` (needs Christoph's OK)
+- [ ] **P0** Play Console: account, identity, payments profile, Play App Signing (Christoph)
+- [ ] **P0** Closed test with 12 testers for 14 days (new personal accounts)
+- [ ] **P0** Decide the price before the first production release (free cannot become paid)
+- [ ] **P0** Store graphics: icon 512 px, feature graphic, screenshots from the fake household
+- [ ] **P0** Short video of the notification controls for the foreground service declaration
+- [ ] **P1** Check the Deezer API terms for a paid app
 
 ## QA findings 2026-10-13
 

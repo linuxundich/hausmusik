@@ -186,10 +186,19 @@ fun SettingsScreen(
             Text(stringResource(R.string.settings_license), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(stringResource(R.string.settings_noson), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = onLicenses) { Text(stringResource(R.string.licenses)) }
+            // GPL: the source has to be one tap away in the store build.
+            val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { runCatching { uriHandler.openUri(SOURCE_URL) } }) { Text(stringResource(R.string.settings_source)) }
+                OutlinedButton(onClick = { runCatching { uriHandler.openUri(PRIVACY_URL) } }) { Text(stringResource(R.string.settings_privacy)) }
+            }
         }
         }
     }
 }
+
+private const val SOURCE_URL = "https://github.com/linuxundich/hausmusik"
+private const val PRIVACY_URL = "https://github.com/linuxundich/hausmusik/blob/main/PRIVACY.md"
 
 @Composable
 private fun EffectSwitch(title: Int, body: Int, checked: Boolean, onChange: (Boolean) -> Unit) {

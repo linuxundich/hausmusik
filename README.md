@@ -54,6 +54,10 @@ Requirements: JDK 21, Android SDK 37.
 
 For development without real speakers, `tools/fake-sonos/fake_sonos.py` provides an invented household. See [docs/development.md](docs/development.md).
 
+Release notes for Google Play, store texts and the console forms are in
+[docs/play-store.md](docs/play-store.md); the privacy policy is
+[PRIVACY.md](PRIVACY.md).
+
 ## Credits
 
 - [noson](https://github.com/janbar/noson) by Jean-Luc Barrière (GPL-3.0-or-later): the Sonos implementation is based on it; it was written anew in Kotlin, no noson source files are included.
