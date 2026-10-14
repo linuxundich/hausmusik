@@ -13,8 +13,11 @@ All notable changes to Hausmusik are documented here. The format follows
   title and artist below; wider than two cells, the cover shows too. The
   one-row player keeps only play/pause at two cells, so the title stays
   readable.
-- Fixed: on the tall player widget a title over two lines cut off the
-  play/pause button.
+- Fixed: on the tall player widget a title cut off the play/pause button,
+  above all with a larger system font. The player part now looks the same in
+  every large size (one title line); pulled taller, the volume row and then
+  the queue are added below it, the queue only with as many whole rows as
+  fit.
 - Player widget volume: quieter, a level bar and louder. In the one-row
   player from four cells beside the cover, under title and controls; from about three rows under the player, and
   above the queue when it shows. With muted rooms in the group it moves the

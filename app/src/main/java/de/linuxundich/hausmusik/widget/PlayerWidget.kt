@@ -45,7 +45,6 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -77,7 +76,9 @@ private enum class WidgetStatus { Ready, Reconnecting, Searching, NoWifi, NoSpea
  * the large player with the queue to scroll.
  */
 class PlayerWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Responsive(setOf(ROW, ROW_WIDE, LARGE, LARGE_VOLUME, TALL))
+    // Exact: the queue shows as many whole rows as the real height takes (a widget
+    // list cannot snap, so a fitting height is the only way to avoid a cut row).
+    override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val household = HouseholdAccess.entry(context).household()
@@ -103,10 +104,12 @@ class PlayerWidget : GlanceAppWidget() {
             val cover by produceState<Bitmap?>(null, group?.artUrl) { value = group?.artUrl?.let { loadCover(context, it) } }
             val look by produceState(lookOf(null), cover) { value = withContext(Dispatchers.Default) { lookOf(cover) } }
             val size = LocalSize.current
-            // The queue only in the tall size, and only read again when it or the room changes.
             val tall = size.height >= TALL.height
-            val queue by produceState<List<DidlObject>?>(null, tall, group?.id, group?.queueLength) {
-                value = if (tall && group != null && group.queueLength > 0) household.browseAll("Q:0", limit = QUEUE_LIMIT).getOrNull() else null
+            val fontScale = context.resources.configuration.fontScale
+            val queueRows = if (tall) queueRows(size.height, fontScale) else 0
+            // The queue is only read again when it or the room changes.
+            val queue by produceState<List<DidlObject>?>(null, queueRows > 0, group?.id, group?.queueLength) {
+                value = if (queueRows > 0 && group != null && group.queueLength > 0) household.browseAll("Q:0", limit = QUEUE_LIMIT).getOrNull() else null
             }
             val c = look.colors
             Box(
@@ -115,19 +118,14 @@ class PlayerWidget : GlanceAppWidget() {
             ) {
                 when {
                     group == null -> Status(context, status, c, size.height >= LARGE.height)
-                    tall -> Column(GlanceModifier.fillMaxSize()) {
-                        // A little taller than the large size: a title over two lines must leave room for the controls.
-                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxWidth().height(LARGE.height + 24.dp), status)
-                        VolumeRow(context, group, c, big = true)
-                        QueueList(context, group, queue, c)
+                    // The top stays the same in every large size: pulled taller, only the
+                    // volume row and then the queue are added below. Its height follows the
+                    // content (one title line, so a large font still fits the smallest size).
+                    size.height >= LARGE.height && size.width >= LARGE.width -> Column(GlanceModifier.fillMaxSize()) {
+                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxWidth(), status)
+                        if (tall) VolumeRow(context, group, c, big = true)
+                        if (queueRows > 0) QueueList(context, group, queue, c, queueRows, queueRowHeight(fontScale))
                     }
-                    size.height >= LARGE_VOLUME.height && size.width >= LARGE.width -> Column(GlanceModifier.fillMaxSize()) {
-                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxWidth().defaultWeight(), status)
-                        VolumeRow(context, group, c, big = true)
-                        Spacer(GlanceModifier.height(8.dp))
-                    }
-                    size.height >= LARGE.height && size.width >= LARGE.width ->
-                        Large(context, group, cover, offline, c, GlanceModifier.fillMaxSize(), status)
                     else -> Compact(context, group, cover, offline, c, status)
                 }
             }
@@ -308,13 +306,13 @@ class PlayerWidget : GlanceAppWidget() {
         }
     }
 
-    /** Large cover, room, title over two lines, artist, controls. */
+    /** Large cover, room, title, artist, controls. */
     @Composable
     private fun Large(context: Context, group: GroupState?, cover: Bitmap?, offline: Boolean, c: CoverColors, modifier: GlanceModifier, status: WidgetStatus) {
-        Row(modifier.padding(14.dp).clickable(actionStartActivity<MainActivity>()), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier.padding(horizontal = 14.dp, vertical = 10.dp).clickable(actionStartActivity<MainActivity>()), verticalAlignment = Alignment.CenterVertically) {
             CoverImage(cover, c, 112.dp, 20.dp)
             Spacer(GlanceModifier.width(14.dp))
-            Column(GlanceModifier.defaultWeight().fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
+            Column(GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(ImageProvider(R.drawable.ic_speaker), null, GlanceModifier.size(14.dp), colorFilter = ColorFilter.tint(ColorProvider(c.accent)))
                     Spacer(GlanceModifier.width(4.dp))
@@ -325,7 +323,7 @@ class PlayerWidget : GlanceAppWidget() {
                     )
                 }
                 Spacer(GlanceModifier.height(4.dp))
-                Text(title(context, group), maxLines = 2, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 18.sp, color = ColorProvider(c.content)))
+                Text(title(context, group), maxLines = 1, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 18.sp, color = ColorProvider(c.content)))
                 Text(subtitle(context, group, offline), maxLines = 1, style = TextStyle(fontSize = 13.sp, color = ColorProvider(c.content.copy(alpha = 0.7f))))
                 Spacer(GlanceModifier.height(8.dp))
                 Controls(context, group, c, big = true)
@@ -338,7 +336,7 @@ class PlayerWidget : GlanceAppWidget() {
      * a position, so it starts where the music is. Tapping a track plays it.
      */
     @Composable
-    private fun QueueList(context: Context, group: GroupState?, queue: List<DidlObject>?, c: CoverColors) {
+    private fun QueueList(context: Context, group: GroupState?, queue: List<DidlObject>?, c: CoverColors, visible: Int, rowHeight: Dp) {
         val current = group?.nowPlaying?.takeIf { it.kind == SourceKind.Queue }?.queuePosition
         val first = (current ?: 1).coerceAtLeast(1)
         val rows = queue.orEmpty().withIndex().drop(first - 1)
@@ -351,13 +349,13 @@ class PlayerWidget : GlanceAppWidget() {
             }
             return
         }
-        LazyColumn(GlanceModifier.fillMaxSize().padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
+        LazyColumn(GlanceModifier.fillMaxWidth().height(rowHeight * visible).padding(start = 8.dp, end = 8.dp)) {
             items(rows, itemId = { it.index.toLong() }) { (i, t) ->
                 val nr = i + 1
                 val playing = nr == current
                 Column {
                     Row(
-                        GlanceModifier.fillMaxWidth().cornerRadius(14.dp)
+                        GlanceModifier.fillMaxWidth().height(rowHeight - 2.dp).cornerRadius(14.dp)
                             .background(ColorProvider(if (playing) c.subtle else Color.Transparent))
                             .padding(horizontal = 10.dp, vertical = 7.dp)
                             .clickable(actionRunCallback<JumpAction>(actionParametersOf(JumpAction.TRACK to nr))),
@@ -387,14 +385,30 @@ class PlayerWidget : GlanceAppWidget() {
         private val ROW = DpSize(200.dp, 72.dp)
         private val ROW_WIDE = DpSize(300.dp, 72.dp)
         private val LARGE = DpSize(250.dp, 140.dp)
-        private val LARGE_VOLUME = DpSize(250.dp, 190.dp)
-        private val TALL = DpSize(250.dp, 260.dp)
+        /** From here the volume row and the queue below it: the queue gets whatever height is left. */
+        private val TALL = DpSize(250.dp, 180.dp)
         internal val VOLUME_STEP = ActionParameters.Key<Int>("step")
         private const val QUEUE_LIMIT = 300
         private const val VOLUME_DELTA = 2
 
         suspend fun refresh(context: Context) {
             if (GlanceAppWidgetManager(context).getGlanceIds(PlayerWidget::class.java).isNotEmpty()) PlayerWidget().updateAll(context)
+        }
+
+        /** One queue row: title (14 sp) and artist (12 sp) lines, 14 dp padding, 2 dp gap. */
+        internal fun queueRowHeight(fontScale: Float): Dp = (16f + 36f * fontScale).dp
+
+        /**
+         * How many whole queue rows fit below the player and the volume row. The
+         * player's height is the cover's or, with a large font, its text column's;
+         * a few dp spare, as text heights are only estimated.
+         */
+        internal fun queueRows(height: Dp, fontScale: Float): Int {
+            val text = 16f * fontScale + 4 + 24f * fontScale + 18f * fontScale + 8 + 44
+            val player = maxOf(112f, text) + 20
+            val volume = 44f
+            val left = height.value - player - volume - 12
+            return (left / queueRowHeight(fontScale).value).toInt().coerceAtLeast(0)
         }
     }
 }
