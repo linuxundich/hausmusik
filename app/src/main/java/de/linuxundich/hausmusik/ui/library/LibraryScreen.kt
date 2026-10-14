@@ -97,11 +97,15 @@ import de.linuxundich.hausmusik.ui.theme.AppIcons
  */
 @Composable
 private fun SourceChips(vm: LibraryViewModel, tab: LibraryTab, service: DidlObject?, services: List<DidlObject>, padding: PaddingValues) {
+    val localMusic by vm.localMusic.collectAsStateWithLifecycle()
     LazyRow(contentPadding = padding, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         item { FilterChip(selected = service == null && tab == LibraryTab.Favorites, onClick = { vm.select(LibraryTab.Favorites) }, label = { Text(stringResource(R.string.library_favorites)) }) }
-        item { FilterChip(selected = service == null && tab in MUSIC_TABS, onClick = { vm.selectMusic() }, label = { Text(stringResource(R.string.library_my_music)) }) }
+        if (localMusic) item { FilterChip(selected = service == null && tab in MUSIC_TABS, onClick = { vm.selectMusic() }, label = { Text(stringResource(R.string.library_my_music)) }) }
         items(services, key = { it.id }) { s ->
-            FilterChip(selected = service?.id == s.id, onClick = { vm.selectService(s) }, label = { Text(s.title) })
+            FilterChip(
+                selected = service?.id == s.id, onClick = { vm.selectService(s) }, label = { Text(s.title) },
+                leadingIcon = { ServiceBadge(s.title, 18.dp, 5.dp) },
+            )
         }
         item { FilterChip(selected = service == null && tab == LibraryTab.Radio, onClick = { vm.select(LibraryTab.Radio) }, label = { Text(stringResource(R.string.library_radio)) }) }
         item { FilterChip(selected = service == null && tab == LibraryTab.History, onClick = { vm.select(LibraryTab.History) }, label = { Text(stringResource(R.string.library_history)) }) }
@@ -671,6 +675,8 @@ private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Bo
         if (numbered && number != null) {
             if (playing) Icon(AppIcons.VolumeUp, stringResource(R.string.playing_now), Modifier.width(28.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
             else Text("$number", modifier = Modifier.width(28.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else if (item.parentId == ServiceIds.OVERVIEW && item.isContainer && item.id != ServiceIds.MORE) {
+            ServiceBadge(item.title, 44.dp, 10.dp)
         } else {
             Cover(
                 picture ?: artUrl(item.albumArtUri), Modifier.size(44.dp), corner = if (person) 22.dp else 8.dp,
@@ -841,3 +847,20 @@ internal fun DidlObject.playsNow(now: de.linuxundich.hausmusik.sonos.NowPlaying?
 
 /** Opens the rooms sheet; provided by the root. */
 val LocalOpenRooms = androidx.compose.runtime.compositionLocalOf<() -> Unit> { {} }
+
+/**
+ * A service's own mark: its initial on a color of its own (Sonos lists no
+ * logos, and other brands' logos do not belong in this app). Tells Spotify,
+ * bonob and TuneIn apart where they all had the same disc.
+ */
+@Composable
+fun ServiceBadge(name: String, size: androidx.compose.ui.unit.Dp, corner: androidx.compose.ui.unit.Dp = size / 4) {
+    val hues = listOf(0xFF2E7D5B, 0xFF7A4FB8, 0xFF1F6FB2, 0xFFB8602E, 0xFFA23B6B, 0xFF4F7A2E, 0xFF2E6E7A, 0xFF8A6A1F)
+    val color = Color(hues[Math.floorMod(name.lowercase().hashCode(), hues.size)])
+    Box(Modifier.size(size).clip(RoundedCornerShape(corner)).background(color), contentAlignment = Alignment.Center) {
+        Text(
+            name.trim().take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold,
+            fontSize = (size.value * 0.48f).sp,
+        )
+    }
+}

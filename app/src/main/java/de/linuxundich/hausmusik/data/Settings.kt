@@ -86,6 +86,17 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
     suspend fun setMusicVideosEnabled(on: Boolean) = store.edit { it[videosKey] = on }
     suspend fun setMusicVideoMode(mode: VideoMode) = store.edit { it[videoModeKey] = mode.name }
 
+    private val localMusicKey = booleanPreferencesKey("local_music_enabled")
+
+    /**
+     * The music share of the Sonos system ("My music"). Off for households
+     * that listen through services only (or browse their share through bonob):
+     * the library and the search leave it out.
+     */
+    val localMusicEnabled: Flow<Boolean> = store.data.map { it[localMusicKey] ?: true }
+
+    suspend fun setLocalMusicEnabled(on: Boolean) = store.edit { it[localMusicKey] = on }
+
     private val askReplaceKey = booleanPreferencesKey("ask_before_replace")
 
     /** Ask before "Play now" replaces a queue; the user can turn it off in the dialog. */

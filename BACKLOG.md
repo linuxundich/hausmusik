@@ -124,14 +124,15 @@ Report: `captures/ux-2026-10-14/BERICHT.md` (git-ignored).
 - [x] P2-13 Undo after removing from the queue
 - [x] P2-8 Room tiles: selection framed, names on two lines
 - [x] P1-4 Library by source first (Favorites · My music · services · Radio)
-- [ ] Service logos in the source row (Sonos service list has icon URLs)
+- [x] Service marks in the source row (Sonos lists no logo URLs; own monogram instead)
+- [x] Local music library can be switched off (Christoph, 2026-10-14)
 - [x] P1-5 Mark what plays in lists (station logos: Sonos gives none for saved stations; radio icon instead)
 - [x] P1-8 Short outage: keep the banner ("trying again") instead of the full-screen setup
 - [x] P2-7 Split the ⋮ menu by track / room / app; crossfade as a switch
 - [x] P2-9 "Always replace" as an opt-in in the replace dialog
 - [x] P2-10 Radio: inputs in their own section, no dead buttons (station logos: Sonos gives none)
 - [ ] P2-11 Landscape: library beside the stage
-- [ ] P2-14 bonob duplicates the local library
+- [x] P2-14 bonob duplicates the local library: stays, it is the user's choice which way to browse (Christoph, 2026-10-14)
 - [x] Room switch from the library (room in the mini player)
 
 ## Phase 5: Release

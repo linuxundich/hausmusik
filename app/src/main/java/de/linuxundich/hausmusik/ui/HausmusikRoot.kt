@@ -165,6 +165,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     val colors = rememberCoverColors(selected.artUrl)
 
     val askBeforeReplace by vm.askBeforeReplace.collectAsStateWithLifecycle()
+    val localMusic by vm.localMusic.collectAsStateWithLifecycle()
     fun requestPlay(item: DidlObject) {
         if (!item.playsDirectly && selected.queueLength > 0) {
             if (askBeforeReplace) { pendingPlay = item; return }
@@ -247,7 +248,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 SettingsState(
                     manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn, detailsOn, detailsWikipedia,
                     rooms = household.allPlayers.filter { !it.isInvisible }.map { it.uuid to it.roomName }, everywhereExcluded = everywhereExcluded,
-                    musicVideos = videosOn, videoMode = videoMode, effects = effects, askBeforeReplace = askBeforeReplace,
+                    musicVideos = videosOn, videoMode = videoMode, effects = effects, askBeforeReplace = askBeforeReplace, localMusic = localMusic,
                 ),
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
@@ -259,6 +260,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onVideoMode = vm::setMusicVideoMode,
                 onEffects = { vm.setEffects(it) },
                 onAskBeforeReplace = { vm.setAskBeforeReplace(it) },
+                onLocalMusic = { vm.setLocalMusic(it) },
                 onLicenses = { stack.add(Screen.Licenses) },
                 onClearCache = vm::clearListCache,
                 onBack = { stack.removeAt(stack.lastIndex) },

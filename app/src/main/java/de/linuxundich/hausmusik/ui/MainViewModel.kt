@@ -93,6 +93,9 @@ class MainViewModel @Inject constructor(
     suspend fun artistDetails(name: String) = detailsRepo.artist(name)
     suspend fun albumDetails(title: String, artist: String?) = detailsRepo.album(title, artist)
 
+    val localMusic: StateFlow<Boolean> = settings.localMusicEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    fun setLocalMusic(on: Boolean) = viewModelScope.launch { settings.setLocalMusicEnabled(on) }
+
     val askBeforeReplace: StateFlow<Boolean> = settings.askBeforeReplace.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     fun setAskBeforeReplace(on: Boolean) = viewModelScope.launch { settings.setAskBeforeReplace(on) }
 

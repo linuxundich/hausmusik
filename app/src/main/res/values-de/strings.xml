@@ -170,7 +170,7 @@
     <string name="artist_images_no">Nein, danke</string>
     <string name="artist_images_setting">Künstlerbilder von Deezer</string>
     <string name="library_services">Dienste</string>
-    <string name="services_hint">Verknüpfte Musikdienste. Hausmusik meldet sich mit einer eigenen Verknüpfung an; abgespielt wird über das Konto, das dein Sonos-System schon hat.</string>
+    <string name="services_hint">Hier verknüpfst du weitere Musikdienste. Abgespielt wird über das Konto, das dein Sonos-System schon hat.</string>
     <string name="link_title">%1$s verknüpfen</string>
     <string name="link_waiting">Melde dich auf der Seite an, die sich gerade im Browser geöffnet hat, und komm dann hierher zurück.</string>
     <string name="link_code">Code: %1$s</string>
@@ -320,4 +320,6 @@
     <string name="menu_app">Hausmusik</string>
     <string name="library_my_music">Meine Musik</string>
     <string name="library_more_services">Mehr Dienste</string>
+    <string name="settings_local_music">Meine Musik (Musikfreigabe)</string>
+    <string name="settings_local_music_body">Die Musikfreigabe deines Sonos-Systems in Bibliothek und Suche. Aus, wenn du nur über Dienste hörst oder deine Sammlung über bonob durchsuchst.</string>
 </resources>

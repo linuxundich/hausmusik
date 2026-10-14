@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.selection.toggleable
 import de.linuxundich.hausmusik.BuildConfig
 import de.linuxundich.hausmusik.R
 
@@ -47,6 +48,7 @@ data class SettingsState(val manualHost: String?, val connectedTo: String?, val 
     val musicVideos: Boolean = false, val videoMode: de.linuxundich.hausmusik.data.VideoMode = de.linuxundich.hausmusik.data.VideoMode.Ask,
     val effects: de.linuxundich.hausmusik.data.Effects = de.linuxundich.hausmusik.data.Effects(),
     val askBeforeReplace: Boolean = true,
+    val localMusic: Boolean = true,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +65,7 @@ fun SettingsScreen(
     onVideoMode: (de.linuxundich.hausmusik.data.VideoMode) -> Unit = {},
     onEffects: (de.linuxundich.hausmusik.data.Effects) -> Unit = {},
     onAskBeforeReplace: (Boolean) -> Unit = {},
+    onLocalMusic: (Boolean) -> Unit = {},
     onLicenses: () -> Unit,
     onClearCache: () -> Unit,
     onBack: () -> Unit,
@@ -116,6 +119,7 @@ fun SettingsScreen(
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.settings_playing), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             EffectSwitch(R.string.settings_ask_replace, R.string.settings_ask_replace_body, state.askBeforeReplace, onAskBeforeReplace)
+            EffectSwitch(R.string.settings_local_music, R.string.settings_local_music_body, state.localMusic, onLocalMusic)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.cache), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.cache_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -189,11 +193,15 @@ fun SettingsScreen(
 
 @Composable
 private fun EffectSwitch(title: Int, body: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // The whole row switches, not only the small switch.
+    Row(
+        Modifier.fillMaxWidth().toggleable(value = checked, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(title))
             Text(stringResource(body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = onChange, modifier = Modifier.padding(start = 12.dp))
+        Switch(checked = checked, onCheckedChange = null, modifier = Modifier.padding(start = 12.dp))
     }
 }

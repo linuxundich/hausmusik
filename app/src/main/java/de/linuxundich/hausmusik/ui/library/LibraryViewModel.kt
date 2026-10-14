@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -149,6 +150,8 @@ class LibraryViewModel @Inject constructor(
 
     fun clearHistory() = viewModelScope.launch { historyDao.clear() }
 
+    val localMusic: StateFlow<Boolean> = settings.localMusicEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
     private val _tab = MutableStateFlow(LibraryTab.Favorites)
     val tab: StateFlow<LibraryTab> = _tab.asStateFlow()
 
@@ -176,7 +179,9 @@ class LibraryViewModel @Inject constructor(
     private fun searchEverywhere(q: String) = kotlinx.coroutines.flow.channelFlow {
         val linked = runCatching { services.linked() }.getOrDefault(emptyList())
         val sections = java.util.concurrent.ConcurrentHashMap<String, SearchSection>()
-        val order = listOf("share") + linked.map { "svc:${it.id}" }
+        // Without the local library, its section is left out of the search.
+        val withShare = settings.localMusicEnabled.first()
+        val order = (if (withShare) listOf("share") else emptyList()) + linked.map { "svc:${it.id}" }
         sections["share"] = SearchSection("share", null)
         linked.forEach { sections["svc:${it.id}"] = SearchSection("svc:${it.id}", it.displayName) }
         val lock = kotlinx.coroutines.sync.Mutex()
@@ -185,7 +190,7 @@ class LibraryViewModel @Inject constructor(
             send(SearchState.Results(order.map { sections.getValue(it) }))
         }
         send(SearchState.Results(order.map { sections.getValue(it) }))
-        launch {
+        if (withShare) launch {
             repo.search(q).fold(
                 { r ->
                     publish("share") {
@@ -337,6 +342,10 @@ class LibraryViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     init {
+        // The local library switched off while one of its parts shows: back to the favorites.
+        viewModelScope.launch {
+            localMusic.collect { on -> if (!on && _tab.value in MUSIC_TABS) select(LibraryTab.Favorites) }
+        }
         // Back in reach: lists that were still loading or had failed load again by themselves.
         viewModelScope.launch {
             var was = true

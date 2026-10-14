@@ -39,6 +39,13 @@ All notable changes to Hausmusik are documented here. The format follows
     by name (bonob, Spotify, TuneIn), Radio, History and More services.
     A service's start page shows right in the library. Before, the services
     hid in the seventh of eight tabs.
+  - Services carry a mark of their own (initial on a color of its own) in
+    the source row and the service list instead of the same disc for all.
+    Sonos lists no logos, and other brands' logos stay out of the app.
+  - Settings › Playing › "My music (music share)" switches the Sonos music
+    share off: the library and the search leave it out, for households that
+    listen through services or browse their collection through bonob.
+  - Settings switches react on the whole row, not only on the small switch.
   - The mini player in the library names the room; a tap on it opens the
     rooms, so another room can be chosen without going back to the stage.
   - The stage menu is grouped by what it acts on: this track (details, music

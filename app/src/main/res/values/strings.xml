@@ -172,7 +172,7 @@
     <string name="artist_images_no">No, thanks</string>
     <string name="artist_images_setting">Artist pictures from Deezer</string>
     <string name="library_services">Services</string>
-    <string name="services_hint">Linked music services. Hausmusik signs in with its own link; playing uses the account your Sonos system already has.</string>
+    <string name="services_hint">Link more music services here. Music plays through the account your Sonos system already has.</string>
     <string name="link_title">Link %1$s</string>
     <string name="link_waiting">Sign in on the page that just opened in your browser, then come back here.</string>
     <string name="link_code">Code: %1$s</string>
@@ -322,4 +322,6 @@
     <string name="menu_app">Hausmusik</string>
     <string name="library_my_music">My music</string>
     <string name="library_more_services">More services</string>
+    <string name="settings_local_music">My music (music share)</string>
+    <string name="settings_local_music_body">Your Sonos system\'s music share in the library and the search. Off if you only listen through services or browse your collection through bonob.</string>
 </resources>
