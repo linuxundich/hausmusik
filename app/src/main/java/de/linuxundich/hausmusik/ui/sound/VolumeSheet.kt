@@ -53,8 +53,8 @@ data class VolumeActions(
 )
 
 /**
- * The volume of every room in the group (design B,
- * https://claude.ai/artifact/Wxti3U57psiBXcMB2j3Anp): all rooms together
+ * The volume of every room in the group (design B
+ * of the mockups): all rooms together
  * on top, then one slider and a mute button per room. Opened from the
  * speaker icon next to the stage's volume slider.
  */

@@ -105,8 +105,6 @@ Completed items stay checked.
 
 ## Extras (2026-10-14)
 
-Mockups: https://claude.ai/artifact/PdgHiTGDm3G2L9rVokYJsJ
-
 - [x] Stage light with house lights, tap along, turntable, night stage; each switchable
 - [ ] Night stage on the Pixel at night: brightness, burn-in wander, a whole night on the charger
 - [ ] A tap on the night stage cannot open the app (the system's dream overlay takes the touch); revisit if Android allows it

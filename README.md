@@ -12,7 +12,7 @@
 </p>
 
 > [!NOTE]
-> Hausmusik is in early development. There is no release yet.
+> Hausmusik is in early development. Version 0.1.0 is the first public release; a Google Play release is being prepared.
 
 ## What it does
 

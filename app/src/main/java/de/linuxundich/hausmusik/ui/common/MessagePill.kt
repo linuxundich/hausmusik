@@ -60,8 +60,8 @@ private object MessageHosts {
 }
 
 /**
- * Messages as a pill at the top of the screen, above everything (design C,
- * https://claude.ai/artifact/Pj4FGtisTCz7KWgnHxHpQp). A bottom sheet lives
+ * Messages as a pill at the top of the screen, above everything (design C
+ * of the mockups). A bottom sheet lives
  * in its own window, so a message drawn by the screen below would sit
  * behind it: each sheet places a host too, and its popup belongs to the
  * sheet's window. All hosts share the app's one [SnackbarHostState].

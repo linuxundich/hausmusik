@@ -6,6 +6,10 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-14
+
+First public release.
+
 ### Added
 
 - *Settings → About* links to the source code and the privacy policy
@@ -197,7 +201,7 @@ All notable changes to Hausmusik are documented here. The format follows
   under the menu button; it is shortened now and keeps the menu free.
 
 - Messages show as one pill at the top of the screen, above everything
-  (design C from https://claude.ai/artifact/Pj4FGtisTCz7KWgnHxHpQp): light
+  (design C of the mockups): light
   on the stage and the sheets, dark on the library. They no longer hide
   behind the queue or rooms sheet; each sheet hosts the pill in its own
   window, and the whole app shares one message queue. Messages end by
@@ -240,8 +244,8 @@ All notable changes to Hausmusik are documented here. The format follows
   holds up a read of the room: the speaker's cover shows first and is
   replaced once the service answered.
 
-- Waiting indicator while the speakers have not answered yet (design A + B
-  from https://claude.ai/artifact/VHMYvndVYtRUQ7g35h3E7f): play/pause shows
+- Waiting indicator while the speakers have not answered yet (designs A + B
+  of the mockups): play/pause shows
   the morphing Material 3 Expressive loading indicator in the button, every
   other command (skip, seek, volume, shuffle, grouping) a short wavy line
   under the room chip. A command counts until a read of its group started
@@ -262,8 +266,7 @@ All notable changes to Hausmusik are documented here. The format follows
 - New app icon, design 4b-3 "LEDs in the speaker ring": a gable of LED dots
   inside a speaker surround, the peak in a sand accent, in Sonos-like colors
   (near-black ground, warm white). Symmetric around the center; themed
-  (monochrome) variant included. Chosen from the drafts at
-  https://claude.ai/artifact/P639rGUidzRnMTWcfZgGzN.
+  (monochrome) variant included. Chosen from several drafts.
 
 - The widget knows where it is: without Wi-Fi it shows "Not on Wi-Fi" (a
   tap opens the Wi-Fi picker), in a network without Sonos "No speakers
@@ -478,3 +481,6 @@ All notable changes to Hausmusik are documented here. The format follows
 - Tested on a Pixel 10 (Android 17): SSDP search and UPnP events with the real
   S1 household, lock screen controls, volume buttons also with the screen off.
 - The fake household accepts subscriptions and sends NOTIFY on every change.
+
+[Unreleased]: https://github.com/linuxundich/hausmusik/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/linuxundich/hausmusik/releases/tag/v0.1.0
