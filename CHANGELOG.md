@@ -15,6 +15,14 @@ All notable changes to Hausmusik are documented here. The format follows
   A service linked later comes in switched on at the end. Replaces the
   single "My music" switch, whose setting carries over.
 
+### Fixed
+
+- Station logos: a square logo with its own background (SWR3) filled only
+  the middle of the card, in a frame of the placeholder's color drawn from
+  the station name. Such logos now fill the card like a cover; transparent
+  or wide ones sit whole on a calm dark or light ground chosen by the
+  logo's brightness.
+
 ## [0.2.0] - 2026-10-15
 
 ### Added

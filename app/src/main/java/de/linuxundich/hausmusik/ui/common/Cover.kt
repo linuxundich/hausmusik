@@ -24,6 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.padding
 import coil3.compose.AsyncImage
+import coil3.toBitmap
+import coil3.request.allowHardware
 import coil3.compose.SubcomposeAsyncImage
 import de.linuxundich.hausmusik.ui.theme.AppIcons
 
@@ -96,15 +98,55 @@ fun NowPlayingCover(
         Cover(url, modifier, corner, placeholderColor, iconColor, icon, keepPrevious)
         return
     }
-    // Logos come in every shape (wide wordmarks, transparent ones): whole and centered on
-    // the station's own colors, not cropped to the square like an album cover.
-    var loaded by remember(url) { mutableStateOf(false) }
-    Box(modifier) {
-        de.linuxundich.hausmusik.ui.stage.StationPlaceholder(station, Modifier.fillMaxSize(), corner, small, nameShown = !loaded)
-        if (url != null) AsyncImage(
-            model = url, contentDescription = null, contentScale = ContentScale.Fit,
-            onSuccess = { loaded = true }, onError = { loaded = false },
-            modifier = Modifier.fillMaxSize().padding(if (small) 4.dp else 28.dp),
+    // How the logo is laid out depends on the logo: see [LogoLook].
+    var look by remember(url) { mutableStateOf<LogoLook?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val request = remember(url) {
+        url?.let { coil3.request.ImageRequest.Builder(context).data(it).allowHardware(false).build() }
+    }
+    Box(modifier.clip(RoundedCornerShape(corner))) {
+        val l = look
+        when {
+            l == null -> de.linuxundich.hausmusik.ui.stage.StationPlaceholder(station, Modifier.fillMaxSize(), corner, small)
+            !l.fill -> Box(Modifier.fillMaxSize().background(l.background))
+        }
+        if (request != null) AsyncImage(
+            model = request, contentDescription = null,
+            contentScale = if (l?.fill == true) ContentScale.Crop else ContentScale.Fit,
+            onSuccess = { st -> look = LogoLook.of(st.result.image.toBitmap()) },
+            onError = { look = null },
+            modifier = Modifier.fillMaxSize().padding(if (l?.fill == true) 0.dp else if (small) 4.dp else 28.dp),
         )
+    }
+}
+
+/**
+ * A station logo's layout: a square, opaque logo fills the card like a cover
+ * ([fill]); a transparent or wide one sits whole on a calm [background] that
+ * contrasts with it (dark for a light logo, light for a dark one), not on a
+ * color of its own that would clash.
+ */
+internal data class LogoLook(val fill: Boolean, val background: Color) {
+    companion object {
+        fun of(bitmap: android.graphics.Bitmap): LogoLook {
+            val w = bitmap.width
+            val h = bitmap.height
+            val square = w > 0 && h > 0 && w.toFloat() / h in 0.9f..1.1f
+            val corners = listOf(0 to 0, w - 1 to 0, 0 to h - 1, w - 1 to h - 1)
+            val opaque = corners.all { (x, y) -> android.graphics.Color.alpha(bitmap.getPixel(x, y)) > 240 }
+            if (square && opaque) return LogoLook(true, Color.Transparent)
+            // Brightness of the logo's own pixels, on a coarse grid.
+            var sum = 0.0
+            var n = 0
+            val step = maxOf(1, minOf(w, h) / 24)
+            for (y in 0 until h step step) for (x in 0 until w step step) {
+                val c = bitmap.getPixel(x, y)
+                if (android.graphics.Color.alpha(c) < 128) continue
+                sum += (0.299 * android.graphics.Color.red(c) + 0.587 * android.graphics.Color.green(c) + 0.114 * android.graphics.Color.blue(c)) / 255
+                n++
+            }
+            val light = n > 0 && sum / n > 0.55
+            return LogoLook(false, if (light) Color(0xFF26272B) else Color(0xFFF1F0EC))
+        }
     }
 }
