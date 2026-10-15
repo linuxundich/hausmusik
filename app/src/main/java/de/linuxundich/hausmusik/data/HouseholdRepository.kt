@@ -801,25 +801,32 @@ class HouseholdRepository @Inject constructor(
      * Queue items respect [mode]; ReplaceAndPlay clears the queue first, so the
      * UI asks before it uses that mode on a non-empty queue.
      */
-    suspend fun play(item: DidlObject, mode: QueueMode): Result<Unit> = command { c ->
+    suspend fun play(item: DidlObject, mode: QueueMode): Result<Unit> {
+        // A service entry the service does not offer for playing (an artist on most) has no URI.
+        // Fail before anything is touched, above all before the queue is cleared.
+        val uri = item.uri ?: return Result.failure(IOException("not playable: ${item.id}"))
+        return command { c -> play(c, item, uri, mode) }
+    }
+
+    private suspend fun play(c: SonosPlayerClient, item: DidlObject, uri: String, mode: QueueMode) {
         val coordinatorUuid = _state.value.selected!!.id
         if (item.playsDirectly) {
             val metadata = item.resMd ?: Didl.minimal(item.id, item.parentId, item.title, item.upnpClass)
-            c.setUri(item.uri!!, metadata)
+            c.setUri(uri, metadata)
             c.play()
-            return@command
+            return
         }
         val metadata = item.resMd ?: Didl.minimal(item.id, item.parentId, item.title, item.upnpClass)
         when (mode) {
             QueueMode.ReplaceAndPlay -> {
                 c.removeAllTracksFromQueue()
-                c.addToQueue(item.uri!!, metadata)
+                c.addToQueue(uri, metadata)
                 c.useQueue(coordinatorUuid)
                 c.seekTrack(1)
                 c.play()
             }
-            QueueMode.PlayNext -> c.addToQueue(item.uri!!, metadata, asNext = true)
-            QueueMode.Append -> c.addToQueue(item.uri!!, metadata)
+            QueueMode.PlayNext -> c.addToQueue(uri, metadata, asNext = true)
+            QueueMode.Append -> c.addToQueue(uri, metadata)
         }
     }
 

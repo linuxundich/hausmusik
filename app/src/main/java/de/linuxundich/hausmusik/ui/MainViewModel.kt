@@ -291,7 +291,10 @@ class MainViewModel @Inject constructor(
                     QueueMode.ReplaceAndPlay -> Unit
                 }
             }
-            .onFailure { _messages.send(R.string.error_command) }
+            .onFailure {
+                android.util.Log.w("Hausmusik", "play ${item.id} (${item.uri}) failed", it)
+                _messages.send(R.string.error_command)
+            }
     }
 
     fun playQueueTrack(trackNumber: Int) = run { repo.playQueueTrack(trackNumber) }

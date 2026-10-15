@@ -11,6 +11,10 @@ All notable changes to Hausmusik are documented here. The format follows
 - The stage was cut off at the bottom (queue, library, lyrics, timer) with a
   larger system font and the line about a muted room: the cover now gives
   way and takes the height that is left.
+- Playing a search hit the service only lets you open (an artist on bonob or
+  Spotify) failed with "The speaker did not answer". Worse, the queue was
+  cleared before. Such hits get no play button now, and play checks the
+  entry before it touches the queue.
 
 ### Changed
 

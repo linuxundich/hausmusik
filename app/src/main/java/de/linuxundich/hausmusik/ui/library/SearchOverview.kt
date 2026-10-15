@@ -250,9 +250,10 @@ private fun TopHit(hit: Hit, artUrl: (String?) -> String?, onOpen: () -> Unit, o
                 hit.item.creator?.takeIf { !person }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 1) }
                 Spacer(Modifier.height(10.dp))
                 // One play button per source, each naming it: which one plays is never a guess.
-                // The first (the user's library order) is the filled one.
+                // The first (the user's library order) is the filled one. Sources that only
+                // let the hit be opened (an artist on most services) get no button.
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    (listOf(hit) + hit.others).forEachIndexed { i, h ->
+                    (listOf(hit) + hit.others).filter { it.item.uri != null }.forEachIndexed { i, h ->
                         val name = sourceName(h.source)
                         val label = stringResource(R.string.search_play_from, name)
                         val content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {
