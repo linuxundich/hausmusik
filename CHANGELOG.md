@@ -6,6 +6,8 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-15
+
 ### Fixed
 
 - The stage was cut off at the bottom (queue, library, lyrics, timer) with a
@@ -579,7 +581,8 @@ First public release.
   S1 household, lock screen controls, volume buttons also with the screen off.
 - The fake household accepts subscriptions and sends NOTIFY on every change.
 
-[Unreleased]: https://github.com/linuxundich/hausmusik/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/linuxundich/hausmusik/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/linuxundich/hausmusik/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/linuxundich/hausmusik/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/linuxundich/hausmusik/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/linuxundich/hausmusik/releases/tag/v0.1.0
