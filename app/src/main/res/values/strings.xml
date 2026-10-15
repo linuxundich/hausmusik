@@ -330,4 +330,6 @@
     <string name="settings_sources_body">Which sources the library shows, and in which order. The search follows this choice.</string>
     <string name="source_up">Move %1$s up</string>
     <string name="source_down">Move %1$s down</string>
+    <string name="favorite_add_named">Add “%1$s” to favorites</string>
+    <string name="favorite_remove_named">Remove “%1$s” from favorites</string>
 </resources>

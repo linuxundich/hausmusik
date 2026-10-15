@@ -58,7 +58,8 @@ class SonosPlayerClient(val baseUrl: HttpUrl, private val soap: SoapClient) {
             append("""<res protocolInfo="${(item.protocolInfo ?: "x-rincon-playlist:*:*:*").xmlEscape()}">${item.uri.orEmpty().xmlEscape()}</res>""")
             item.albumArtUri?.let { append("<upnp:albumArtURI>${it.xmlEscape()}</upnp:albumArtURI>") }
             append("<r:type>instantPlay</r:type>")
-            item.description?.let { append("<r:description>${it.xmlEscape()}</r:description>") }
+            // As the Sonos app and noson: the album or artist when the item has no description of its own.
+            (item.description ?: item.album ?: item.creator)?.let { append("<r:description>${it.xmlEscape()}</r:description>") }
             append("<r:resMD>${resMd.xmlEscape()}</r:resMD>")
             append("</item></DIDL-Lite>")
         }

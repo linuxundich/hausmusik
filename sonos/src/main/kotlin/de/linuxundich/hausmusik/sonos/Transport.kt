@@ -85,6 +85,12 @@ data class NowPlaying(
     val positionMs: Long?,
     val kind: SourceKind,
     val queuePosition: Int?,
+    /**
+     * What a Sonos favorite of this would hold, as Gnomos and noson make it: a
+     * station by its stream (the media), anything else by its track. Null for
+     * line-in, TV and rooms playing along.
+     */
+    val favoriteItem: DidlObject? = null,
 ) {
     companion object {
         /**
@@ -116,6 +122,7 @@ data class NowPlaying(
                         positionMs = position.positionMs,
                         kind = kind,
                         queuePosition = null,
+                        favoriteItem = station(media, station, mediaUri),
                     )
                 }
                 val stream = track?.streamContent
@@ -130,6 +137,7 @@ data class NowPlaying(
                     positionMs = null,
                     kind = kind,
                     queuePosition = null,
+                    favoriteItem = station(media, station, mediaUri),
                 )
             }
             return NowPlaying(
@@ -142,6 +150,18 @@ data class NowPlaying(
                 positionMs = position.positionMs,
                 kind = kind,
                 queuePosition = position.trackNumber.takeIf { kind == SourceKind.Queue && it > 0 },
+                favoriteItem = track?.takeIf { trackUri.isNotEmpty() && (kind == SourceKind.Queue || kind == SourceKind.Stream) }
+                    ?.copy(uri = trackUri, isContainer = false),
+            )
+        }
+
+        private fun station(media: MediaInfo?, name: String?, uri: String): DidlObject? {
+            if (uri.isEmpty()) return null
+            val meta = media?.currentUriMetadata
+            return DidlObject(
+                id = meta?.id ?: "", parentId = meta?.parentId ?: "", isContainer = false,
+                title = name ?: meta?.title.orEmpty(), upnpClass = meta?.upnpClass ?: "object.item.audioItem.audioBroadcast",
+                uri = uri, albumArtUri = meta?.albumArtUri, resMd = meta?.resMd, description = meta?.description,
             )
         }
 

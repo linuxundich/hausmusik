@@ -509,6 +509,21 @@ fun ContainerScreen(
                             )
                         }
                     }
+                    // The heart as in the Sonos app: an album, artist, playlist or folder of a service
+                    // becomes a Sonos favorite and is found again under Favorites.
+                    val canFavorite = container.uri != null && container.upnpClass != ServiceIds.LINKED_CLASS &&
+                        !container.id.startsWith("FV:") && container.parentId != ServiceIds.OVERVIEW
+                    if (canFavorite) {
+                        LaunchedEffect(Unit) { vm.load(LibraryTab.Favorites.objectId) }
+                        val fav = lists[LibraryTab.Favorites.objectId].let { vm.favoriteFor(container) != null }
+                        IconButton(onClick = { vm.toggleFavorite(container) }) {
+                            Icon(
+                                if (fav) AppIcons.Favorite else AppIcons.FavoriteBorder,
+                                stringResource(if (fav) R.string.favorite_remove_named else R.string.favorite_add_named, container.title),
+                                tint = if (fav) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Unspecified,
+                            )
+                        }
+                    }
                     val details = de.linuxundich.hausmusik.ui.details.LocalItemDetails.current
                     val target = remember(container) { de.linuxundich.hausmusik.ui.details.DetailsTarget.of(container) }
                     if (details != null && target != null) IconButton(onClick = { details(target) }) { Icon(AppIcons.Info, stringResource(R.string.details)) }

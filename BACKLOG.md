@@ -61,7 +61,7 @@ Completed items stay checked.
 - [x] **P2** Sonos favorites: add and remove from the library
 - [x] **P2** Sonos playlists: add to, create, rename, delete, remove tracks
 - [x] **P2** Line-in as a source (Radio tab)
-- [ ] **P2** Check adding a Sonos favorite on the real S1 (only the fake was tested)
+- [x] **P2** Check adding a Sonos favorite on the real S1 (only the fake was tested) (2026-10-15: bonob album added from the album header and removed again)
 - [ ] **P2** Sleep timer that fades out over the last minutes
 - [ ] **P3** Play files from the phone (own HTTP server)
 - [ ] **P3** Announcements: a sound in chosen rooms, then back to what played

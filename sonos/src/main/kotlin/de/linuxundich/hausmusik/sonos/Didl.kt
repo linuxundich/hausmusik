@@ -74,6 +74,29 @@ object Didl {
     }
 
     /** Builds the minimal DIDL-Lite Sonos needs as metadata for SetAVTransportURI. */
+    /**
+     * The `r:resMD` of a favorite as the Sonos app writes it: the item (or
+     * container) with its class and title, and always a `desc` naming its
+     * source: the service's, or `RINCON_AssociatedZPUDN` for the music share
+     * and radio (noson does the same).
+     */
+    fun favoriteMetadata(item: DidlObject, serviceDesc: String?): String {
+        item.resMd?.takeIf { "<desc" in it }?.let { return it }
+        val tag = if (item.isContainer) "container" else "item"
+        return buildString {
+            append("""<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" """)
+            append("""xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" """)
+            append("""xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" """)
+            append("""xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">""")
+            append("""<$tag id="${item.id.ifEmpty { "-1" }.xmlEscape()}" parentID="${item.parentId.xmlEscape()}" restricted="true">""")
+            append("<dc:title>${item.title.xmlEscape()}</dc:title>")
+            append("<upnp:class>${item.upnpClass.xmlEscape()}</upnp:class>")
+            append("""<desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">""")
+            append((serviceDesc ?: "RINCON_AssociatedZPUDN").xmlEscape()).append("</desc>")
+            append("</$tag></DIDL-Lite>")
+        }
+    }
+
     fun minimal(id: String, parentId: String, title: String, upnpClass: String, serviceDesc: String? = null): String =
         buildString {
             append("""<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" """)

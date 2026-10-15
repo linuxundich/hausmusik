@@ -8,6 +8,15 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Added
 
+- Favorites as in Gnomos and the Sonos app: a heart beside the playing
+  title on the stage makes the track or station a Sonos favorite (filled
+  when it is one; a station also counts when saved through another source,
+  e.g. SWR3 through TuneIn), and a heart in the header of an album, artist,
+  playlist or service folder does the same for the whole of it. Long press
+  in lists still works. Favorites are written as noson and the Sonos app
+  write them: with the source's desc in `r:resMD` (`RINCON_AssociatedZPUDN`
+  for the music share and radio) and the album or artist as description.
+  Tested on S1: added and removed again.
 - Settings › Libraries: every source of the library (My music, each music
   service such as bonob, Spotify or TuneIn, Radio) can be switched off and
   moved up or down. The library's source row and the search follow that

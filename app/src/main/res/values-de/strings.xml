@@ -328,4 +328,6 @@
     <string name="settings_sources_body">Welche Quellen die Bibliothek zeigt und in welcher Reihenfolge. Die Suche folgt dieser Auswahl.</string>
     <string name="source_up">%1$s nach oben</string>
     <string name="source_down">%1$s nach unten</string>
+    <string name="favorite_add_named">„%1$s“ zu den Favoriten</string>
+    <string name="favorite_remove_named">„%1$s“ aus den Favoriten entfernen</string>
 </resources>

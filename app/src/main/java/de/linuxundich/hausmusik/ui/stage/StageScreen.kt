@@ -111,6 +111,9 @@ data class StageActions(
     val timerLabel: String? = null,
     /** The speaker icon left of the slider: volume of each room. */
     val onRoomVolumes: () -> Unit = {},
+    /** Whether what plays is a Sonos favorite; null when it cannot be one (line-in, TV). */
+    val favorite: Boolean? = null,
+    val onFavorite: () -> Unit = {},
     /** Mutes or unmutes a single room (not used for groups: see VolumeRow). */
     val onMute: (Boolean) -> Unit = {},
 )
@@ -298,11 +301,25 @@ private fun StageCover(group: GroupState, colors: CoverColors, modifier: Modifie
 private fun StageControls(group: GroupState, colors: CoverColors, actions: StageActions, playBusy: Boolean, compact: Boolean = false) {
     val now = group.nowPlaying
     Column(Modifier.fillMaxWidth()) {
-        Text(
-            now?.title ?: stringResource(R.string.nothing_playing),
-            color = colors.content, fontSize = if (compact) 19.sp else 24.sp, fontWeight = FontWeight.Bold,
-            maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                now?.title ?: stringResource(R.string.nothing_playing),
+                color = colors.content, fontSize = if (compact) 19.sp else 24.sp, fontWeight = FontWeight.Bold,
+                maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+            )
+            // As in Gnomos' player bar: one tap makes what plays a Sonos favorite (or takes it out).
+            val fav = actions.favorite
+            if (fav != null) {
+                val label = if (now?.kind == SourceKind.Radio) now.station ?: now.title else now?.title.orEmpty()
+                IconButton(onClick = actions.onFavorite) {
+                    Icon(
+                        if (fav) AppIcons.Favorite else AppIcons.FavoriteBorder,
+                        stringResource(if (fav) R.string.favorite_remove_named else R.string.favorite_add_named, label),
+                        tint = if (fav) colors.accent else colors.content.copy(alpha = 0.7f),
+                    )
+                }
+            }
+        }
         val sub = when {
             now == null -> stringResource(R.string.queue_empty_hint)
             now.kind == SourceKind.Radio -> listOfNotNull(now.station, now.artist).joinToString(" · ")

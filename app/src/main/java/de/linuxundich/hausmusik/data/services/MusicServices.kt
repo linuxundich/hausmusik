@@ -72,6 +72,11 @@ class MusicServices @Inject constructor(
 
     init {
         repo.coverResolver = ::serviceCover
+        repo.serviceDescFor = { uri ->
+            Regex("[?&]sid=(\\d+)").find(uri)?.groupValues?.get(1)?.toIntOrNull()?.let { sid ->
+                runCatching { available().firstOrNull { it.id == sid }?.serviceDesc }.getOrNull()
+            }
+        }
     }
 
     private val coverJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()

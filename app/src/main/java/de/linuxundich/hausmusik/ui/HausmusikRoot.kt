@@ -140,6 +140,8 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     var videoOpen by rememberSaveable { mutableStateOf(false) }
     val videosOn by vm.musicVideosEnabled.collectAsStateWithLifecycle()
     val stationLogosOn by vm.stationLogosEnabled.collectAsStateWithLifecycle()
+    val favoritesList by vm.favorites.collectAsStateWithLifecycle()
+    LaunchedEffect(household.connection) { if (household.connection == Connection.Connected) vm.loadFavorites() }
     val videoMode by vm.musicVideoMode.collectAsStateWithLifecycle()
     var lyricsConsent by rememberSaveable { mutableStateOf(false) }
     val lyricsEnabled by vm.lyricsEnabled.collectAsStateWithLifecycle()
@@ -211,6 +213,8 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
         onSound = { soundOpen = true },
         onRoomVolumes = { volumeOpen = true },
         onMute = { m -> vm.setMemberMute(selected.id, selected.group.coordinator, m) },
+        favorite = now?.favoriteItem?.let { item -> vm.favoriteOf(item, favoritesList) != null },
+        onFavorite = { now?.favoriteItem?.let(vm::toggleNowPlayingFavorite) },
         onSettings = { stack.add(Screen.Settings) },
         onDetails = { now?.let { details = DetailsTarget.of(it) } },
         crossfadeOn = selected.crossfade,

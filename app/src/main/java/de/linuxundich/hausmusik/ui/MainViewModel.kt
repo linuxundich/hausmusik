@@ -101,6 +101,39 @@ class MainViewModel @Inject constructor(
         if (on) repo.refreshAll()
     }
 
+    private val _favorites = kotlinx.coroutines.flow.MutableStateFlow<List<DidlObject>>(emptyList())
+
+    /** The Sonos favorites, to show whether what plays is one of them. */
+    val favorites: StateFlow<List<DidlObject>> = _favorites
+
+    fun loadFavorites() = viewModelScope.launch { repo.browseAll("FV:2").onSuccess { _favorites.value = it } }
+
+    /**
+     * The favorite that holds [item]: the same stream or track, or for a station
+     * one of the same name (SWR3 saved through TuneIn plays the same as its stream).
+     */
+    fun favoriteOf(item: DidlObject?, favorites: List<DidlObject> = _favorites.value): DidlObject? {
+        item ?: return null
+        favorites.firstOrNull { it.uri != null && it.uri == item.uri }?.let { return it }
+        if (!item.isRadio) return null
+        val name = de.linuxundich.hausmusik.data.ArtistImages.normalize(item.title)
+        return favorites.firstOrNull { it.isRadio && de.linuxundich.hausmusik.data.ArtistImages.normalize(it.title) == name }
+    }
+
+    /** Adds what plays now to the Sonos favorites, or takes it out again (the heart on the stage). */
+    fun toggleNowPlayingFavorite(item: DidlObject) = viewModelScope.launch {
+        val fav = favoriteOf(item)
+        val result = if (fav != null) repo.removeFavorite(fav.id) else repo.addFavorite(item)
+        _messages.send(
+            when {
+                result.isFailure -> R.string.item_failed
+                fav != null -> R.string.favorite_removed
+                else -> R.string.favorite_added
+            },
+        )
+        loadFavorites()
+    }
+
     val sourcePrefs: StateFlow<List<de.linuxundich.hausmusik.data.SourcePref>> =
         settings.librarySources.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     private val _linkedServices = kotlinx.coroutines.flow.MutableStateFlow<List<Pair<Int, String>>>(emptyList())

@@ -853,8 +853,12 @@ class HouseholdRepository @Inject constructor(
 
     // Sonos favorites and playlists: any player of the household answers.
 
-    suspend fun addFavorite(item: DidlObject): Result<Unit> = command { c ->
-        c.addFavorite(item, item.resMd ?: Didl.minimal(item.id, item.parentId, item.title, item.upnpClass))
+    /** The desc of the music service an item comes from (`sid=` in its URI); set by MusicServices. */
+    @Volatile var serviceDescFor: (suspend (String) -> String?)? = null
+
+    suspend fun addFavorite(item: DidlObject): Result<Unit> {
+        val desc = item.uri?.let { u -> serviceDescFor?.invoke(u) }
+        return command { c -> c.addFavorite(item, Didl.favoriteMetadata(item, desc)) }
     }
 
     suspend fun removeFavorite(favoriteId: String): Result<Unit> = command { it.removeFavorite(favoriteId) }
