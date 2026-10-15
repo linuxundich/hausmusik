@@ -16,7 +16,10 @@ All notable changes to Hausmusik are documented here. The format follows
   in lists still works. Favorites are written as noson and the Sonos app
   write them: with the source's desc in `r:resMD` (`RINCON_AssociatedZPUDN`
   for the music share and radio) and the album or artist as description.
-  Tested on S1: added and removed again.
+  Tested on S1 with a bonob album (album header), a local album (stored as
+  a container with `RINCON_AssociatedZPUDN`) and a paused Spotify track
+  (heart on the stage, stored with Spotify's own desc); each added and
+  removed again.
 - Settings › Libraries: every source of the library (My music, each music
   service such as bonob, Spotify or TuneIn, Radio) can be switched off and
   moved up or down. The library's source row and the search follow that
