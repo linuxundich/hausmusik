@@ -344,4 +344,8 @@
     <string name="search_source_busy">%1$s is still searching …</string>
     <string name="search_source_failed_named">%1$s could not be searched.</string>
     <string name="search_play_from">Play from %1$s</string>
+    <string name="search_play_what_from">Play %1$s from %2$s</string>
+    <string name="search_play_top_tracks">Top tracks</string>
+    <string name="search_play_albums">All albums</string>
+    <string name="search_similar_artists">Similar artists</string>
 </resources>

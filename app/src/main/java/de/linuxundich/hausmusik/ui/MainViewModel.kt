@@ -282,7 +282,7 @@ class MainViewModel @Inject constructor(
 
     fun play(item: DidlObject, mode: QueueMode) = viewModelScope.launch {
         if (mode == QueueMode.ReplaceAndPlay) _starting.value = item.title
-        repo.play(item, mode)
+        playResolved(item, mode)
             .also { if (mode == QueueMode.ReplaceAndPlay) _starting.value = null }
             .onSuccess {
                 when (mode) {
@@ -295,6 +295,22 @@ class MainViewModel @Inject constructor(
                 android.util.Log.w("Hausmusik", "play ${item.id} (${item.uri}) failed", it)
                 _messages.send(R.string.error_command)
             }
+    }
+
+    /**
+     * Plays [item]; a service artist, which cannot be played itself, through
+     * its top tracks or its albums one after the other.
+     */
+    private suspend fun playResolved(item: DidlObject, mode: QueueMode): Result<Unit> {
+        if (item.uri != null) return repo.play(item, mode)
+        val items = runCatching { musicServices.artistPlayback(item)?.items }.getOrNull()
+            ?: return Result.failure(java.io.IOException("not playable: ${item.id}"))
+        // "Next" inserts each right after the current track: the last one first keeps the order.
+        val (first, rest) = if (mode == QueueMode.PlayNext) items.last() to items.dropLast(1).reversed() else items.first() to items.drop(1)
+        return repo.play(first, mode).mapCatching {
+            val then = if (mode == QueueMode.PlayNext) QueueMode.PlayNext else QueueMode.Append
+            rest.forEach { repo.play(it, then).getOrThrow() }
+        }
     }
 
     fun playQueueTrack(trackNumber: Int) = run { repo.playQueueTrack(trackNumber) }

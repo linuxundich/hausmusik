@@ -212,6 +212,19 @@ class MusicServices @Inject constructor(
         return page.items.map { SmapiClient.toDidl(c.service, sn, it, ServiceIds.of(sid, it.id)) }
     }
 
+    private val artistPlaybacks = java.util.concurrent.ConcurrentHashMap<String, ArtistPlayback>()
+
+    /**
+     * What "play" on a service artist plays: most services let an artist be
+     * opened, not played. Its top tracks when the service has them, else its
+     * albums one after the other; null when neither can be played.
+     */
+    suspend fun artistPlayback(artist: DidlObject): ArtistPlayback? {
+        artistPlaybacks[artist.id]?.let { return it }
+        if (ServiceIds.parse(artist.id) == null) return null
+        return pickArtistPlayback(browse(artist.id))?.also { artistPlaybacks[artist.id] = it }
+    }
+
     /** The services this household has linked in Hausmusik, A to Z. */
     suspend fun linked(): List<MusicService> {
         val ids = linkedIds()
@@ -325,3 +338,19 @@ private val POPULAR = setOf(
 
 /** bonob calls itself "bonob"; lists look better with a capital. */
 val MusicService.displayName: String get() = name.replaceFirstChar { it.uppercase() }
+
+/** What an artist's play button plays, see [MusicServices.artistPlayback]. */
+data class ArtistPlayback(val kind: Kind, val items: List<DidlObject>) {
+    enum class Kind { TopTracks, Albums }
+}
+
+/** The entries under a service artist: "Top Tracks" (Spotify), else the playable albums. */
+internal fun pickArtistPlayback(children: List<DidlObject>): ArtistPlayback? {
+    val playable = children.filter { it.uri != null }
+    playable.firstOrNull { !it.upnpClass.contains("musicAlbum") && TOP.containsMatchIn(it.title) }
+        ?.let { return ArtistPlayback(ArtistPlayback.Kind.TopTracks, listOf(it)) }
+    val albums = playable.filter { it.upnpClass.contains("musicAlbum") }
+    return if (albums.isEmpty()) null else ArtistPlayback(ArtistPlayback.Kind.Albums, albums)
+}
+
+private val TOP = Regex("""^(top|beliebt|popular|meistgeh)""", RegexOption.IGNORE_CASE)

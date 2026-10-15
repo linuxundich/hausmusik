@@ -231,7 +231,7 @@ fun LibraryScreen(
         ProvideArtistImages(vm, snackbar) {
             Column(Modifier.padding(padding)) {
                 if (searching) {
-                    SearchOverview(search, query, vm::artUrl, onOpenContainer, onPlay)
+                    SearchOverview(search, query, vm::artUrl, onOpenContainer, onPlay, vm::artistPlayback)
                     return@Column
                 }
                 if (!wide) SourceChips(vm, tab, service, services, PaddingValues(horizontal = 16.dp))

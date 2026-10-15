@@ -13,11 +13,17 @@ All notable changes to Hausmusik are documented here. The format follows
   way and takes the height that is left.
 - Playing a search hit the service only lets you open (an artist on bonob or
   Spotify) failed with "The speaker did not answer". Worse, the queue was
-  cleared before. Such hits get no play button now, and play checks the
-  entry before it touches the queue.
+  cleared before. Play now checks the entry before it touches the queue.
 
 ### Changed
 
+- Search: an artist can be played from the best hit after all. One button
+  per source says what it plays: Spotify's top tracks, or all albums one
+  after the other where a service (bonob) has no top tracks. The card shows
+  where the artist is and an arrow, since tapping it opens the artist.
+  Artists that are not the search (Spotify answers "metallica" with AC/DC)
+  move to their own row, *Similar artists*, at the end; artist rows carry
+  an arrow too.
 - Search results: a best hit on top (the artist, album or track named like
   the search, with its picture and a play button), then rows by kind across
   all sources: artists, albums and playlists as cover rows, tracks with

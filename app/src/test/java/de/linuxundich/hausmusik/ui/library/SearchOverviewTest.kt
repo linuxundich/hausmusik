@@ -28,14 +28,15 @@ class SearchOverviewTest {
         val d = arrangeSearch(sections, "metallica")
         assertEquals("b1", d.top!!.item.id)
         assertEquals(listOf("Spotify"), d.top!!.alsoIn)
-        // The merged artist is not shown twice.
-        assertEquals(listOf("s2"), d.byKind.first { it.first == HitKind.Artist }.second.map { it.item.id })
+        // The merged artist is not shown twice; AC/DC is not "metallica", so it goes to the similar ones.
+        assertEquals(null, d.byKind.firstOrNull { it.first == HitKind.Artist })
+        assertEquals(listOf("s2"), d.byKind.first { it.first == HitKind.Similar }.second.map { it.item.id })
     }
 
     @Test
     fun `kinds in a fixed order, the sources' order within a kind`() {
         val d = arrangeSearch(sections, "metallica")
-        assertEquals(listOf(HitKind.Artist, HitKind.Album, HitKind.Track), d.byKind.map { it.first })
+        assertEquals(listOf(HitKind.Album, HitKind.Track, HitKind.Similar), d.byKind.map { it.first })
         assertEquals(listOf("b2", "b3"), d.byKind.first { it.first == HitKind.Album }.second.map { it.item.id })
     }
 
@@ -49,5 +50,25 @@ class SearchOverviewTest {
     fun `an album in a service's track results counts as an album`() {
         assertEquals(HitKind.Album, hitKind("tracks", album("x", "Reload")))
         assertEquals(HitKind.Track, hitKind("tracks", track("y", "One")))
+    }
+
+    @Test
+    fun `a service artist plays its top tracks, else its albums`() {
+        fun c(id: String, t: String, cls: String, uri: String?) = DidlObject(id, "", true, t, cls, uri = uri)
+        val spotify = listOf(
+            c("r", "AC/DC Radio", "object.item.audioItem.audioBroadcast", "x-sonosapi-radio:r"),
+            c("t", "Top Tracks", "object.container.playlistContainer", "x-rincon-cpcontainer:t"),
+            c("a", "Power Up", "object.container.album.musicAlbum", "x-rincon-cpcontainer:a"),
+        )
+        val top = de.linuxundich.hausmusik.data.services.pickArtistPlayback(spotify)!!
+        assertEquals(de.linuxundich.hausmusik.data.services.ArtistPlayback.Kind.TopTracks, top.kind)
+        assertEquals(listOf("t"), top.items.map { it.id })
+        val bonob = listOf(
+            c("a1", "Kill 'Em All", "object.container.album.musicAlbum", "x-rincon-cpcontainer:a1"),
+            c("a2", "Reload", "object.container.album.musicAlbum", "x-rincon-cpcontainer:a2"),
+            c("x", "Not playable", "object.container.album.musicAlbum", null),
+        )
+        assertEquals(listOf("a1", "a2"), de.linuxundich.hausmusik.data.services.pickArtistPlayback(bonob)!!.items.map { it.id })
+        assertEquals(null, de.linuxundich.hausmusik.data.services.pickArtistPlayback(emptyList()))
     }
 }

@@ -142,6 +142,9 @@ class LibraryViewModel @Inject constructor(
     val artistImagesEnabled: StateFlow<Boolean> = settings.artistImagesEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val artistHintDone: StateFlow<Boolean> = settings.artistImagesHintDone.stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
+    /** What playing a service artist plays (its top tracks or albums), null when nothing. */
+    suspend fun artistPlayback(artist: DidlObject) = runCatching { services.artistPlayback(artist) }
+        .onFailure { android.util.Log.w("Library", "artist ${artist.id} failed", it) }.getOrNull()
     suspend fun artistImage(name: String): String? = artistImages.forArtist(name)
     fun enableArtistImages() = viewModelScope.launch { settings.setArtistImagesEnabled(true) }
     fun dismissArtistHint() = viewModelScope.launch { settings.dismissArtistImagesHint() }

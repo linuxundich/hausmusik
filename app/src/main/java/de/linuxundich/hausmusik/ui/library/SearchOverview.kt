@@ -53,12 +53,17 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import de.linuxundich.hausmusik.R
 import de.linuxundich.hausmusik.data.ArtistImages
+import de.linuxundich.hausmusik.data.services.ArtistPlayback
 import de.linuxundich.hausmusik.sonos.DidlObject
 import de.linuxundich.hausmusik.ui.common.Cover
 import de.linuxundich.hausmusik.ui.theme.AppIcons
 
-/** What a hit is, across the names services give their categories. */
-enum class HitKind { Artist, Album, Track, Playlist, Other }
+/**
+ * What a hit is, across the names services give their categories. [Similar]
+ * are artists whose name is not the search: Spotify answers "metallica" with
+ * AC/DC and Guns N' Roses too.
+ */
+enum class HitKind { Artist, Album, Track, Playlist, Similar, Other }
 
 internal fun hitKind(groupKind: String, item: DidlObject): HitKind {
     val k = groupKind.lowercase().substringAfter(':')
@@ -95,17 +100,20 @@ data class SearchOverviewData(val top: Hit?, val byKind: List<Pair<HitKind, List
 
 internal fun arrangeSearch(sections: List<SearchSection>, query: String): SearchOverviewData {
     val hits = sections.flatMap { s -> s.groups.flatMap { g -> g.items.map { Hit(it, s.service, hitKind(g.kind, it)) } } }
-    val artists = hits.filter { it.kind == HitKind.Artist }
+    val q = ArtistImages.normalize(query)
+    val (artists, similar) = hits.filter { it.kind == HitKind.Artist }
         .groupBy { ArtistImages.normalize(it.item.title) }
         .map { (_, same) -> same.first().copy(others = same.drop(1).filter { it.source != same.first().source }.distinctBy { it.source }) }
+        .partition { val n = ArtistImages.normalize(it.item.title); q.isEmpty() || n.contains(q) || (n.isNotEmpty() && q.contains(n)) }
     val byKind = buildList {
         if (artists.isNotEmpty()) add(HitKind.Artist to artists)
-        for (k in listOf(HitKind.Album, HitKind.Track, HitKind.Playlist, HitKind.Other)) {
+        for (k in listOf(HitKind.Album, HitKind.Track, HitKind.Playlist)) {
             val list = hits.filter { it.kind == k }.distinctBy { listOf(it.source, it.item.id) }
             if (list.isNotEmpty()) add(k to list)
         }
+        if (similar.isNotEmpty()) add(HitKind.Similar to similar.map { it.copy(kind = HitKind.Similar) })
+        hits.filter { it.kind == HitKind.Other }.distinctBy { listOf(it.source, it.item.id) }.takeIf { it.isNotEmpty() }?.let { add(HitKind.Other to it) }
     }
-    val q = ArtistImages.normalize(query)
     val exact = listOf(HitKind.Artist, HitKind.Album, HitKind.Track).firstNotNullOfOrNull { k ->
         byKind.firstOrNull { it.first == k }?.second?.firstOrNull { ArtistImages.normalize(it.item.title) == q }
     }
@@ -120,6 +128,7 @@ private fun kindLabel(kind: HitKind): String = stringResource(
         HitKind.Album -> R.string.library_albums
         HitKind.Track -> R.string.search_tracks
         HitKind.Playlist -> R.string.library_playlists
+        HitKind.Similar -> R.string.search_similar_artists
         HitKind.Other -> R.string.search_more_kinds
     },
 )
@@ -140,6 +149,7 @@ internal fun SearchOverview(
     artUrl: (String?) -> String?,
     onOpenContainer: (DidlObject) -> Unit,
     onPlay: (DidlObject) -> Unit,
+    artistPlayback: suspend (DidlObject) -> ArtistPlayback?,
 ) {
     when (state) {
         SearchState.Idle -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) {
@@ -177,7 +187,7 @@ internal fun SearchOverview(
                     }
                 }
                 if (kind == null) {
-                    data.top?.let { top -> item(key = "top") { TopHit(top, artUrl, { open(top) }, onPlay) } }
+                    data.top?.let { top -> item(key = "top") { TopHit(top, artUrl, { open(top) }, onPlay, artistPlayback) } }
                     data.byKind.forEach { (k, hits) ->
                         item(key = "head/${k.name}") {
                             // The count is the kind's, the best hit included, as on the chip.
@@ -214,7 +224,7 @@ internal fun SearchOverview(
     }
 }
 
-private val PREVIEW = mapOf(HitKind.Artist to 3, HitKind.Album to 10, HitKind.Track to 4, HitKind.Playlist to 10, HitKind.Other to 3)
+private val PREVIEW = mapOf(HitKind.Artist to 3, HitKind.Similar to 3, HitKind.Album to 10, HitKind.Track to 4, HitKind.Playlist to 10, HitKind.Other to 3)
 
 @Composable
 private fun KindHeader(label: String, count: Int, onAll: (() -> Unit)?) {
@@ -224,46 +234,75 @@ private fun KindHeader(label: String, count: Int, onAll: (() -> Unit)?) {
     }
 }
 
-/** The best hit: large picture, kind and source, and play right there. */
+/**
+ * The best hit: large picture, what it is, and play right there, one button
+ * per source that names it. An artist the service only lets you open plays
+ * its top tracks or its albums, and the button says which; the card itself
+ * opens the hit.
+ */
 @Composable
-private fun TopHit(hit: Hit, artUrl: (String?) -> String?, onOpen: () -> Unit, onPlay: (DidlObject) -> Unit) {
+private fun TopHit(
+    hit: Hit,
+    artUrl: (String?) -> String?,
+    onOpen: () -> Unit,
+    onPlay: (DidlObject) -> Unit,
+    artistPlayback: suspend (DidlObject) -> ArtistPlayback?,
+) {
     val person = hit.kind == HitKind.Artist
     val image = LocalArtistImage.current
     val picture by androidx.compose.runtime.produceState<String?>(null, hit.item.title, person, image) { if (person) value = image(hit.item.title) }
+    val all = listOf(hit) + hit.others
+    // Per source: what its button plays (null: nothing to play there), once known.
+    val plans by androidx.compose.runtime.produceState<List<ArtistPlayback.Kind?>?>(null, all) {
+        value = all.map { h -> if (h.item.uri != null) null else runCatching { artistPlayback(h.item)?.kind }.getOrNull() }
+    }
     Surface(
         onClick = onOpen, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Cover(
-                picture ?: artUrl(hit.item.albumArtUri), Modifier.size(96.dp), corner = if (person) 48.dp else 16.dp,
-                placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                icon = if (person) Icons.Filled.Person else AppIcons.Album,
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.search_top_hit, kindLabelSingular(hit.kind)).uppercase(),
-                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold,
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Cover(
+                    picture ?: artUrl(hit.item.albumArtUri), Modifier.size(88.dp), corner = if (person) 44.dp else 16.dp,
+                    placeholderColor = MaterialTheme.colorScheme.surfaceVariant, iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    icon = if (person) Icons.Filled.Person else AppIcons.Album,
                 )
-                Text(hit.item.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                hit.item.creator?.takeIf { !person }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 1) }
-                Spacer(Modifier.height(10.dp))
-                // One play button per source, each naming it: which one plays is never a guess.
-                // The first (the user's library order) is the filled one. Sources that only
-                // let the hit be opened (an artist on most services) get no button.
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.search_top_hit, kindLabelSingular(hit.kind)).uppercase(),
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold,
+                    )
+                    Text(hit.item.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    hit.item.creator?.takeIf { !person }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 1) }
+                    Spacer(Modifier.height(6.dp))
+                    Sources(all.map { it.source })
+                }
+                // The card opens the hit: say so.
+                Icon(AppIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            val playable = all.indices.filter { i -> all[i].item.uri != null || plans?.getOrNull(i) != null }
+            if (playable.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                // The first (the user's library order) is the filled one.
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    (listOf(hit) + hit.others).filter { it.item.uri != null }.forEachIndexed { i, h ->
+                    playable.forEachIndexed { n, i ->
+                        val h = all[i]
                         val name = sourceName(h.source)
-                        val label = stringResource(R.string.search_play_from, name)
+                        val what = when (plans?.getOrNull(i)) {
+                            ArtistPlayback.Kind.TopTracks -> stringResource(R.string.search_play_top_tracks)
+                            ArtistPlayback.Kind.Albums -> stringResource(R.string.search_play_albums)
+                            null -> null
+                        }
+                        val label = if (what == null) stringResource(R.string.search_play_from, name) else stringResource(R.string.search_play_what_from, what, name)
                         val content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {
                             Icon(AppIcons.Play, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             ServiceBadge(name, 16.dp, 4.dp)
-                            Text(name, Modifier.padding(start = 6.dp), maxLines = 1)
+                            Text(if (what == null) name else "$name · $what", Modifier.padding(start = 6.dp), maxLines = 1)
                         }
                         val m = Modifier.semantics { contentDescription = label }
-                        if (i == 0) Button(onClick = { onPlay(h.item) }, contentPadding = PaddingValues(horizontal = 14.dp), modifier = m, content = content)
+                        if (n == 0) Button(onClick = { onPlay(h.item) }, contentPadding = PaddingValues(horizontal = 14.dp), modifier = m, content = content)
                         else androidx.compose.material3.OutlinedButton(onClick = { onPlay(h.item) }, contentPadding = PaddingValues(horizontal = 14.dp), modifier = m, content = content)
                     }
                 }
@@ -279,6 +318,7 @@ private fun kindLabelSingular(kind: HitKind): String = stringResource(
         HitKind.Album -> R.string.search_kind_album
         HitKind.Track -> R.string.search_kind_track
         HitKind.Playlist -> R.string.search_kind_playlist
+        HitKind.Similar -> R.string.search_kind_artist
         HitKind.Other -> R.string.search_kind_other
     },
 )
@@ -319,6 +359,8 @@ private fun CoverTile(hit: Hit, artUrl: (String?) -> String?, modifier: Modifier
 private fun HitRow(hit: Hit, artUrl: (String?) -> String?, onClick: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f)) { ItemRow(hit.item, artUrl) { onClick() } }
-        Box(Modifier.padding(end = 16.dp)) { Sources(listOf(hit.source) + hit.alsoIn) }
+        Box(Modifier.padding(end = if (hit.item.isContainer) 4.dp else 16.dp)) { Sources(listOf(hit.source) + hit.alsoIn) }
+        // An artist opens, it does not play: the arrow says so.
+        if (hit.item.isContainer) Icon(AppIcons.ChevronRight, null, Modifier.padding(end = 12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
