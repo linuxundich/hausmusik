@@ -6,6 +6,12 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The stage was cut off at the bottom (queue, library, lyrics, timer) with a
+  larger system font and the line about a muted room: the cover now gives
+  way and takes the height that is left.
+
 ### Changed
 
 - Search results: a best hit on top (the artist, album or track named like

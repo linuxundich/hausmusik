@@ -243,8 +243,12 @@ fun StageScreen(
                         Box(Modifier.align(Alignment.TopEnd).padding(top = 8.dp)) { StageMenu(colors, actions) }
                     }
                     Spacer(Modifier.weight(0.4f))
-                    val square = Modifier.fillMaxWidth().widthIn(max = 420.dp).aspectRatio(1f)
-                    if (lyrics != null) LyricsView(group, lyrics, colors, actions.onSeek, square) else StageCover(group, colors, square, fx)
+                    // The cover gives way when the rest needs the height (a larger font, the mute
+                    // line): it takes what is left, square, never more than the width.
+                    Box(Modifier.weight(12f, fill = false).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        val square = Modifier.widthIn(max = 420.dp).aspectRatio(1f, matchHeightConstraintsFirst = true)
+                        if (lyrics != null) LyricsView(group, lyrics, colors, actions.onSeek, square) else StageCover(group, colors, square, fx)
+                    }
                     Spacer(Modifier.height(24.dp))
                     StageControls(group, colors, actions, playBusy)
                     Spacer(Modifier.weight(0.6f))
