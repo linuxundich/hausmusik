@@ -332,4 +332,15 @@
     <string name="source_down">Move %1$s down</string>
     <string name="favorite_add_named">Add “%1$s” to favorites</string>
     <string name="favorite_remove_named">Remove “%1$s” from favorites</string>
+    <string name="search_all">All</string>
+    <string name="search_more_kinds">More</string>
+    <string name="search_show_all">All %1$d</string>
+    <string name="search_top_hit">Top hit · %1$s</string>
+    <string name="search_kind_artist">Artist</string>
+    <string name="search_kind_album">Album</string>
+    <string name="search_kind_track">Track</string>
+    <string name="search_kind_playlist">Playlist</string>
+    <string name="search_kind_other">Hit</string>
+    <string name="search_source_busy">%1$s is still searching …</string>
+    <string name="search_source_failed_named">%1$s could not be searched.</string>
 </resources>

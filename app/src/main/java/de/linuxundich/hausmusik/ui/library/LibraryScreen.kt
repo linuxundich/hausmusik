@@ -231,7 +231,7 @@ fun LibraryScreen(
         ProvideArtistImages(vm, snackbar) {
             Column(Modifier.padding(padding)) {
                 if (searching) {
-                    SearchResults(search, vm::artUrl, onOpenContainer, onPlay)
+                    SearchOverview(search, query, vm::artUrl, onOpenContainer, onPlay)
                     return@Column
                 }
                 if (!wide) SourceChips(vm, tab, service, services, PaddingValues(horizontal = 16.dp))
@@ -380,76 +380,8 @@ private fun ArtistImagesHint(onEnable: () -> Unit, onDismiss: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun SearchResults(
-    state: SearchState,
-    artUrl: (String?) -> String?,
-    onOpenContainer: (DidlObject) -> Unit,
-    onPlay: (DidlObject) -> Unit,
-) {
-    when (state) {
-        SearchState.Idle -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) {
-            Text(stringResource(R.string.search_intro), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        is SearchState.Results -> if (state.empty) {
-            Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) { Text(stringResource(R.string.search_nothing)) }
-        } else LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
-            // Only label the sources when there is more than the music share.
-            val labelled = state.sections.size > 1
-            state.sections.forEach { section ->
-                if (labelled) item(key = "s/${section.key}") {
-                    Row(
-                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            section.service ?: stringResource(R.string.search_share),
-                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
-                        )
-                        if (section.loading) LoadingIndicator(Modifier.size(24.dp))
-                    }
-                }
-                if (!section.loading && section.groups.isEmpty()) item(key = "e/${section.key}") {
-                    Text(
-                        stringResource(if (section.failed) R.string.search_source_failed else R.string.search_nothing),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    )
-                }
-                section.groups.forEach { group ->
-                    item(key = "h/${section.key}/${group.kind}") {
-                        Text(
-                            searchGroupLabel(group.kind), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
-                        )
-                    }
-                    // Services may list one item twice (bonob does): the position keeps keys unique.
-                    itemsIndexed(group.items, key = { i, it -> "${section.key}/${group.kind}/$i/${it.id}" }) { _, item ->
-                        ItemRow(item, artUrl) { if (item.isContainer) onOpenContainer(item) else onPlay(item) }
-                    }
-                }
-            }
-            if (state.sections.size == 1 && !state.done) item(key = "loading") {
-                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
-            }
-        }
-    }
-}
 
 /** "artists", "search:album", "Playlists" … as a heading. */
-@Composable
-private fun searchGroupLabel(kind: String): String {
-    val k = kind.lowercase().substringAfter(':')
-    return when {
-        k.startsWith("artist") -> stringResource(R.string.library_artists)
-        k.startsWith("album") -> stringResource(R.string.library_albums)
-        k.startsWith("track") || k.startsWith("song") -> stringResource(R.string.search_tracks)
-        k.startsWith("playlist") -> stringResource(R.string.library_playlists)
-        k.startsWith("podcast") -> stringResource(R.string.search_podcasts)
-        else -> kind.substringAfter(':').replaceFirstChar { it.uppercase() }
-    }
-}
 
 /** Tracks of an album or playlist, with a button that plays all of them. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -693,7 +625,7 @@ private fun ItemList(
 }
 
 @Composable
-private fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Boolean = false, position: Int? = null, onClick: () -> Unit) {
+internal fun ItemRow(item: DidlObject, artUrl: (String?) -> String?, numbered: Boolean = false, position: Int? = null, onClick: () -> Unit) {
     val person = item.upnpClass.contains("person")
     val artistImage = LocalArtistImage.current
     val picture by produceState<String?>(null, item.title, person, artistImage) { if (person) value = artistImage(item.title) }

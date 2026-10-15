@@ -6,6 +6,18 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Search results: a best hit on top (the artist, album or track named like
+  the search, with its picture and a play button), then rows by kind across
+  all sources: artists, albums and playlists as cover rows, tracks with
+  their length, a few each with "All n". Chips (All · Artists · Albums ·
+  Tracks · Playlists, with counts) show one kind in full, albums and
+  playlists as a grid of three. Each hit carries its source's mark; an
+  artist several sources know shows once, with all their marks. Sources
+  still searching or failing get one quiet line. Before, every source and
+  category was one long uniform list.
+
 ## [0.3.0] - 2026-10-15
 
 ### Added
