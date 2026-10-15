@@ -100,9 +100,18 @@ class Settings @Inject constructor(private val store: DataStore<Preferences>) {
      * that listen through services only (or browse their share through bonob):
      * the library and the search leave it out.
      */
-    val localMusicEnabled: Flow<Boolean> = store.data.map { it[localMusicKey] ?: true }
+    val localMusicEnabled: Flow<Boolean> = store.data.map { p -> Sources.decode(p[sourcesKey], p[localMusicKey]).firstOrNull { it.key == Sources.MUSIC }?.on ?: true }
 
-    suspend fun setLocalMusicEnabled(on: Boolean) = store.edit { it[localMusicKey] = on }
+    private val sourcesKey = stringPreferencesKey("library_sources")
+
+    /**
+     * The library's sources in the user's order, each on or off: the own
+     * collection, every linked service, radio. Sources not listed yet (a
+     * service linked later) are on and come last; see [Sources.arrange].
+     */
+    val librarySources: Flow<List<SourcePref>> = store.data.map { p -> Sources.decode(p[sourcesKey], p[localMusicKey]) }
+
+    suspend fun setLibrarySources(list: List<SourcePref>) = store.edit { it[sourcesKey] = Sources.encode(list) }
 
     private val askReplaceKey = booleanPreferencesKey("ask_before_replace")
 
@@ -188,3 +197,33 @@ data class Effects(
     val turntable: Boolean = false,
     val nightStage: Boolean = false,
 )
+
+/** One source of the library and whether it shows. */
+data class SourcePref(val key: String, val on: Boolean)
+
+object Sources {
+    const val MUSIC = "music"
+    const val RADIO = "radio"
+    fun service(id: Int) = "svc:$id"
+
+    /** "music:1,svc:9:0,radio:1"; the old "local music off" switch carries over. */
+    internal fun decode(raw: String?, oldLocalMusic: Boolean?): List<SourcePref> {
+        if (raw.isNullOrBlank()) return if (oldLocalMusic == false) listOf(SourcePref(MUSIC, false)) else emptyList()
+        return raw.split(',').mapNotNull { e ->
+            val key = e.substringBeforeLast(':').takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            SourcePref(key, e.substringAfterLast(':') != "0")
+        }
+    }
+
+    internal fun encode(list: List<SourcePref>) = list.joinToString(",") { "${it.key}:${if (it.on) 1 else 0}" }
+
+    /**
+     * The sources there are ([available], in their natural order) as the user
+     * arranged them: the arranged ones first in the user's order, any others
+     * after them, switched on. Sources that are gone are dropped.
+     */
+    fun arrange(available: List<String>, prefs: List<SourcePref>): List<SourcePref> {
+        val known = prefs.filter { it.key in available }.distinctBy { it.key }
+        return known + available.filter { k -> known.none { it.key == k } }.map { SourcePref(it, true) }
+    }
+}

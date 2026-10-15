@@ -38,6 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.selection.toggleable
 import de.linuxundich.hausmusik.BuildConfig
 import de.linuxundich.hausmusik.R
@@ -48,7 +52,8 @@ data class SettingsState(val manualHost: String?, val connectedTo: String?, val 
     val musicVideos: Boolean = false, val videoMode: de.linuxundich.hausmusik.data.VideoMode = de.linuxundich.hausmusik.data.VideoMode.Ask,
     val effects: de.linuxundich.hausmusik.data.Effects = de.linuxundich.hausmusik.data.Effects(),
     val askBeforeReplace: Boolean = true,
-    val localMusic: Boolean = true,
+    /** The library's sources in the user's order: key, name (null: a built-in one), on. */
+    val sources: List<Triple<String, String?, Boolean>> = emptyList(),
     val stationLogos: Boolean = false,
 )
 
@@ -66,7 +71,7 @@ fun SettingsScreen(
     onVideoMode: (de.linuxundich.hausmusik.data.VideoMode) -> Unit = {},
     onEffects: (de.linuxundich.hausmusik.data.Effects) -> Unit = {},
     onAskBeforeReplace: (Boolean) -> Unit = {},
-    onLocalMusic: (Boolean) -> Unit = {},
+    onSources: (List<de.linuxundich.hausmusik.data.SourcePref>) -> Unit = {},
     onStationLogos: (Boolean) -> Unit = {},
     onLicenses: () -> Unit,
     onClearCache: () -> Unit,
@@ -121,7 +126,10 @@ fun SettingsScreen(
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.settings_playing), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             EffectSwitch(R.string.settings_ask_replace, R.string.settings_ask_replace_body, state.askBeforeReplace, onAskBeforeReplace)
-            EffectSwitch(R.string.settings_local_music, R.string.settings_local_music_body, state.localMusic, onLocalMusic)
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            Text(stringResource(R.string.settings_sources), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.settings_sources_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SourceList(state.sources, onSources)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.cache), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.cache_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -215,5 +223,39 @@ private fun EffectSwitch(title: Int, body: Int, checked: Boolean, onChange: (Boo
             Text(stringResource(body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Switch(checked = checked, onCheckedChange = null, modifier = Modifier.padding(start = 12.dp))
+    }
+}
+
+/**
+ * The library's sources, each with a switch and buttons to move it up or
+ * down: the library's source row and the search follow this order. Buttons
+ * rather than dragging, so it works with TalkBack and without a fine finger.
+ */
+@Composable
+private fun SourceList(sources: List<Triple<String, String?, Boolean>>, onChange: (List<de.linuxundich.hausmusik.data.SourcePref>) -> Unit) {
+    val prefs = sources.map { de.linuxundich.hausmusik.data.SourcePref(it.first, it.third) }
+    fun moved(i: Int, by: Int) = prefs.toMutableList().apply { add(i + by, removeAt(i)) }
+    sources.forEachIndexed { i, (key, name, on) ->
+        val label = when (key) {
+            de.linuxundich.hausmusik.data.Sources.MUSIC -> stringResource(R.string.library_my_music)
+            de.linuxundich.hausmusik.data.Sources.RADIO -> stringResource(R.string.library_radio)
+            else -> name ?: key
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label, Modifier.weight(1f),
+                color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            )
+            IconButton(onClick = { onChange(moved(i, -1)) }, enabled = i > 0) {
+                Icon(androidx.compose.material.icons.Icons.Filled.KeyboardArrowUp, stringResource(R.string.source_up, label))
+            }
+            IconButton(onClick = { onChange(moved(i, 1)) }, enabled = i < sources.lastIndex) {
+                Icon(androidx.compose.material.icons.Icons.Filled.KeyboardArrowDown, stringResource(R.string.source_down, label))
+            }
+            Switch(
+                checked = on, onCheckedChange = { c -> onChange(prefs.map { if (it.key == key) it.copy(on = c) else it }) },
+                modifier = Modifier.padding(start = 4.dp).semantics { contentDescription = label },
+            )
+        }
     }
 }

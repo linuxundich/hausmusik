@@ -322,8 +322,10 @@
     <string name="menu_app">Hausmusik</string>
     <string name="library_my_music">Meine Musik</string>
     <string name="library_more_services">Mehr Dienste</string>
-    <string name="settings_local_music">Meine Musik (Musikfreigabe)</string>
-    <string name="settings_local_music_body">Die Musikfreigabe deines Sonos-Systems in Bibliothek und Suche. Aus, wenn du nur über Dienste hörst oder deine Sammlung über bonob durchsuchst.</string>
     <string name="station_logos_setting">Senderlogos</string>
     <string name="station_logos_body">Sonos kennt für gespeicherte Sender kein Logo. Hausmusik fragt radio-browser.info (Streamadresse, Sendername), dann Wikidata nach dem Logo auf Wikimedia Commons (Homepage des Senders) und liest sonst die Symbole, die der Sender auf seiner Homepage für Apps veröffentlicht. Die Logos bleiben auf diesem Handy gespeichert.</string>
+    <string name="settings_sources">Bibliotheken</string>
+    <string name="settings_sources_body">Welche Quellen die Bibliothek zeigt und in welcher Reihenfolge. Die Suche folgt dieser Auswahl.</string>
+    <string name="source_up">%1$s nach oben</string>
+    <string name="source_down">%1$s nach unten</string>
 </resources>

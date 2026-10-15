@@ -169,7 +169,13 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
     val colors = rememberCoverColors(selected.artUrl)
 
     val askBeforeReplace by vm.askBeforeReplace.collectAsStateWithLifecycle()
-    val localMusic by vm.localMusic.collectAsStateWithLifecycle()
+    val sourcePrefs by vm.sourcePrefs.collectAsStateWithLifecycle()
+    val linkedServices by vm.linkedServices.collectAsStateWithLifecycle()
+    val sources = de.linuxundich.hausmusik.data.Sources.arrange(
+        listOf(de.linuxundich.hausmusik.data.Sources.MUSIC) + linkedServices.map { de.linuxundich.hausmusik.data.Sources.service(it.first) } +
+            de.linuxundich.hausmusik.data.Sources.RADIO,
+        sourcePrefs,
+    ).map { p -> Triple(p.key, linkedServices.firstOrNull { de.linuxundich.hausmusik.data.Sources.service(it.first) == p.key }?.second, p.on) }
     fun requestPlay(item: DidlObject) {
         if (!item.playsDirectly && selected.queueLength > 0) {
             if (askBeforeReplace) { pendingPlay = item; return }
@@ -254,11 +260,11 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 )
             }
             Screen.Alarms -> AlarmsScreen(hiltViewModel(), onBack = { stack.removeAt(stack.lastIndex) })
-            Screen.Settings -> SettingsScreen(
+            Screen.Settings -> { LaunchedEffect(Unit) { vm.loadLinkedServices() }; SettingsScreen(
                 SettingsState(
                     manualHost, selected.group.coordinator.baseUrl.host, lyricsEnabled, artistImagesOn, detailsOn, detailsWikipedia,
                     rooms = household.allPlayers.filter { !it.isInvisible }.map { it.uuid to it.roomName }, everywhereExcluded = everywhereExcluded,
-                    musicVideos = videosOn, videoMode = videoMode, effects = effects, askBeforeReplace = askBeforeReplace, localMusic = localMusic, stationLogos = stationLogosOn,
+                    musicVideos = videosOn, videoMode = videoMode, effects = effects, askBeforeReplace = askBeforeReplace, sources = sources, stationLogos = stationLogosOn,
                 ),
                 onConnect = { vm.connectTo(it); stack.removeRange(1, stack.size) },
                 onLyrics = vm::setLyricsEnabled,
@@ -270,12 +276,12 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onVideoMode = vm::setMusicVideoMode,
                 onEffects = { vm.setEffects(it) },
                 onAskBeforeReplace = { vm.setAskBeforeReplace(it) },
-                onLocalMusic = { vm.setLocalMusic(it) },
+                onSources = { vm.setSourcePrefs(it) },
                 onStationLogos = { vm.setStationLogosEnabled(it) },
                 onLicenses = { stack.add(Screen.Licenses) },
                 onClearCache = vm::clearListCache,
                 onBack = { stack.removeAt(stack.lastIndex) },
-            )
+            ) }
             Screen.Licenses -> LicensesScreen(onBack = { stack.removeAt(stack.lastIndex) })
             is Screen.Container -> BesideStage(beside, { StageSidePanel(selected, colors, stageActions, stageBusy) }) {
                 ContainerScreen(

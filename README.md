@@ -39,7 +39,7 @@ See at a glance what plays where. Drag one room onto another to play together, t
 
 ### All your music
 
-Your Sonos favorites, the music share on your network, internet radio, Sonos playlists and the record player on a speaker's line-in. Linked music services such as Spotify can be browsed and searched right in the app. Search finds artists, albums and tracks in your music share and your services at once.
+Your Sonos favorites, the music share on your network, internet radio, Sonos playlists and the record player on a speaker's line-in. Linked music services such as Spotify can be browsed and searched right in the app. Search finds artists, albums and tracks in your music share and your services at once. In Settings you choose which of these sources the library shows, and in which order.
 
 ### Lyrics and background
 

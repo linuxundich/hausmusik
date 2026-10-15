@@ -151,6 +151,8 @@ class LibraryViewModel @Inject constructor(
     fun clearHistory() = viewModelScope.launch { historyDao.clear() }
 
     val localMusic: StateFlow<Boolean> = settings.localMusicEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    val sourcePrefs: StateFlow<List<de.linuxundich.hausmusik.data.SourcePref>> =
+        settings.librarySources.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _tab = MutableStateFlow(LibraryTab.Favorites)
     val tab: StateFlow<LibraryTab> = _tab.asStateFlow()
@@ -179,9 +181,12 @@ class LibraryViewModel @Inject constructor(
     private fun searchEverywhere(q: String) = kotlinx.coroutines.flow.channelFlow {
         val linked = runCatching { services.linked() }.getOrDefault(emptyList())
         val sections = java.util.concurrent.ConcurrentHashMap<String, SearchSection>()
-        // Without the local library, its section is left out of the search.
-        val withShare = settings.localMusicEnabled.first()
-        val order = (if (withShare) listOf("share") else emptyList()) + linked.map { "svc:${it.id}" }
+        // In the order of the library's sources; switched-off ones are left out.
+        val Sources = de.linuxundich.hausmusik.data.Sources
+        val arranged = Sources.arrange(listOf(Sources.MUSIC) + linked.map { Sources.service(it.id) }, settings.librarySources.first())
+            .filter { it.on }.map { it.key }
+        val withShare = Sources.MUSIC in arranged
+        val order = arranged.map { if (it == Sources.MUSIC) "share" else it }
         sections["share"] = SearchSection("share", null)
         linked.forEach { sections["svc:${it.id}"] = SearchSection("svc:${it.id}", it.displayName) }
         val lock = kotlinx.coroutines.sync.Mutex()
@@ -202,7 +207,7 @@ class LibraryViewModel @Inject constructor(
                 { publish("share") { it.copy(loading = false, failed = true) } },
             )
         }
-        linked.forEach { svc ->
+        linked.filter { Sources.service(it.id) in arranged }.forEach { svc ->
             launch {
                 runCatching { services.search(svc.id, q) }.fold(
                     { r -> publish("svc:${svc.id}") { it.copy(loading = false, groups = r.map { (k, items) -> SearchGroup(k, items) }) } },

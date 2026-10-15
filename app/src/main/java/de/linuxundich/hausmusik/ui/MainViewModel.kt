@@ -39,6 +39,7 @@ class MainViewModel @Inject constructor(
     private val detailsRepo: DetailsRepository,
     private val videos: de.linuxundich.hausmusik.data.MusicVideos,
     private val stationLogos: de.linuxundich.hausmusik.data.StationLogos,
+    private val musicServices: de.linuxundich.hausmusik.data.services.MusicServices,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
 
@@ -100,8 +101,24 @@ class MainViewModel @Inject constructor(
         if (on) repo.refreshAll()
     }
 
-    val localMusic: StateFlow<Boolean> = settings.localMusicEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, true)
-    fun setLocalMusic(on: Boolean) = viewModelScope.launch { settings.setLocalMusicEnabled(on) }
+    val sourcePrefs: StateFlow<List<de.linuxundich.hausmusik.data.SourcePref>> =
+        settings.librarySources.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    private val _linkedServices = kotlinx.coroutines.flow.MutableStateFlow<List<Pair<Int, String>>>(emptyList())
+
+    /** The linked music services (ID, name), for arranging the library's sources in Settings. */
+    val linkedServices: StateFlow<List<Pair<Int, String>>> = _linkedServices
+
+    fun loadLinkedServices() = viewModelScope.launch {
+        // The same services the library shows as sources: linked ones and those without an account (TuneIn).
+        runCatching { musicServices.overview() }.onSuccess { l ->
+            _linkedServices.value = l.filter {
+                it.isContainer && it.id != de.linuxundich.hausmusik.data.services.ServiceIds.MORE &&
+                    it.upnpClass != de.linuxundich.hausmusik.data.services.ServiceIds.LINK_CLASS
+            }.mapNotNull { d -> de.linuxundich.hausmusik.data.services.ServiceIds.parse(d.id)?.first?.let { it to d.title } }
+        }
+    }
+
+    fun setSourcePrefs(list: List<de.linuxundich.hausmusik.data.SourcePref>) = viewModelScope.launch { settings.setLibrarySources(list) }
 
     val askBeforeReplace: StateFlow<Boolean> = settings.askBeforeReplace.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     fun setAskBeforeReplace(on: Boolean) = viewModelScope.launch { settings.setAskBeforeReplace(on) }

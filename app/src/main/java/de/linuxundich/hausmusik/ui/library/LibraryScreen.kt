@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.data.Sources
 import de.linuxundich.hausmusik.data.services.ServiceIds
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.data.history.HistoryEntry
@@ -97,17 +98,30 @@ import de.linuxundich.hausmusik.ui.theme.AppIcons
  */
 @Composable
 private fun SourceChips(vm: LibraryViewModel, tab: LibraryTab, service: DidlObject?, services: List<DidlObject>, padding: PaddingValues) {
-    val localMusic by vm.localMusic.collectAsStateWithLifecycle()
+    // The user's order and choice (Settings › Libraries); favorites first, history and more services last.
+    val prefs by vm.sourcePrefs.collectAsStateWithLifecycle()
+    val byKey = services.associateBy { s -> ServiceIds.parse(s.id)?.first?.let(Sources::service) ?: s.id }
+    val shown = Sources.arrange(listOf(Sources.MUSIC) + byKey.keys + Sources.RADIO, prefs).filter { it.on }.map { it.key }
+    // A source switched off while it shows: back to the favorites.
+    LaunchedEffect(shown, service, tab) {
+        val current = service?.let { s -> ServiceIds.parse(s.id)?.first?.let(Sources::service) }
+            ?: if (tab in MUSIC_TABS) Sources.MUSIC else if (tab == LibraryTab.Radio) Sources.RADIO else null
+        if (current != null && prefs.any { it.key == current && !it.on }) vm.select(LibraryTab.Favorites)
+    }
     LazyRow(contentPadding = padding, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         item { FilterChip(selected = service == null && tab == LibraryTab.Favorites, onClick = { vm.select(LibraryTab.Favorites) }, label = { Text(stringResource(R.string.library_favorites)) }) }
-        if (localMusic) item { FilterChip(selected = service == null && tab in MUSIC_TABS, onClick = { vm.selectMusic() }, label = { Text(stringResource(R.string.library_my_music)) }) }
-        items(services, key = { it.id }) { s ->
-            FilterChip(
-                selected = service?.id == s.id, onClick = { vm.selectService(s) }, label = { Text(s.title) },
-                leadingIcon = { ServiceBadge(s.title, 18.dp, 5.dp) },
-            )
+        items(shown, key = { it }) { key ->
+            when (key) {
+                Sources.MUSIC -> FilterChip(selected = service == null && tab in MUSIC_TABS, onClick = { vm.selectMusic() }, label = { Text(stringResource(R.string.library_my_music)) })
+                Sources.RADIO -> FilterChip(selected = service == null && tab == LibraryTab.Radio, onClick = { vm.select(LibraryTab.Radio) }, label = { Text(stringResource(R.string.library_radio)) })
+                else -> byKey[key]?.let { s ->
+                    FilterChip(
+                        selected = service?.id == s.id, onClick = { vm.selectService(s) }, label = { Text(s.title) },
+                        leadingIcon = { ServiceBadge(s.title, 18.dp, 5.dp) },
+                    )
+                }
+            }
         }
-        item { FilterChip(selected = service == null && tab == LibraryTab.Radio, onClick = { vm.select(LibraryTab.Radio) }, label = { Text(stringResource(R.string.library_radio)) }) }
         item { FilterChip(selected = service == null && tab == LibraryTab.History, onClick = { vm.select(LibraryTab.History) }, label = { Text(stringResource(R.string.library_history)) }) }
         item { FilterChip(selected = service == null && tab == LibraryTab.Services, onClick = { vm.select(LibraryTab.Services) }, label = { Text(stringResource(R.string.library_more_services)) }) }
     }

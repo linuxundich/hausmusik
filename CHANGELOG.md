@@ -6,6 +6,15 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Settings › Libraries: every source of the library (My music, each music
+  service such as bonob, Spotify or TuneIn, Radio) can be switched off and
+  moved up or down. The library's source row and the search follow that
+  choice and order; favorites stay first, history and more services last.
+  A service linked later comes in switched on at the end. Replaces the
+  single "My music" switch, whose setting carries over.
+
 ## [0.2.0] - 2026-10-15
 
 ### Added
