@@ -343,4 +343,5 @@
     <string name="search_kind_other">Hit</string>
     <string name="search_source_busy">%1$s is still searching …</string>
     <string name="search_source_failed_named">%1$s could not be searched.</string>
+    <string name="search_play_from">Play from %1$s</string>
 </resources>

@@ -341,4 +341,5 @@
     <string name="search_kind_other">Treffer</string>
     <string name="search_source_busy">%1$s sucht noch …</string>
     <string name="search_source_failed_named">%1$s ließ sich nicht durchsuchen.</string>
+    <string name="search_play_from">Aus %1$s abspielen</string>
 </resources>

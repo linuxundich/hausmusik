@@ -20,7 +20,9 @@ All notable changes to Hausmusik are documented here. The format follows
   their length, a few each with "All n". Chips (All · Artists · Albums ·
   Tracks · Playlists, with counts) show one kind in full, albums and
   playlists as a grid of three. Each hit carries its source's mark; an
-  artist several sources know shows once, with all their marks. Sources
+  artist several sources know shows once, with all their marks, and the
+  best hit offers one play button per source, each naming it (the first
+  source of the library order filled). Sources
   still searching or failing get one quiet line. Before, every source and
   category was one long uniform list.
 

@@ -49,6 +49,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import de.linuxundich.hausmusik.R
 import de.linuxundich.hausmusik.data.ArtistImages
 import de.linuxundich.hausmusik.sonos.DidlObject
@@ -77,7 +79,10 @@ internal fun hitKind(groupKind: String, item: DidlObject): HitKind {
 }
 
 /** One hit and where it comes from: null for the music share, else the service's name. */
-data class Hit(val item: DidlObject, val source: String?, val kind: HitKind, val alsoIn: List<String?> = emptyList())
+data class Hit(val item: DidlObject, val source: String?, val kind: HitKind, val others: List<Hit> = emptyList()) {
+    /** The other sources that have the same artist. */
+    val alsoIn: List<String?> get() = others.map { it.source }
+}
 
 /**
  * The results of all sources, rearranged by kind: artists, albums, tracks,
@@ -92,7 +97,7 @@ internal fun arrangeSearch(sections: List<SearchSection>, query: String): Search
     val hits = sections.flatMap { s -> s.groups.flatMap { g -> g.items.map { Hit(it, s.service, hitKind(g.kind, it)) } } }
     val artists = hits.filter { it.kind == HitKind.Artist }
         .groupBy { ArtistImages.normalize(it.item.title) }
-        .map { (_, same) -> same.first().copy(alsoIn = same.drop(1).map { it.source }.distinct() - same.first().source) }
+        .map { (_, same) -> same.first().copy(others = same.drop(1).filter { it.source != same.first().source }.distinctBy { it.source }) }
     val byKind = buildList {
         if (artists.isNotEmpty()) add(HitKind.Artist to artists)
         for (k in listOf(HitKind.Album, HitKind.Track, HitKind.Playlist, HitKind.Other)) {
@@ -172,7 +177,7 @@ internal fun SearchOverview(
                     }
                 }
                 if (kind == null) {
-                    data.top?.let { top -> item(key = "top") { TopHit(top, artUrl, { open(top) }, { onPlay(top.item) }) } }
+                    data.top?.let { top -> item(key = "top") { TopHit(top, artUrl, { open(top) }, onPlay) } }
                     data.byKind.forEach { (k, hits) ->
                         item(key = "head/${k.name}") {
                             // The count is the kind's, the best hit included, as on the chip.
@@ -221,7 +226,7 @@ private fun KindHeader(label: String, count: Int, onAll: (() -> Unit)?) {
 
 /** The best hit: large picture, kind and source, and play right there. */
 @Composable
-private fun TopHit(hit: Hit, artUrl: (String?) -> String?, onOpen: () -> Unit, onPlay: () -> Unit) {
+private fun TopHit(hit: Hit, artUrl: (String?) -> String?, onOpen: () -> Unit, onPlay: (DidlObject) -> Unit) {
     val person = hit.kind == HitKind.Artist
     val image = LocalArtistImage.current
     val picture by androidx.compose.runtime.produceState<String?>(null, hit.item.title, person, image) { if (person) value = image(hit.item.title) }
@@ -244,13 +249,22 @@ private fun TopHit(hit: Hit, artUrl: (String?) -> String?, onOpen: () -> Unit, o
                 Text(hit.item.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 hit.item.creator?.takeIf { !person }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 1) }
                 Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = onPlay, contentPadding = PaddingValues(horizontal = 16.dp)) {
-                        Icon(AppIcons.Play, null, Modifier.size(18.dp))
-                        Text(stringResource(R.string.play), Modifier.padding(start = 6.dp))
+                // One play button per source, each naming it: which one plays is never a guess.
+                // The first (the user's library order) is the filled one.
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (listOf(hit) + hit.others).forEachIndexed { i, h ->
+                        val name = sourceName(h.source)
+                        val label = stringResource(R.string.search_play_from, name)
+                        val content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {
+                            Icon(AppIcons.Play, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            ServiceBadge(name, 16.dp, 4.dp)
+                            Text(name, Modifier.padding(start = 6.dp), maxLines = 1)
+                        }
+                        val m = Modifier.semantics { contentDescription = label }
+                        if (i == 0) Button(onClick = { onPlay(h.item) }, contentPadding = PaddingValues(horizontal = 14.dp), modifier = m, content = content)
+                        else androidx.compose.material3.OutlinedButton(onClick = { onPlay(h.item) }, contentPadding = PaddingValues(horizontal = 14.dp), modifier = m, content = content)
                     }
-                    Spacer(Modifier.width(10.dp))
-                    Sources(listOf(hit.source) + hit.alsoIn)
                 }
             }
         }
