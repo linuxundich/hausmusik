@@ -37,6 +37,12 @@
     <string name="rooms_together_hint">Häkchen setzen = mitspielen lassen</string>
     <string name="rooms_paused">pausiert</string>
     <string name="rooms_idle">ruht</string>
+    <string name="rooms_group">Gruppieren</string>
+    <string name="rooms_group_title">Spielt mit %1$s</string>
+    <plurals name="rooms_members">
+        <item quantity="one">%d Raum</item>
+        <item quantity="other">%d Räume</item>
+    </plurals>
     <string name="rooms_play_together">Spielen zusammen</string>
     <string name="room_plays_with">Spielt mit %1$s</string>
 
@@ -114,7 +120,7 @@
     <string name="search_nothing">Nichts gefunden</string>
     <string name="search_tracks">Titel</string>
     <string name="rooms_merged">%1$s spielt jetzt mit %2$s</string>
-    <string name="rooms_drag_hint">Kachel gedrückt halten und auf einen anderen Raum ziehen, um gemeinsam zu spielen.</string>
+    <string name="rooms_drag_hint">Karte gedrückt halten und auf einen anderen Raum ziehen, um gemeinsam zu spielen.</string>
     <string name="undo">Rückgängig</string>
     <string name="queue_move">Verschieben</string>
     <string name="lyrics">Liedtext</string>

@@ -39,6 +39,12 @@
     <string name="rooms_together_hint">Tick a room to let it play along</string>
     <string name="rooms_paused">paused</string>
     <string name="rooms_idle">idle</string>
+    <string name="rooms_group">Group</string>
+    <string name="rooms_group_title">Plays with %1$s</string>
+    <plurals name="rooms_members">
+        <item quantity="one">%d room</item>
+        <item quantity="other">%d rooms</item>
+    </plurals>
     <string name="rooms_play_together">Playing together</string>
     <string name="room_plays_with">Plays with %1$s</string>
 
@@ -116,7 +122,7 @@
     <string name="search_nothing">Nothing found</string>
     <string name="search_tracks">Tracks</string>
     <string name="rooms_merged">%1$s now plays with %2$s</string>
-    <string name="rooms_drag_hint">Hold a tile and drop it on another room to play together.</string>
+    <string name="rooms_drag_hint">Hold a card and drop it on another room to play together.</string>
     <string name="undo">Undo</string>
     <string name="queue_move">Move</string>
     <string name="lyrics">Lyrics</string>

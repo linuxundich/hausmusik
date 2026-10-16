@@ -52,6 +52,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -59,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -89,12 +91,14 @@ data class RoomActions(
     val onPauseAll: () -> Unit,
     /** Every room plays along with the selected one (except those left out in the settings). */
     val onEverywhere: () -> Unit = {},
+    /** Makes a group the selected one but keeps the sheet open (for "Group"). */
+    val onFocus: (String) -> Unit = {},
 )
 
 /**
- * All rooms at a glance. Upper part: every group with its own volume and
- * play button; tapping one shows it on the Stage. Lower part: which rooms
- * play along with the selected room.
+ * All rooms at a glance: every group as a card with its own volume and play
+ * button; tapping one shows it on the Stage. A group's rooms fold out below
+ * its slider, and "Group" sets which rooms play along.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,97 +121,70 @@ fun RoomsSheet(household: Household, colors: CoverColors, actions: RoomActions, 
                 }
             }
             Spacer(Modifier.height(8.dp))
-            if (isWide()) {
-                // Landscape: tiles on the left, who plays along on the right.
-                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                    Column(Modifier.weight(1.6f).verticalScroll(rememberScrollState())) {
-                        RoomTiles(household, colors, actions, snackbar, perRow = 3)
-                        Spacer(Modifier.height(16.dp))
-                    }
-                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                        PlaysWith(household, colors, actions)
-                        Spacer(Modifier.height(16.dp))
-                    }
+            // Every group one card with its own full-width slider (two columns in
+            // landscape); who plays along is set in a dialog behind "Group".
+            var grouping by remember { mutableStateOf(false) }
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                RoomTiles(household, colors, actions, snackbar, perRow = if (isWide()) 2 else 1) { g ->
+                    actions.onFocus(g.id)
+                    grouping = true
                 }
-            } else {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    RoomTiles(household, colors, actions, snackbar)
-                    Spacer(Modifier.height(12.dp))
-                    PlaysWith(household, colors, actions)
-                    Spacer(Modifier.height(24.dp))
-                }
+                Spacer(Modifier.height(24.dp))
             }
+            if (grouping) GroupDialog(household, colors, actions) { grouping = false }
         }
         de.linuxundich.hausmusik.ui.common.MessageHost(snackbar)
         }
     }
 }
 
-/** Which rooms play along with the selected one: a checkbox and a volume per room. */
+/** Which rooms play along with the selected one: a checkbox per room. */
 @Composable
-private fun PlaysWith(household: Household, colors: CoverColors, actions: RoomActions) {
-    val selected = household.selected ?: return
-    Text(
-        if (selected.group.members.size > 1) stringResource(R.string.rooms_play_together)
-        else stringResource(R.string.room_plays_with, selected.group.coordinator.roomName),
-        fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
-    )
-    Text(stringResource(R.string.rooms_together_hint), fontSize = 12.sp, color = colors.content.copy(alpha = 0.6f))
-    Spacer(Modifier.height(4.dp))
-    // The leading room too while others play along: unticking it hands the music to them.
-    val leaderTickable = selected.group.members.size > 1
-    household.allPlayers.filter { leaderTickable || it.uuid != selected.id }.forEach { p ->
-        val member = selected.group.members.any { it.uuid == p.uuid }
-        val muted = selected.memberMutes[p.uuid] == true
-        // Box and name are one target: tapping the name ticks the box too.
-        Row(
-            Modifier.fillMaxWidth().toggleable(value = member, role = Role.Checkbox, onValueChange = { actions.onMembership(p, it) }),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(
-                checked = member,
-                onCheckedChange = null,
-                colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.onAccent, uncheckedColor = colors.content.copy(alpha = 0.6f)),
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), // the row is the target
-            )
-            Text(p.roomName, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            if (member && muted) {
-                Icon(AppIcons.VolumeOff, contentDescription = stringResource(R.string.volume_muted), tint = colors.accent, modifier = Modifier.padding(end = 8.dp).size(18.dp))
+private fun GroupDialog(household: Household, colors: CoverColors, actions: RoomActions, onDismiss: () -> Unit) {
+    val selected = household.selected ?: return onDismiss()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(AppIcons.Speaker, null) },
+        title = { Text(stringResource(R.string.rooms_group_title, selected.group.coordinator.roomName)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.rooms_together_hint), fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+                // The leading room too while others play along: unticking it hands the music to them.
+                val leaderTickable = selected.group.members.size > 1
+                household.allPlayers.filter { leaderTickable || it.uuid != selected.id }.forEach { p ->
+                    val member = selected.group.members.any { it.uuid == p.uuid }
+                    // Box and name are one target: tapping the name ticks the box too.
+                    Row(
+                        Modifier.fillMaxWidth().toggleable(value = member, role = Role.Checkbox, onValueChange = { actions.onMembership(p, it) }),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = member,
+                            onCheckedChange = null,
+                            colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.onAccent),
+                            modifier = Modifier.padding(14.dp), // 20 dp box + 28 dp = the 48 dp touch target
+                        )
+                        Text(p.roomName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
             }
-        }
-        // As in Sonos' own app: the slider gets the full width below the name, close
-        // under it so four rooms and more still fit on the screen. (The group's
-        // slider is on its tile above.)
-        if (member) {
-            ListVolume(selected.memberVolumes[p.uuid] ?: 0, colors, Modifier.padding(start = 14.dp), dimmed = muted) {
-                actions.onMemberVolume(selected.id, p, it)
-            }
-        }
-    }
-}
-
-/** A room list's slider: full width, its number after it. */
-@Composable
-private fun ListVolume(value: Int, colors: CoverColors, modifier: Modifier = Modifier, dimmed: Boolean = false, onChange: (Int) -> Unit) {
-    VolumeSlider(
-        value, colors, modifier.fillMaxWidth().height(36.dp), dimmed = dimmed,
-        trailing = {
-            Text(
-                "$it", fontSize = 14.sp, color = colors.content.copy(alpha = 0.75f), textAlign = TextAlign.End,
-                modifier = Modifier.width(44.dp).padding(end = 4.dp),
-            )
         },
-        onChange = onChange,
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) } },
     )
 }
 
 /**
- * Every group as a tile, two per row (three in landscape). A tap shows the group on the Stage; a
- * long press lifts the tile, and dropping it on another tile lets those rooms
+ * Every group as a card, one per row (two in landscape). A tap shows the group on the Stage; a
+ * long press lifts the card, and dropping it on another card lets those rooms
  * play together.
  */
 @Composable
-private fun RoomTiles(household: Household, colors: CoverColors, actions: RoomActions, snackbar: SnackbarHostState, perRow: Int = 2) {
+private fun RoomTiles(
+    household: Household, colors: CoverColors, actions: RoomActions, snackbar: SnackbarHostState, perRow: Int, onGroup: (GroupState) -> Unit,
+) {
+    // Which cards show their rooms; the selected group's does until folded.
+    val expanded = remember { mutableStateMapOf<String, Boolean>() }
     val bounds = remember { mutableStateMapOf<String, Rect>() }
     var dragged by remember { mutableStateOf<String?>(null) }
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -222,8 +199,10 @@ private fun RoomTiles(household: Household, colors: CoverColors, actions: RoomAc
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.zIndex(if (row.any { it.id == dragged }) 1f else 0f)) {
                 row.forEach { g ->
                     val isDragged = dragged == g.id
+                    val isSelected = g.id == household.selected?.id
                     GroupTile(
-                        g, selected = g.id == household.selected?.id, dropTarget = hover == g.id, lifted = isDragged, colors = colors, actions = actions,
+                        g, selected = isSelected, dropTarget = hover == g.id, lifted = isDragged, colors = colors, actions = actions,
+                        expanded = expanded[g.id] ?: isSelected, onExpand = { expanded[g.id] = it }, onGroup = { onGroup(g) },
                         modifier = Modifier
                             .weight(1f)
                             .onGloballyPositioned { bounds[g.id] = it.boundsInRoot() }
@@ -292,6 +271,9 @@ private fun GroupTile(
     lifted: Boolean,
     colors: CoverColors,
     actions: RoomActions,
+    expanded: Boolean,
+    onExpand: (Boolean) -> Unit,
+    onGroup: () -> Unit,
     modifier: Modifier,
 ) {
     Surface(
@@ -309,13 +291,22 @@ private fun GroupTile(
         border = if (dropTarget || selected) BorderStroke(2.dp, colors.accent) else null,
         modifier = modifier,
     ) {
-        Column(Modifier.padding(10.dp)) {
+        Column(Modifier.padding(start = 12.dp, top = 12.dp, end = 4.dp, bottom = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 de.linuxundich.hausmusik.ui.common.NowPlayingCover(
                     g.artUrl, g.nowPlaying?.takeIf { it.kind == SourceKind.Radio }?.station, Modifier.size(44.dp), corner = 10.dp,
                     placeholderColor = colors.subtle, iconColor = colors.content.copy(alpha = 0.5f), icon = AppIcons.Speaker, small = true,
                 )
-                Spacer(Modifier.weight(1f))
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    // Two lines: "Arbeitszimmer + Wohnzimmer" must not end in "Wohn…".
+                    Text(g.group.displayName, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    val state = when {
+                        g.nowPlaying == null -> stringResource(R.string.rooms_idle)
+                        !g.isPlaying -> "${g.nowPlaying.station ?: g.nowPlaying.title} · ${stringResource(R.string.rooms_paused)}"
+                        else -> listOfNotNull(g.nowPlaying.title, g.nowPlaying.artist).joinToString(" · ")
+                    }
+                    Text(state, fontSize = 12.sp, color = colors.content.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 IconButton(onClick = { actions.onPlayPause(g.id) }, enabled = g.nowPlaying != null) {
                     Icon(
                         if (g.isPlaying) AppIcons.Pause else AppIcons.Play,
@@ -324,19 +315,36 @@ private fun GroupTile(
                     )
                 }
             }
-            Spacer(Modifier.height(6.dp))
-            // Two lines: "Arbeitszimmer + Wohnzimmer" must not end in "Wohn…".
-            Text(g.group.displayName, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val state = when {
-                g.nowPlaying == null -> stringResource(R.string.rooms_idle)
-                !g.isPlaying -> "${g.nowPlaying.station ?: g.nowPlaying.title} · ${stringResource(R.string.rooms_paused)}"
-                else -> listOfNotNull(g.nowPlaying.title, g.nowPlaying.artist).joinToString(" · ")
-            }
-            Text(state, fontSize = 12.sp, color = colors.content.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val allMuted = g.group.members.isNotEmpty() && g.group.members.all { g.memberMutes[it.uuid] == true }
+            val members = g.group.members
+            val allMuted = members.isNotEmpty() && members.all { g.memberMutes[it.uuid] == true }
             // As on the stage: with muted rooms, the volume of the audible ones.
             val volume = de.linuxundich.hausmusik.data.audibleVolume(g.memberVolumes, g.memberMutes) ?: g.groupVolume
-            RoomVolume(volume, colors, Modifier.fillMaxWidth(), muted = allMuted, compact = true) { actions.onGroupVolume(g.id, it) }
+            RoomVolume(volume, colors, Modifier.fillMaxWidth().padding(top = 4.dp), muted = allMuted) { actions.onGroupVolume(g.id, it) }
+            // A group's rooms fold out under its slider, each with its own.
+            if (members.size > 1 && expanded) {
+                Column(Modifier.padding(start = 28.dp)) {
+                    members.forEach { p ->
+                        Text(p.roomName, fontSize = 13.sp, color = colors.content.copy(alpha = 0.8f), modifier = Modifier.padding(top = 2.dp))
+                        RoomVolume(
+                            g.memberVolumes[p.uuid] ?: 0, colors, Modifier.fillMaxWidth().height(36.dp),
+                            muted = g.memberMutes[p.uuid] == true, compact = true,
+                        ) { actions.onMemberVolume(g.id, p, it) }
+                    }
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (members.size > 1) {
+                    TextButton(onClick = { onExpand(!expanded) }) {
+                        Text(pluralStringResource(R.plurals.rooms_members, members.size, members.size), color = colors.content.copy(alpha = 0.8f))
+                        Icon(
+                            AppIcons.ExpandMore, contentDescription = null, tint = colors.content.copy(alpha = 0.8f),
+                            modifier = Modifier.padding(start = 4.dp).size(18.dp).graphicsLayer { rotationZ = if (expanded) 180f else 0f },
+                        )
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onGroup) { Text(stringResource(R.string.rooms_group), color = colors.accent) }
+            }
         }
     }
 }

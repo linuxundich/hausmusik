@@ -326,6 +326,7 @@ fun HausmusikRoot(vm: MainViewModel = hiltViewModel()) {
                 onMembership = vm::setMembership,
                 onEverywhere = vm::joinEverywhere,
                 onPauseAll = vm::pauseAll,
+                onFocus = vm::select,
             ),
             snackbar = snackbar,
             onDismiss = { roomsOpen = false },

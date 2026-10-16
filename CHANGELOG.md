@@ -6,6 +6,15 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Rooms sheet: every room or group is now a card over the full width with
+  its own large volume slider, whether you have two groups or four single
+  rooms (before, two tiles side by side had short sliders). A group's rooms
+  fold out under its slider, each with its own. "Group" on a card sets which
+  rooms play along; the tick list below the tiles is gone. Holding a card
+  and dropping it on another still joins them.
+
 ## [0.5.0] - 2026-10-16
 
 ### Changed
