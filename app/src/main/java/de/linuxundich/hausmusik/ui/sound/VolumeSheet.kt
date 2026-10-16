@@ -4,6 +4,11 @@
 package de.linuxundich.hausmusik.ui.sound
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,21 +19,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.lerp
@@ -40,6 +38,7 @@ import de.linuxundich.hausmusik.R
 import de.linuxundich.hausmusik.data.GroupState
 import de.linuxundich.hausmusik.sonos.SonosPlayer
 import de.linuxundich.hausmusik.ui.common.MessageHost
+import de.linuxundich.hausmusik.ui.common.VolumeSlider
 import de.linuxundich.hausmusik.ui.common.isWide
 import de.linuxundich.hausmusik.ui.common.sheetDragHandle
 import de.linuxundich.hausmusik.ui.common.sheetMaxWidth
@@ -70,11 +69,6 @@ fun VolumeSheet(group: GroupState, colors: CoverColors, actions: VolumeActions, 
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding()) {
             Text(stringResource(R.string.volume), fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = if (isWide()) 12.dp else 0.dp))
             val members = group.group.members
-            if (members.size > 1) {
-                Text(stringResource(R.string.volume_all_rooms), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.padding(top = 16.dp))
-                VolumeSlider(group.groupVolume, colors, stringResource(R.string.volume_all_rooms), actions.onGroup)
-                HorizontalDivider(Modifier.padding(vertical = 8.dp), color = colors.subtle)
-            }
             // Landscape: rooms side by side, two per row, so sliders keep a usable length
             // and the last one does not end up at the gesture bar.
             val perRow = if (isWide()) 2 else 1
@@ -96,11 +90,21 @@ fun VolumeSheet(group: GroupState, colors: CoverColors, actions: VolumeActions, 
                         )
                     }
                 }
-                VolumeSlider(group.memberVolumes[p.uuid] ?: 0, colors, p.roomName) { actions.onMember(p, it) }
+                VolumeRow(group.memberVolumes[p.uuid] ?: 0, colors, dimmed = muted) { actions.onMember(p, it) }
                 }
                }
                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
               }
+            }
+            // The whole group last, set apart, as in Sonos' own app.
+            if (members.size > 1) {
+                Column(
+                    Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.content.copy(alpha = 0.07f))
+                        .padding(start = 14.dp, top = 12.dp, end = 4.dp, bottom = 4.dp),
+                ) {
+                    Text(stringResource(R.string.volume_all_rooms), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    VolumeRow(group.groupVolume, colors, onChange = actions.onGroup)
+                }
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -108,19 +112,12 @@ fun VolumeSheet(group: GroupState, colors: CoverColors, actions: VolumeActions, 
     }
 }
 
-/** Live while dragging, like the stage's slider; the number shows the value. */
+/** The shared volume slider with its number. */
 @Composable
-private fun VolumeSlider(value: Int, colors: CoverColors, label: String, onChange: (Int) -> Unit) {
-    var dragging by remember { mutableStateOf<Float?>(null) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Slider(
-            value = dragging ?: value.toFloat(),
-            onValueChange = { dragging = it; onChange(it.toInt()) },
-            onValueChangeFinished = { dragging = null },
-            valueRange = 0f..100f,
-            colors = SliderDefaults.colors(thumbColor = colors.accent, activeTrackColor = colors.accent, inactiveTrackColor = colors.subtle),
-            modifier = Modifier.weight(1f),
-        )
-        Text("${dragging?.toInt() ?: value}", Modifier.width(36.dp).padding(start = 8.dp), fontSize = 13.sp)
-    }
+private fun VolumeRow(value: Int, colors: CoverColors, dimmed: Boolean = false, onChange: (Int) -> Unit) {
+    VolumeSlider(
+        value, colors, Modifier.fillMaxWidth(), dimmed = dimmed,
+        trailing = { Text("$it", Modifier.width(44.dp).padding(end = 4.dp), fontSize = 14.sp, textAlign = TextAlign.End, color = colors.content.copy(alpha = 0.75f)) },
+        onChange = onChange,
+    )
 }

@@ -6,6 +6,20 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Volume sliders look and work like in Sonos' own app: a thin line with a
+  big round knob, everywhere. In "Playing together" and in the volume sheet
+  every room has its name above and its slider below over the full width
+  (before, the slider took half a row next to the name), and the whole
+  group comes last, set apart.
+
+### Fixed
+
+- Volume controls felt sluggish and jumpy: the control now follows the
+  finger alone, and the speakers follow behind it. It no longer jumps back
+  to an older reading while you drag or right after you let go.
+
 ## [0.4.0] - 2026-10-15
 
 ### Fixed

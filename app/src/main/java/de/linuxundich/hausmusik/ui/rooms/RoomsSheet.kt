@@ -3,6 +3,9 @@
 
 package de.linuxundich.hausmusik.ui.rooms
 
+import androidx.compose.foundation.background
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
@@ -35,8 +38,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -44,8 +49,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,12 +60,12 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.linuxundich.hausmusik.R
+import de.linuxundich.hausmusik.ui.common.VolumeSlider
 import de.linuxundich.hausmusik.ui.common.isWide
 import de.linuxundich.hausmusik.ui.common.sheetDragHandle
 import de.linuxundich.hausmusik.ui.common.sheetMaxWidth
@@ -155,29 +158,56 @@ private fun PlaysWith(household: Household, colors: CoverColors, actions: RoomAc
     val leaderTickable = selected.group.members.size > 1
     household.allPlayers.filter { leaderTickable || it.uuid != selected.id }.forEach { p ->
         val member = selected.group.members.any { it.uuid == p.uuid }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Box and name are one target: tapping the name ticks the box too.
-            Row(
-                Modifier.weight(0.5f).toggleable(value = member, role = Role.Checkbox, onValueChange = { actions.onMembership(p, it) }),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(
-                    checked = member,
-                    onCheckedChange = null,
-                    colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.onAccent, uncheckedColor = colors.content.copy(alpha = 0.6f)),
-                    modifier = Modifier.padding(14.dp), // 20 dp box + 28 dp = the 48 dp touch target
-                )
-                Text(p.roomName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val muted = selected.memberMutes[p.uuid] == true
+        // Box and name are one target: tapping the name ticks the box too.
+        Row(
+            Modifier.fillMaxWidth().toggleable(value = member, role = Role.Checkbox, onValueChange = { actions.onMembership(p, it) }),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = member,
+                onCheckedChange = null,
+                colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.onAccent, uncheckedColor = colors.content.copy(alpha = 0.6f)),
+                modifier = Modifier.padding(14.dp), // 20 dp box + 28 dp = the 48 dp touch target
+            )
+            Text(p.roomName, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            if (member && muted) {
+                Icon(AppIcons.VolumeOff, contentDescription = stringResource(R.string.volume_muted), tint = colors.accent, modifier = Modifier.padding(end = 8.dp).size(18.dp))
             }
-            if (member) {
-                VolumeSlider(selected.memberVolumes[p.uuid] ?: 0, colors, Modifier.weight(0.5f), muted = selected.memberMutes[p.uuid] == true) {
-                    actions.onMemberVolume(selected.id, p, it)
-                }
-            } else {
-                Spacer(Modifier.weight(0.5f))
+        }
+        // As in Sonos' own app: the slider gets the full width below the name.
+        if (member) {
+            ListVolume(selected.memberVolumes[p.uuid] ?: 0, colors, Modifier.padding(start = 14.dp), dimmed = muted) {
+                actions.onMemberVolume(selected.id, p, it)
             }
         }
     }
+    // The whole group last, set apart, as in Sonos' own app.
+    if (selected.group.members.size > 1) {
+        val volume = de.linuxundich.hausmusik.data.audibleVolume(selected.memberVolumes, selected.memberMutes) ?: selected.groupVolume
+        Column(
+            Modifier.padding(top = 8.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.content.copy(alpha = 0.07f))
+                .padding(start = 14.dp, top = 12.dp, end = 4.dp, bottom = 4.dp),
+        ) {
+            Text(stringResource(R.string.volume_all_rooms), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            ListVolume(volume, colors) { actions.onGroupVolume(selected.id, it) }
+        }
+    }
+}
+
+/** A room list's slider: full width, its number after it. */
+@Composable
+private fun ListVolume(value: Int, colors: CoverColors, modifier: Modifier = Modifier, dimmed: Boolean = false, onChange: (Int) -> Unit) {
+    VolumeSlider(
+        value, colors, modifier.fillMaxWidth(), dimmed = dimmed,
+        trailing = {
+            Text(
+                "$it", fontSize = 14.sp, color = colors.content.copy(alpha = 0.75f), textAlign = TextAlign.End,
+                modifier = Modifier.width(44.dp).padding(end = 4.dp),
+            )
+        },
+        onChange = onChange,
+    )
 }
 
 /**
@@ -315,28 +345,30 @@ private fun GroupTile(
             val allMuted = g.group.members.isNotEmpty() && g.group.members.all { g.memberMutes[it.uuid] == true }
             // As on the stage: with muted rooms, the volume of the audible ones.
             val volume = de.linuxundich.hausmusik.data.audibleVolume(g.memberVolumes, g.memberMutes) ?: g.groupVolume
-            VolumeSlider(volume, colors, Modifier.fillMaxWidth(), muted = allMuted) { actions.onGroupVolume(g.id, it) }
+            RoomVolume(volume, colors, Modifier.fillMaxWidth(), muted = allMuted, compact = true) { actions.onGroupVolume(g.id, it) }
         }
     }
 }
 
 @Composable
-private fun VolumeSlider(value: Int, colors: CoverColors, modifier: Modifier, muted: Boolean = false, onChange: (Int) -> Unit) {
+private fun RoomVolume(value: Int, colors: CoverColors, modifier: Modifier, muted: Boolean = false, compact: Boolean = false, onChange: (Int) -> Unit) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         // A muted room shows it here; un-muting stays in the volume sheet, one tap away from the stage.
         Icon(
             if (muted) AppIcons.VolumeOff else AppIcons.VolumeDown,
             contentDescription = if (muted) stringResource(R.string.volume_muted) else null,
             tint = if (muted) colors.accent else colors.content.copy(alpha = 0.6f),
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(if (compact) 16.dp else 20.dp),
         )
-        Slider(
-            value = value.toFloat(),
-            onValueChange = { onChange(it.toInt()) },
-            valueRange = 0f..100f,
-            modifier = Modifier.weight(1f).height(32.dp),
-            colors = SliderDefaults.colors(thumbColor = colors.accent, activeTrackColor = colors.accent, inactiveTrackColor = colors.subtle),
+        VolumeSlider(
+            value, colors, Modifier.weight(1f), compact = compact,
+            trailing = {
+                Text(
+                    "$it", fontSize = if (compact) 12.sp else 15.sp, color = colors.content.copy(alpha = 0.7f), textAlign = TextAlign.End,
+                    modifier = Modifier.width(if (compact) 28.dp else 40.dp).padding(end = 4.dp),
+                )
+            },
+            onChange = onChange,
         )
-        Text("$value", fontSize = 12.sp, color = colors.content.copy(alpha = 0.7f), modifier = Modifier.padding(end = 4.dp))
     }
 }

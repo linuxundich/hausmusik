@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
+import de.linuxundich.hausmusik.ui.common.VolumeSlider
 import de.linuxundich.hausmusik.ui.common.AppMenu
 import de.linuxundich.hausmusik.ui.common.menuColors
 import androidx.compose.material3.MaterialTheme
@@ -44,8 +45,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -540,8 +539,6 @@ private fun VolumeRow(group: GroupState, colors: CoverColors, actions: StageActi
     val allMuted = muted.size == members.size
     // With muted rooms in the group: the volume of the audible ones, as the slider moves them.
     val volume = de.linuxundich.hausmusik.data.audibleVolume(group.memberVolumes, group.memberMutes) ?: group.groupVolume
-    var dragging by remember { mutableStateOf<Float?>(null) }
-    val shown = dragging?.toInt() ?: volume
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (single) {
@@ -564,24 +561,15 @@ private fun VolumeRow(group: GroupState, colors: CoverColors, actions: StageActi
                     )
                 }
             }
-            Slider(
-                value = dragging ?: volume.toFloat(),
-                onValueChange = {
-                    dragging = it
-                    actions.onVolume(it.toInt())
+            VolumeSlider(
+                volume, colors, Modifier.weight(1f).padding(start = 8.dp), dimmed = allMuted,
+                trailing = {
+                    Text(
+                        "$it", color = colors.content.copy(alpha = if (allMuted) 0.45f else 0.85f), fontSize = 15.sp,
+                        textAlign = TextAlign.End, modifier = Modifier.width(42.dp),
+                    )
                 },
-                onValueChangeFinished = { dragging = null },
-                valueRange = 0f..100f,
-                modifier = Modifier.weight(1f).padding(horizontal = 8.dp).alpha(if (allMuted) 0.4f else 1f),
-                colors = SliderDefaults.colors(
-                    thumbColor = colors.accent,
-                    activeTrackColor = colors.accent,
-                    inactiveTrackColor = colors.subtle,
-                ),
-            )
-            Text(
-                "$shown", color = colors.content.copy(alpha = if (allMuted) 0.45f else 0.85f), fontSize = 15.sp,
-                textAlign = TextAlign.End, modifier = Modifier.width(34.dp),
+                onChange = actions.onVolume,
             )
         }
         // Silence must not look like music: say which rooms are muted, and undo it in one tap.
