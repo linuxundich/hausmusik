@@ -168,29 +168,20 @@ private fun PlaysWith(household: Household, colors: CoverColors, actions: RoomAc
                 checked = member,
                 onCheckedChange = null,
                 colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = colors.onAccent, uncheckedColor = colors.content.copy(alpha = 0.6f)),
-                modifier = Modifier.padding(14.dp), // 20 dp box + 28 dp = the 48 dp touch target
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), // the row is the target
             )
             Text(p.roomName, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (member && muted) {
                 Icon(AppIcons.VolumeOff, contentDescription = stringResource(R.string.volume_muted), tint = colors.accent, modifier = Modifier.padding(end = 8.dp).size(18.dp))
             }
         }
-        // As in Sonos' own app: the slider gets the full width below the name.
+        // As in Sonos' own app: the slider gets the full width below the name, close
+        // under it so four rooms and more still fit on the screen. (The group's
+        // slider is on its tile above.)
         if (member) {
             ListVolume(selected.memberVolumes[p.uuid] ?: 0, colors, Modifier.padding(start = 14.dp), dimmed = muted) {
                 actions.onMemberVolume(selected.id, p, it)
             }
-        }
-    }
-    // The whole group last, set apart, as in Sonos' own app.
-    if (selected.group.members.size > 1) {
-        val volume = de.linuxundich.hausmusik.data.audibleVolume(selected.memberVolumes, selected.memberMutes) ?: selected.groupVolume
-        Column(
-            Modifier.padding(top = 8.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.content.copy(alpha = 0.07f))
-                .padding(start = 14.dp, top = 12.dp, end = 4.dp, bottom = 4.dp),
-        ) {
-            Text(stringResource(R.string.volume_all_rooms), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            ListVolume(volume, colors) { actions.onGroupVolume(selected.id, it) }
         }
     }
 }
@@ -199,7 +190,7 @@ private fun PlaysWith(household: Household, colors: CoverColors, actions: RoomAc
 @Composable
 private fun ListVolume(value: Int, colors: CoverColors, modifier: Modifier = Modifier, dimmed: Boolean = false, onChange: (Int) -> Unit) {
     VolumeSlider(
-        value, colors, modifier.fillMaxWidth(), dimmed = dimmed,
+        value, colors, modifier.fillMaxWidth().height(36.dp), dimmed = dimmed,
         trailing = {
             Text(
                 "$it", fontSize = 14.sp, color = colors.content.copy(alpha = 0.75f), textAlign = TextAlign.End,

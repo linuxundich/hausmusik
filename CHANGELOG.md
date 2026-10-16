@@ -10,9 +10,10 @@ All notable changes to Hausmusik are documented here. The format follows
 
 - Volume sliders look and work like in Sonos' own app: a thin line with a
   big round knob, everywhere. In "Playing together" and in the volume sheet
-  every room has its name above and its slider below over the full width
-  (before, the slider took half a row next to the name), and the whole
-  group comes last, set apart.
+  every room has its name above and its slider close below over the full
+  width (before, the slider took half a row next to the name). The volume
+  sheet shows the whole group last, set apart; in the rooms sheet the
+  group's slider stays on its tile, so four rooms and more still fit.
 
 ### Fixed
 

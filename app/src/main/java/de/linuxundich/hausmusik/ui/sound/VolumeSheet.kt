@@ -4,6 +4,7 @@
 package de.linuxundich.hausmusik.ui.sound
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -77,12 +78,13 @@ fun VolumeSheet(group: GroupState, colors: CoverColors, actions: VolumeActions, 
                row.forEach { p ->
                 Column(Modifier.weight(1f)) {
                 val muted = group.memberMutes[p.uuid] == true
-                Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(p.roomName, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
                     IconButton(
                         onClick = { actions.onMute(p, !muted) },
                         colors = if (muted) IconButtonDefaults.filledIconButtonColors(containerColor = colors.accent, contentColor = colors.onAccent)
                         else IconButtonDefaults.iconButtonColors(contentColor = colors.content),
+                        modifier = Modifier.size(40.dp),
                     ) {
                         Icon(
                             if (muted) AppIcons.VolumeOff else AppIcons.VolumeUp,
@@ -116,7 +118,7 @@ fun VolumeSheet(group: GroupState, colors: CoverColors, actions: VolumeActions, 
 @Composable
 private fun VolumeRow(value: Int, colors: CoverColors, dimmed: Boolean = false, onChange: (Int) -> Unit) {
     VolumeSlider(
-        value, colors, Modifier.fillMaxWidth(), dimmed = dimmed,
+        value, colors, Modifier.fillMaxWidth().height(36.dp), dimmed = dimmed,
         trailing = { Text("$it", Modifier.width(44.dp).padding(end = 4.dp), fontSize = 14.sp, textAlign = TextAlign.End, color = colors.content.copy(alpha = 0.75f)) },
         onChange = onChange,
     )
