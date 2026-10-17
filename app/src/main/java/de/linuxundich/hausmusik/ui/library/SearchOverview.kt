@@ -216,7 +216,10 @@ internal fun SearchOverview(
                 // hits replace, and a card for each that failed.
                 state.sections.filter { it.loading || it.failed }.forEach { s ->
                     item(key = "state/${s.key}") {
-                        if (s.loading) SourcePlaceholder(sourceName(s.service)) else SourceFailed(sourceName(s.service), onRetry)
+                        // Fades out when the source answers, instead of vanishing at once.
+                        Box(Modifier.animateItem(fadeInSpec = tween(300), fadeOutSpec = tween(300))) {
+                            if (s.loading) SourcePlaceholder(sourceName(s.service)) else SourceFailed(sourceName(s.service), onRetry)
+                        }
                     }
                 }
             }
@@ -224,15 +227,28 @@ internal fun SearchOverview(
     }
 }
 
-/** Grey rows with the source's mark where its hits will be, pulsing gently. */
+/**
+ * Grey rows with the source's mark where its hits will be, pulsing gently.
+ * Only for a source that is still searching after [PLACEHOLDER_DELAY_MS]: a fast
+ * one would only flash it, which looks hectic. It then fades in.
+ */
 @Composable
 private fun SourcePlaceholder(name: String) {
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(PLACEHOLDER_DELAY_MS)
+        shown = true
+    }
+    val appear by androidx.compose.animation.core.animateFloatAsState(if (shown) 1f else 0f, tween(300), label = "appear")
     val pulse by rememberInfiniteTransition(label = "placeholder").animateFloat(
         0.35f, 0.8f, infiniteRepeatable(tween(800), RepeatMode.Reverse), label = "pulse",
     )
     val busy = stringResource(R.string.search_source_busy, name)
     val shade = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).semantics(mergeDescendants = true) { contentDescription = busy }) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).graphicsLayer { alpha = appear }
+            .semantics(mergeDescendants = true) { contentDescription = busy },
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ServiceBadge(name, 18.dp, 5.dp)
             Text(name, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp))
@@ -248,6 +264,8 @@ private fun SourcePlaceholder(name: String) {
         }
     }
 }
+
+private const val PLACEHOLDER_DELAY_MS = 600L
 
 /** A source that did not answer: a small card, and searching it once more. */
 @Composable

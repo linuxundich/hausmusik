@@ -10,6 +10,8 @@ All notable changes to Hausmusik are documented here. The format follows
 
 - Search: while a source is still searching, grey placeholder rows with its
   mark stand where its hits will appear, and the hits fill them in place.
+  They show only for a source that takes longer than a moment and fade in
+  and out, so a quick answer does not make them flash.
   Before, one line per source ("Spotify is still searching …") sat above the
   results and made them jump when it went away. A source that fails shows a
   small card with "Try again".
