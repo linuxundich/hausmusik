@@ -919,6 +919,8 @@ def smapi(action, a, token):
         else:
             raise Fault("Client.ItemNotFound")
     elif action == "search":
+        if ARGS.fail_search:
+            raise Fault("Server.ServiceUnavailable")
         term = a.get("term", "").lower()
         kind = {"artists": "artist", "albums": "album", "tracks": "track"}[a["id"]]
         pool = range(len(TRACKS)) if kind == "track" else range(len(ALBUMS))
@@ -1098,6 +1100,8 @@ class Handler(BaseHTTPRequestHandler):
             args = {k: html.unescape(v) for k, v in re.findall(r"<ns:(\w+)>(.*?)</ns:\1>", inner.group(1) if inner else "", re.S)}
             token = re.search(r"<token>(.*?)</token>", body)
             env = '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>{}</soap:Body></soap:Envelope>'
+            if action == "search" and ARGS.slow_search:
+                time.sleep(ARGS.slow_search)  # outside the lock: only the search waits
             try:
                 with lock:
                     if self.path.startswith("/smapi/tunein"):
@@ -1115,6 +1119,12 @@ class Handler(BaseHTTPRequestHandler):
         args = {k: html.unescape(v) for k, v in re.findall(r"<(\w+)>(.*?)</\1>", inner.group(1) if inner else "", re.S)}
         if ARGS.slow and not re.match(r"(Get|Browse|List)", action):
             time.sleep(ARGS.slow)
+        # A search in the music share (Browse A:ALBUM:term and the like) can wait or fail too.
+        if action == "Browse" and re.match(r"A:(ALBUMARTIST|ALBUM|TRACKS):.", args.get("ObjectID", "")):
+            if ARGS.slow_search:
+                time.sleep(ARGS.slow_search)
+            if ARGS.fail_search:
+                return self.send(500, "")
         try:
             with lock:
                 out = act(self.player(), service, action, args)
@@ -1135,6 +1145,8 @@ if __name__ == "__main__":
     ap.add_argument("--advertise", default="127.0.0.1", help="host the app uses to reach this machine (emulator: 10.0.2.2)")
     ap.add_argument("--bind", default="0.0.0.0")
     ap.add_argument("--port-base", type=int, default=1401, help="port of the first room; the others follow")
+    ap.add_argument("--slow-search", type=float, default=0, help="seconds every search (music share and fake bonob) waits, for the placeholders")
+    ap.add_argument("--fail-search", action="store_true", help="every search (music share and fake bonob) fails, for the error card")
     ap.add_argument("--slow", type=float, default=0, help="seconds every command waits, like a busy S1 (Get/Browse stay fast)")
     ap.add_argument("--english", action="store_true", help="English names for screenshots")
     ap.add_argument("--shots", action="store_true", help="screenshot mode: invented music only, singable lyrics")

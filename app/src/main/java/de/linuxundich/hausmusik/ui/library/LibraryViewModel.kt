@@ -84,7 +84,8 @@ sealed interface SearchState {
     data object Idle : SearchState
     data class Results(val sections: List<SearchSection>) : SearchState {
         val done: Boolean get() = sections.none { it.loading }
-        val empty: Boolean get() = done && sections.all { it.groups.isEmpty() }
+        /** Nothing found: every source answered, none with hits. A source that failed is not "nothing". */
+        val empty: Boolean get() = done && sections.all { it.groups.isEmpty() && !it.failed }
     }
 }
 
@@ -166,9 +167,15 @@ class LibraryViewModel @Inject constructor(
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
+    /** Bumped by "Try again" on a source that failed: the same query runs once more. */
+    private val _retry = MutableStateFlow(0)
+
+    fun retrySearch() {
+        _retry.value++
+    }
+
     /** Searches once the user pauses typing; two characters at least. */
-    val search: StateFlow<SearchState> = _query
-        .debounce(300)
+    val search: StateFlow<SearchState> = kotlinx.coroutines.flow.combine(_query.debounce(300), _retry) { q, _ -> q }
         .flatMapLatest { q ->
             flow {
                 if (q.trim().length < 2) {

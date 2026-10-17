@@ -3,6 +3,11 @@
 
 package de.linuxundich.hausmusik.ui.library
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +35,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -150,6 +155,7 @@ internal fun SearchOverview(
     onOpenContainer: (DidlObject) -> Unit,
     onPlay: (DidlObject) -> Unit,
     artistPlayback: suspend (DidlObject) -> ArtistPlayback?,
+    onRetry: () -> Unit,
 ) {
     when (state) {
         SearchState.Idle -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) {
@@ -170,19 +176,6 @@ internal fun SearchOverview(
                         item { FilterChip(selected = filter == null, onClick = { filter = null }, label = { Text(stringResource(R.string.search_all)) }) }
                         items(data.byKind, key = { it.first.name }) { (k, hits) ->
                             FilterChip(selected = filter == k.name, onClick = { filter = k.name }, label = { Text("${kindLabel(k)} ${hits.size + if (data.top?.kind == k) 1 else 0}") })
-                        }
-                    }
-                }
-                // Sources still searching, or failed: one quiet line each.
-                state.sections.filter { it.loading || it.failed }.forEach { s ->
-                    item(key = "state/${s.key}") {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (s.loading) LoadingIndicator(Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                stringResource(if (s.loading) R.string.search_source_busy else R.string.search_source_failed_named, sourceName(s.service)),
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                         }
                     }
                 }
@@ -219,8 +212,57 @@ internal fun SearchOverview(
                         itemsIndexed(all, key = { i, h -> "all/$i/${h.item.id}" }) { _, h -> HitRow(h, artUrl) { open(h) } }
                     }
                 }
+                // After the hits: a placeholder for each source still searching, which its
+                // hits replace, and a card for each that failed.
+                state.sections.filter { it.loading || it.failed }.forEach { s ->
+                    item(key = "state/${s.key}") {
+                        if (s.loading) SourcePlaceholder(sourceName(s.service)) else SourceFailed(sourceName(s.service), onRetry)
+                    }
+                }
             }
         }
+    }
+}
+
+/** Grey rows with the source's mark where its hits will be, pulsing gently. */
+@Composable
+private fun SourcePlaceholder(name: String) {
+    val pulse by rememberInfiniteTransition(label = "placeholder").animateFloat(
+        0.35f, 0.8f, infiniteRepeatable(tween(800), RepeatMode.Reverse), label = "pulse",
+    )
+    val busy = stringResource(R.string.search_source_busy, name)
+    val shade = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).semantics(mergeDescendants = true) { contentDescription = busy }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ServiceBadge(name, 18.dp, 5.dp)
+            Text(name, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp))
+        }
+        repeat(2) { i ->
+            Row(Modifier.padding(top = 10.dp).graphicsLayer { alpha = pulse }, verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(shade))
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Box(Modifier.fillMaxWidth(0.7f - i * 0.15f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(shade))
+                    Box(Modifier.padding(top = 8.dp).fillMaxWidth(0.4f).height(10.dp).clip(RoundedCornerShape(4.dp)).background(shade))
+                }
+            }
+        }
+    }
+}
+
+/** A source that did not answer: a small card, and searching it once more. */
+@Composable
+private fun SourceFailed(name: String, onRetry: () -> Unit) {
+    Row(
+        Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)).padding(start = 12.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ServiceBadge(name, 18.dp, 5.dp)
+        Text(
+            stringResource(R.string.search_source_failed_named, name), style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f).padding(horizontal = 10.dp, vertical = 12.dp),
+        )
+        TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
     }
 }
 

@@ -8,12 +8,22 @@ All notable changes to Hausmusik are documented here. The format follows
 
 ### Changed
 
+- Search: while a source is still searching, grey placeholder rows with its
+  mark stand where its hits will appear, and the hits fill them in place.
+  Before, one line per source ("Spotify is still searching …") sat above the
+  results and made them jump when it went away. A source that fails shows a
+  small card with "Try again".
 - Rooms sheet: every room or group is now a card over the full width with
   its own large volume slider, whether you have two groups or four single
   rooms (before, two tiles side by side had short sliders). A group's rooms
   fold out under its slider, each with its own. "Group" on a card sets which
   rooms play along; the tick list below the tiles is gone. Holding a card
   and dropping it on another still joins them.
+
+### Fixed
+
+- Search said "Nothing found" when a source failed and no other had hits.
+  It now shows that the source could not be searched, with "Try again".
 
 ## [0.5.0] - 2026-10-16
 
